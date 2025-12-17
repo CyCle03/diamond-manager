@@ -200,6 +200,12 @@ export class Game {
         this.lineup = data.lineup;
         this.rotation = data.rotation;
 
+        // Manually update the UI to show the league view correctly
+        const startBtn = document.getElementById('start-season-btn');
+        const calendarArea = document.getElementById('calendar-area');
+        if (startBtn) startBtn.style.display = 'none';
+        if (calendarArea) calendarArea.style.display = 'block';
+
         this.updateLeagueView();
 
         // Go to Dashboard
@@ -990,7 +996,10 @@ export class Game {
     }
 
     updateScoreboard(homeScore, awayScore) {
-        document.querySelector('#score-display .total-score').innerText = `${homeScore} - ${awayScore}`;
+        const homeScoreEl = document.getElementById('score-home-val');
+        const awayScoreEl = document.getElementById('score-away-val');
+        if (homeScoreEl) homeScoreEl.innerText = homeScore;
+        if (awayScoreEl) awayScoreEl.innerText = awayScore;
     }
 
     log(msg) {
@@ -1003,11 +1012,13 @@ export class Game {
 
     switchView(mode) {
         const mainContent = document.querySelector('.main-content');
+        const leagueBtn = document.getElementById('view-league-btn');
         const teamBtn = document.getElementById('view-team-btn');
         const matchBtn = document.getElementById('view-match-btn');
 
-        mainContent.classList.remove('team-mode', 'match-mode');
+        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode');
 
+        if (leagueBtn) leagueBtn.classList.remove('active');
         if (teamBtn) teamBtn.classList.remove('active');
         if (matchBtn) matchBtn.classList.remove('active');
 
@@ -1017,6 +1028,9 @@ export class Game {
         } else if (mode === 'match') {
             mainContent.classList.add('match-mode');
             if (matchBtn) matchBtn.classList.add('active');
+        } else if (mode === 'league') {
+            mainContent.classList.add('league-mode');
+            if (leagueBtn) leagueBtn.classList.add('active');
         }
     }
 
