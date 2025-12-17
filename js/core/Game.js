@@ -20,14 +20,17 @@ export class Game {
         this.currentSlotId = 1; // Default
         this.teamName = "Cyber Nine";
 
+        // Initialize Start Screen listeners (Always needed for Options menu)
+        this.initStartScreen();
+
         // Auto-Load Check
         const lastSlot = SaveManager.getLastUsedSlot();
         if (lastSlot && SaveManager.exists(lastSlot)) {
             console.log("Auto-loading slot", lastSlot);
             this.startGame(lastSlot, null, false);
         } else {
-            // Defer Initialization - Show Start Screen
-            this.initStartScreen();
+            // Show Start Screen (already initialized)
+            document.getElementById('start-screen-overlay').style.display = 'flex'; // Ensure visible if not auto-loading
         }
     }
 
@@ -347,6 +350,9 @@ export class Game {
                 slot.classList.remove('drag-over');
             });
 
+            const positions = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
+            const targetPos = positions[index];
+
             slot.addEventListener('drop', (e) => {
                 e.preventDefault();
                 slot.classList.remove('drag-over');
@@ -354,7 +360,25 @@ export class Game {
 
                 if (data.source === 'roster') {
                     const playerToAdd = this.roster.find(p => p.id === data.playerId);
-                    if (playerToAdd) this.setLineupSlot(index, playerToAdd);
+
+                    if (playerToAdd) {
+                        // Logic for flexible lineup
+                        if (index === 8) { // DH
+                            if (playerToAdd.position === 'P') {
+                                alert("Pitchers cannot be DH!");
+                                return;
+                            }
+                            this.setLineupSlot(index, playerToAdd);
+                        } else {
+                            if (playerToAdd.position !== targetPos) {
+                                if (confirm(`Play ${playerToAdd.name} (${playerToAdd.position}) at ${targetPos}?`)) {
+                                    this.setLineupSlot(index, playerToAdd);
+                                }
+                            } else {
+                                this.setLineupSlot(index, playerToAdd);
+                            }
+                        }
+                    }
                 } else if (data.source === 'lineup') {
                     const sourceIndex = data.index;
                     this.swapLineupSlots(sourceIndex, index);
@@ -372,8 +396,9 @@ export class Game {
                 slot.classList.add('filled');
                 slot.innerHTML = `
                     <span class="order-num">${index + 1}.</span>
+                    <span class="player-pos" style="background: var(--accent-green); color: white; margin-right:5px;">${targetPos}</span>
                     <span class="player-name">${player.name}</span>
-                    <span class="player-pos">${player.position}</span>
+                    <span class="player-pos" style="font-size:0.8rem; opacity:0.7;">(${player.position})</span>
                     <button class="remove-btn">x</button>
                 `;
                 slot.querySelector('.remove-btn').addEventListener('click', (e) => {
@@ -382,7 +407,7 @@ export class Game {
                 });
             } else {
                 slot.className = 'empty-slot';
-                slot.innerText = `${index + 1}. Select Batter...`;
+                slot.innerHTML = `<span style="color:var(--accent-green); font-weight:bold; margin-right:10px;">${targetPos}</span> Select Batter...`;
             }
             container.appendChild(slot);
         });
