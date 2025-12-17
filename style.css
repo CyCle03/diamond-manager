@@ -86,8 +86,8 @@ h3 {
     display: grid;
     /* Default: League Mode */
     grid-template-columns: 1fr;
-    grid-template-rows: 100%;
-    /* Fix: Constraint height to viewport */
+    grid-template-rows: minmax(0, 1fr);
+    /* Robust fix for scrolling */
     margin: 10px;
     gap: 10px;
     overflow: hidden;
@@ -169,6 +169,8 @@ h3 {
     flex: 1;
     padding: 10px;
     overflow-y: auto;
+    min-height: 0;
+    /* Allow Flexbox nested scrolling */
 }
 
 .empty-slot {
@@ -365,6 +367,8 @@ h3 {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-height: 0;
+    /* Allow Flexbox nested scrolling */
 }
 
 .player-card {
