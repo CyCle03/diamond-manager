@@ -93,7 +93,7 @@ h3 {
 
 /* LEAGUE MODE: Dashboard (Dugout | League | Roster) */
 .main-content.league-mode {
-    grid-template-columns: 320px 1fr 320px;
+    grid-template-columns: 320px 1fr 550px;
 }
 
 .main-content.league-mode .dugout-panel,
@@ -326,9 +326,12 @@ h3 {
 }
 
 /* ROSTER PANEL (Horizontal Split) */
-.roster-panel {
-    /* flex-direction: column is default in .panel, override it */
-    flex-direction: row !important;
+/* ROSTER PANEL (Horizontal Split) */
+.roster-content {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    overflow: hidden;
 }
 
 .roster-half {

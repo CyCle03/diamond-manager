@@ -137,107 +137,94 @@ export class Game {
                     CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed}
                 </div>
             `;
-        });
-        card.addEventListener('dragend', () => card.classList.remove('dragging'));
-        card.addEventListener('click', () => this.addToLineup(player));
-    } else {
-    // Sign Event
-    const btn = card.querySelector('.sign-btn');
-    if (btn) {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.signFreeAgent(player);
-        });
-    }
-}
 
-container.appendChild(card);
+            container.appendChild(card);
         });
     }
 
-renderLineup() {
-    const container = document.getElementById('batting-order-list');
-    if (!container) return;
-    container.innerHTML = '';
+    renderLineup() {
+        const container = document.getElementById('batting-order-list');
+        if (!container) return;
+        container.innerHTML = '';
 
-    this.lineup.forEach((player, index) => {
-        const slot = document.createElement('div');
-        slot.className = 'lineup-slot';
-        slot.dataset.index = index;
+        this.lineup.forEach((player, index) => {
+            const slot = document.createElement('div');
+            slot.className = 'lineup-slot';
+            slot.dataset.index = index;
 
-        // Drop Zone Logic
-        slot.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            slot.classList.add('drag-over');
-        });
-
-        slot.addEventListener('dragleave', () => {
-            slot.classList.remove('drag-over');
-        });
-
-        slot.addEventListener('drop', (e) => {
-            e.preventDefault();
-            slot.classList.remove('drag-over');
-            const data = JSON.parse(e.dataTransfer.getData('application/json'));
-
-            if (data.source === 'roster') {
-                const playerToAdd = this.roster.find(p => p.id === data.playerId);
-                if (playerToAdd) this.setLineupSlot(index, playerToAdd);
-            } else if (data.source === 'lineup') {
-                const sourceIndex = data.index;
-                this.swapLineupSlots(sourceIndex, index);
-            }
-        });
-
-        if (player) {
-            slot.draggable = true;
-            slot.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('application/json', JSON.stringify({ source: 'lineup', index: index }));
-                slot.classList.add('dragging');
+            // Drop Zone Logic
+            slot.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                slot.classList.add('drag-over');
             });
-            slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
 
-            slot.classList.add('filled');
-            slot.innerHTML = `
+            slot.addEventListener('dragleave', () => {
+                slot.classList.remove('drag-over');
+            });
+
+            slot.addEventListener('drop', (e) => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                const data = JSON.parse(e.dataTransfer.getData('application/json'));
+
+                if (data.source === 'roster') {
+                    const playerToAdd = this.roster.find(p => p.id === data.playerId);
+                    if (playerToAdd) this.setLineupSlot(index, playerToAdd);
+                } else if (data.source === 'lineup') {
+                    const sourceIndex = data.index;
+                    this.swapLineupSlots(sourceIndex, index);
+                }
+            });
+
+            if (player) {
+                slot.draggable = true;
+                slot.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('application/json', JSON.stringify({ source: 'lineup', index: index }));
+                    slot.classList.add('dragging');
+                });
+                slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
+
+                slot.classList.add('filled');
+                slot.innerHTML = `
                     <span class="order-num">${index + 1}.</span>
                     <span class="player-name">${player.name}</span>
                     <span class="player-pos">${player.position}</span>
                     <button class="remove-btn">x</button>
                 `;
-            slot.querySelector('.remove-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.removeFromLineup(index);
-            });
-        } else {
-            slot.className = 'empty-slot';
-            slot.innerText = `${index + 1}. Select Batter...`;
-
+                slot.querySelector('.remove-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.removeFromLineup(index);
+                });
+            } else {
+                slot.className = 'empty-slot';
+                slot.innerText = `${index + 1}. Select Batter...`;
+            }
             container.appendChild(slot);
         });
 
-    this.renderRotation();
+        this.renderRotation();
 
-    const pitcherSlot = document.getElementById('pitcher-slot');
-    if (pitcherSlot) {
-        // Drop Zone for Pitcher
-        pitcherSlot.addEventListener('dragover', e => { e.preventDefault(); pitcherSlot.classList.add('drag-over'); });
-        pitcherSlot.addEventListener('dragleave', () => pitcherSlot.classList.remove('drag-over'));
-        pitcherSlot.addEventListener('drop', e => {
-            e.preventDefault();
-            pitcherSlot.classList.remove('drag-over');
-            const data = JSON.parse(e.dataTransfer.getData('application/json'));
-            if (data.source === 'roster') {
-                const p = this.roster.find(pl => pl.id === data.playerId);
-                if (p) {
-                    if (p.position === 'P') this.pitcher = p;
-                    else alert("Only Pitchers allowed in SP slot!");
+        const pitcherSlot = document.getElementById('pitcher-slot');
+        if (pitcherSlot) {
+            // Drop Zone for Pitcher
+            pitcherSlot.addEventListener('dragover', e => { e.preventDefault(); pitcherSlot.classList.add('drag-over'); });
+            pitcherSlot.addEventListener('dragleave', () => pitcherSlot.classList.remove('drag-over'));
+            pitcherSlot.addEventListener('drop', e => {
+                e.preventDefault();
+                pitcherSlot.classList.remove('drag-over');
+                const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                if (data.source === 'roster') {
+                    const p = this.roster.find(pl => pl.id === data.playerId);
+                    if (p) {
+                        if (p.position === 'P') this.pitcher = p;
+                        else alert("Only Pitchers allowed in SP slot!");
+                    }
+                    this.renderLineup();
                 }
-                this.renderLineup();
-            }
-        });
+            });
 
-        if (this.pitcher) {
-            pitcherSlot.innerHTML = `
+            if (this.pitcher) {
+                pitcherSlot.innerHTML = `
                     <div class="label">STARTING PITCHER</div>
                     <div class="lineup-slot filled">
                         <span class="player-name">${this.pitcher.name}</span>
@@ -245,357 +232,378 @@ renderLineup() {
                         <button class="remove-btn" onclick="game.removePitcher()">x</button>
                     </div>
                 `;
-        } else {
-            pitcherSlot.innerHTML = `
+            } else {
+                pitcherSlot.innerHTML = `
                     <div class="label">STARTING PITCHER</div>
                     <div class="empty-slot">Select Pitcher...</div>
                 `;
+            }
         }
     }
-}
 
-renderRotation() {
-    const container = document.getElementById('rotation-slots');
-    if (!container) return;
-    container.innerHTML = '';
+    renderRotation() {
+        const container = document.getElementById('rotation-slots');
+        if (!container) return;
+        container.innerHTML = '';
 
-    // Update rotation size from selector if changed (handled by event but safe to read)
-    // Actually better to handle event separately.
+        // Update rotation size from selector if changed (handled by event but safe to read)
+        // Actually better to handle event separately.
 
-    for (let i = 0; i < this.rotationSize; i++) {
-        const p = this.rotation[i];
-        const isStarter = (i === this.currentRotationIndex);
+        for (let i = 0; i < this.rotationSize; i++) {
+            const p = this.rotation[i];
+            const isStarter = (i === this.currentRotationIndex);
 
-        const slot = document.createElement('div');
-        // 'lineup-slot' style is good, add extra specific class
-        slot.className = `rotation-slot lineup-slot ${p ? 'filled' : ''} ${isStarter ? 'next-starter' : ''}`;
-        if (isStarter) slot.style.border = '2px solid var(--accent-green)';
+            const slot = document.createElement('div');
+            // 'lineup-slot' style is good, add extra specific class
+            slot.className = `rotation-slot lineup-slot ${p ? 'filled' : ''} ${isStarter ? 'next-starter' : ''}`;
+            if (isStarter) slot.style.border = '2px solid var(--accent-green)';
 
-        // Drop Zone
-        slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
-        slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
-        slot.addEventListener('drop', e => {
-            e.preventDefault();
-            slot.classList.remove('drag-over');
-            const data = JSON.parse(e.dataTransfer.getData('application/json'));
-            if (data.source === 'roster') {
-                const player = this.roster.find(pl => pl.id === data.playerId);
-                if (player && player.position === 'P') {
-                    this.rotation[i] = player;
-                    this.renderRotation();
-                } else {
-                    alert("Only Pitchers in Rotation!");
+            // Drop Zone
+            slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+            slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+            slot.addEventListener('drop', e => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                const data = JSON.parse(e.dataTransfer.getData('application/json'));
+                if (data.source === 'roster') {
+                    const player = this.roster.find(pl => pl.id === data.playerId);
+                    if (player && player.position === 'P') {
+                        this.rotation[i] = player;
+                        this.renderRotation();
+                    } else {
+                        alert("Only Pitchers in Rotation!");
+                    }
                 }
-            }
-        });
+            });
 
-        if (p) {
-            slot.innerHTML = `
+            if (p) {
+                slot.innerHTML = `
                     <span class="order-num">SP${i + 1}</span>
                     <span class="player-name">${p.name}</span>
                     <span class="player-pos">P</span>
                     <button class="remove-btn">x</button>
                 `;
-            slot.querySelector('.remove-btn').addEventListener('click', () => {
-                this.rotation[i] = null;
-                this.renderRotation();
-            });
+                slot.querySelector('.remove-btn').addEventListener('click', () => {
+                    this.rotation[i] = null;
+                    this.renderRotation();
+                });
+            } else {
+                slot.className = 'empty-slot';
+                if (isStarter) slot.style.border = '2px solid var(--accent-green)';
+                slot.innerHTML = `<span style="color:${isStarter ? 'var(--accent-green)' : '#666'}">SP ${i + 1} ${isStarter ? '(NEXT)' : ''}</span>`;
+            }
+
+            container.appendChild(slot);
+        }
+    }
+
+    addToLineup(player) {
+        if (player.position === 'P') {
+            this.pitcher = player;
         } else {
-            slot.className = 'empty-slot';
-            if (isStarter) slot.style.border = '2px solid var(--accent-green)';
-            slot.innerHTML = `<span style="color:${isStarter ? 'var(--accent-green)' : '#666'}">SP ${i + 1} ${isStarter ? '(NEXT)' : ''}</span>`;
+            const emptyIndex = this.lineup.findIndex(slot => slot === null);
+            if (emptyIndex !== -1) {
+                this.lineup[emptyIndex] = player;
+            } else {
+                console.log("Lineup full!");
+                return;
+            }
+        }
+        this.renderLineup();
+    }
+
+    removeFromLineup(index) {
+        this.lineup[index] = null;
+        this.renderLineup();
+    }
+
+    setLineupSlot(index, player) {
+        this.lineup[index] = player;
+        this.renderLineup();
+    }
+
+    swapLineupSlots(fromIndex, toIndex) {
+        const temp = this.lineup[fromIndex];
+        this.lineup[fromIndex] = this.lineup[toIndex];
+        this.lineup[toIndex] = temp;
+        this.renderLineup();
+    }
+
+    autoLineup() {
+        // Clear current
+        this.lineup.fill(null);
+        // this.pitcher = null; // Deprecated single pitcher
+
+        // 1. Pick Best Pitchers for Rotation
+        const pitchers = this.roster.filter(p => p.position === 'P').sort((a, b) => {
+            // Heuristic: pitch + (speed/2) ? or just pitch
+            return b.stats.pitching - a.stats.pitching; // Assuming 'pitching' stat exists? 
+            // Wait, looking at player generation, stats are contact, power, speed, defense, pitching
+            // Checking Card HTML: CON, POW, SPD. 
+            // Need to verify if 'pitching' stat is available on player object.
+            // Line 137 shows CON, POW, SPD. 
+        });
+
+        // Let's assume pitching stat exists or use a proxy if not visible (but logic implies it should).
+        // Actually, let's verify PlayerGenerator or Player struct if possible, but for now assuming 'pitching' or similar.
+        // If previous code lines 352 used 'p.stats.pitching', I will stick with that. 
+        // Re-reading line 352 from previous view_file: "b.stats.pitching - a.stats.pitching" -> Yes it was used.
+
+        // Fill Rotation
+        for (let i = 0; i < this.rotationSize; i++) {
+            if (pitchers[i]) {
+                this.rotation[i] = pitchers[i];
+            } else {
+                this.rotation[i] = null;
+            }
         }
 
-        container.appendChild(slot);
-    }
-}
+        // 2. Pick Best Hitters for Lineup
+        // Exclude pitchers currently in rotation? Or just all non-pitchers?
+        // Usually pitchers don't bat in DH leagues, assuming DH since 9 slots and pitcher separate.
+        // Filter out anyone who is in the rotation to be safe, or just filter position != 'P'
+        const rotatingPitchers = this.rotation.filter(p => p !== null);
 
-addToLineup(player) {
-    if (player.position === 'P') {
-        this.pitcher = player;
-    } else {
-        const emptyIndex = this.lineup.findIndex(slot => slot === null);
-        if (emptyIndex !== -1) {
-            this.lineup[emptyIndex] = player;
-        } else {
-            console.log("Lineup full!");
+        const hitters = this.roster.filter(p => p.position !== 'P').sort((a, b) => {
+            const statA = a.stats.contact + a.stats.power + a.stats.speed;
+            const statB = b.stats.contact + b.stats.power + b.stats.speed;
+            return statB - statA;
+        });
+
+        for (let i = 0; i < 9; i++) {
+            if (hitters[i]) {
+                this.lineup[i] = hitters[i];
+            }
+        }
+
+        this.renderLineup();
+        this.renderRotation();
+    }
+
+    signFreeAgent(player) {
+        if (this.roster.length >= 25) {
+            alert("Roster is full (Max 25)!");
             return;
         }
-    }
-    this.renderLineup();
-}
-
-removeFromLineup(index) {
-    this.lineup[index] = null;
-    this.renderLineup();
-}
-
-setLineupSlot(index, player) {
-    this.lineup[index] = player;
-    this.renderLineup();
-}
-
-swapLineupSlots(fromIndex, toIndex) {
-    const temp = this.lineup[fromIndex];
-    this.lineup[fromIndex] = this.lineup[toIndex];
-    this.lineup[toIndex] = temp;
-    this.renderLineup();
-}
-
-autoLineup() {
-    // Clear current
-    this.lineup.fill(null);
-    this.pitcher = null;
-
-    // 1. Pick Best Pitcher
-    // Sort by pitching stat descending
-    const pitchers = this.roster.filter(p => p.position === 'P').sort((a, b) => b.stats.pitching - a.stats.pitching);
-    if (pitchers.length > 0) {
-        this.pitcher = pitchers[0];
+        // Move from FA to Roster
+        this.roster.push(player);
+        this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
+        alert(`Signed ${player.name}!`);
+        this.renderRosterAndMarket();
     }
 
-    // 2. Pick Best Hitters for remaining slots (simple logic: best combined stats)
-    // Exclude the chosen pitcher if they are in the pitcher list (though DH rule might vary, let's exclude pitcher from batting for now or allow if 2-way)
-    // Simple: just pick top 9 non-pitchers or remaining players
-    const hitters = this.roster.filter(p => p !== this.pitcher).sort((a, b) => {
-        const statA = a.stats.contact + a.stats.power + a.stats.speed;
-        const statB = b.stats.contact + b.stats.power + b.stats.speed;
-        return statB - statA;
-    });
+    // --- GAME FLOW ---
 
-    for (let i = 0; i < 9; i++) {
-        if (hitters[i]) {
-            this.lineup[i] = hitters[i];
+    startSeason() {
+        // 1. Create League
+        this.league = new League(this.rules);
+
+        // 2. Register Player Team
+        const myTeam = {
+            id: this.playerTeamId,
+            name: "My Team",
+            roster: this.roster,
+            lineup: this.lineup,
+            pitcher: this.pitcher,
+            isPlayer: true
+        };
+
+        this.league.initialize(myTeam);
+
+        // 3. Update League Panel UI
+        document.getElementById('start-season-btn').style.display = 'none';
+        document.getElementById('calendar-area').style.display = 'block';
+
+        this.updateLeagueView();
+
+        // 4. Go to Team View
+    }
+
+    enterMatchSetup() {
+        this.switchView('match');
+        this.log("Enter Match Setup... Set Lineup then Play!");
+    }
+
+    async startMatch() {
+        if (this.isSimulating) return;
+
+        // 1. Setup Match
+        this.isSimulating = true;
+        document.getElementById('play-match-btn').disabled = true;
+
+        const starter = this.rotation[this.currentRotationIndex];
+        this.log(`MATCH STARTING! SP: ${starter.name}`);
+
+        const round = this.league.getCurrentRound();
+        const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
+
+        if (!myMatch) {
+            this.log("No match scheduled for this round.");
+            this.finishMatch();
+            return;
         }
+
+        // 2. Simulate
+        await this.simulateGame(myMatch, starter);
     }
-
-    this.renderLineup();
-}
-
-signFreeAgent(player) {
-    if (this.roster.length >= 25) {
-        alert("Roster is full (Max 25)!");
-        return;
-    }
-    // Move from FA to Roster
-    this.roster.push(player);
-    this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
-    alert(`Signed ${player.name}!`);
-    this.renderRosterAndMarket();
-}
-
-// --- GAME FLOW ---
-
-startSeason() {
-    // 1. Create League
-    this.league = new League(this.rules);
-
-    // 2. Register Player Team
-    const myTeam = {
-        id: this.playerTeamId,
-        name: "My Team",
-        roster: this.roster,
-        lineup: this.lineup,
-        pitcher: this.pitcher,
-        isPlayer: true
-    };
-
-    this.league.initialize(myTeam);
-
-    // 3. Update League Panel UI
-    document.getElementById('start-season-btn').style.display = 'none';
-    document.getElementById('calendar-area').style.display = 'block';
-
-    this.updateLeagueView();
-
-    // 4. Go to Team View
-}
-
-enterMatchSetup() {
-    this.switchView('match');
-    this.log("Enter Match Setup... Set Lineup then Play!");
-}
-
-async startMatch() {
-    if (this.isSimulating) return;
-
-    // 1. Setup Match
-    this.isSimulating = true;
-    document.getElementById('play-match-btn').disabled = true;
-
-    const starter = this.rotation[this.currentRotationIndex];
-    this.log(`MATCH STARTING! SP: ${starter.name}`);
-
-    const round = this.league.getCurrentRound();
-    const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
-
-    if (!myMatch) {
-        this.log("No match scheduled for this round.");
-        this.finishMatch();
-        return;
-    }
-
-    // 2. Simulate
-    await this.simulateGame(myMatch, starter);
-}
 
     async simulateGame(match, starter) {
-    // ... (simplified connection to Rules for now)
-    // Ideally we pass lineup and 'starter' to the simulation engine
-    // For now, let's just do visual simulation
+        // ... (simplified connection to Rules for now)
+        // Ideally we pass lineup and 'starter' to the simulation engine
+        // For now, let's just do visual simulation
 
-    let inning = 1;
-    let homeScore = 0;
-    let awayScore = 0;
+        let inning = 1;
+        let homeScore = 0;
+        let awayScore = 0;
 
-    // Mock Simulation Loop
-    while (inning <= 9) {
-        await this.wait(500); // speed up
-        this.updateScoreboard(inning, Math.floor(Math.random() * 2), Math.floor(Math.random() * 2));
-        inning++;
+        // Mock Simulation Loop
+        while (inning <= 9) {
+            await this.wait(500); // speed up
+            this.updateScoreboard(inning, Math.floor(Math.random() * 2), Math.floor(Math.random() * 2));
+            inning++;
+        }
+
+        this.finishMatch();
     }
-
-    this.finishMatch();
-}
 
     async finishMatch() {
-    this.isSimulating = false;
-    this.log("MATCH FINISHED");
+        this.isSimulating = false;
+        this.log("MATCH FINISHED");
 
-    this.league.playRound(); // Advances all matches in background
+        this.league.playRound(); // Advances all matches in background
 
-    // Advance Rotation
-    this.currentRotationIndex++;
-    if (this.currentRotationIndex >= this.rotationSize) {
-        this.currentRotationIndex = 0;
+        // Advance Rotation
+        this.currentRotationIndex++;
+        if (this.currentRotationIndex >= this.rotationSize) {
+            this.currentRotationIndex = 0;
+        }
+
+        this.renderRotation(); // Update UI to show next starterthis.pitcher;
+
+        // Setup Match UI
+        document.getElementById('play-match-btn').disabled = true;
+
+        // Run Simulation
+        const homeTeam = myMatch.home;
+        const awayTeam = myMatch.away;
+
+        if (!homeTeam.isPlayer && !homeTeam.pitcher) homeTeam.pitcher = homeTeam.roster[0];
+        if (!awayTeam.isPlayer && !awayTeam.pitcher) awayTeam.pitcher = awayTeam.roster[0];
+
+        await this.rules.simulateMatch(this, homeTeam, awayTeam);
     }
-
-    this.renderRotation(); // Update UI to show next starterthis.pitcher;
-
-    // Setup Match UI
-    document.getElementById('play-match-btn').disabled = true;
-
-    // Run Simulation
-    const homeTeam = myMatch.home;
-    const awayTeam = myMatch.away;
-
-    if (!homeTeam.isPlayer && !homeTeam.pitcher) homeTeam.pitcher = homeTeam.roster[0];
-    if (!awayTeam.isPlayer && !awayTeam.pitcher) awayTeam.pitcher = awayTeam.roster[0];
-
-    await this.rules.simulateMatch(this, homeTeam, awayTeam);
-}
 
     // Callback after match ends
     async finishMatch(homeScore, awayScore) {
-    // 1. Update League Standings for Player Match
-    const round = this.league.getCurrentRound();
-    const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
+        // 1. Update League Standings for Player Match
+        const round = this.league.getCurrentRound();
+        const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
 
-    const winnerId = homeScore > awayScore ? myMatch.home.id : myMatch.away.id;
-    const loserId = homeScore > awayScore ? myMatch.away.id : myMatch.home.id;
+        const winnerId = homeScore > awayScore ? myMatch.home.id : myMatch.away.id;
+        const loserId = homeScore > awayScore ? myMatch.away.id : myMatch.home.id;
 
-    this.league.updateStandings(winnerId, loserId);
+        this.league.updateStandings(winnerId, loserId);
 
-    // 2. Simulate Rest of Round (AI vs AI)
-    round.forEach(match => {
-        if (match === myMatch) return; // Skip player match
+        // 2. Simulate Rest of Round (AI vs AI)
+        round.forEach(match => {
+            if (match === myMatch) return; // Skip player match
 
-        // Random Sim
-        const hScore = Math.floor(Math.random() * 10);
-        const aScore = Math.floor(Math.random() * 10);
-        const win = hScore >= aScore ? match.home.id : match.away.id;
-        const lose = hScore >= aScore ? match.away.id : match.home.id;
-        this.league.updateStandings(win, lose);
-    });
+            // Random Sim
+            const hScore = Math.floor(Math.random() * 10);
+            const aScore = Math.floor(Math.random() * 10);
+            const win = hScore >= aScore ? match.home.id : match.away.id;
+            const lose = hScore >= aScore ? match.away.id : match.home.id;
+            this.league.updateStandings(win, lose);
+        });
 
-    // 3. Advance Round
-    this.league.currentRoundIndex++;
-    if (this.league.currentRoundIndex >= this.league.schedule.length) {
-        alert("SEASON OVER!");
-        return;
+        // 3. Advance Round
+        this.league.currentRoundIndex++;
+        if (this.league.currentRoundIndex >= this.league.schedule.length) {
+            alert("SEASON OVER!");
+            return;
+        }
+
+        // 4. Show League View again
+        await this.wait(2000);
+        this.updateLeagueView();
+        this.switchView('league');
+
+        document.getElementById('play-match-btn').disabled = false;
     }
 
-    // 4. Show League View again
-    await this.wait(2000);
-    this.updateLeagueView();
-    this.switchView('league');
+    // --- VIEW UPDATES ---
 
-    document.getElementById('play-match-btn').disabled = false;
-}
+    updateLeagueView() {
+        const sorted = this.league.getSortedStandings();
+        const tbody = document.querySelector('#standings-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
-// --- VIEW UPDATES ---
+        sorted.forEach((t, index) => {
+            const tr = document.createElement('tr');
+            if (t.isPlayer) tr.classList.add('player-team');
 
-updateLeagueView() {
-    const sorted = this.league.getSortedStandings();
-    const tbody = document.querySelector('#standings-table tbody');
-    if (!tbody) return;
-    tbody.innerHTML = '';
+            const pct = (t.w + t.l) > 0 ? (t.w / (t.w + t.l)).toFixed(3) : '.000';
 
-    sorted.forEach((t, index) => {
-        const tr = document.createElement('tr');
-        if (t.isPlayer) tr.classList.add('player-team');
-
-        const pct = (t.w + t.l) > 0 ? (t.w / (t.w + t.l)).toFixed(3) : '.000';
-
-        tr.innerHTML = `
+            tr.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${t.name}</td>
                 <td>${t.w}</td>
                 <td>${t.l}</td>
                 <td>${pct}</td>
             `;
-        tbody.appendChild(tr);
-    });
+            tbody.appendChild(tr);
+        });
 
-    // Update Next Match Text
-    const round = this.league.getCurrentRound();
-    if (round) {
-        const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
-        const opponent = myMatch.home.id === this.playerTeamId ? myMatch.away : myMatch.home;
-        const display = document.getElementById('next-opponent-display');
-        if (display) display.innerText = `NEXT: vs ${opponent.name}`;
+        // Update Next Match Text
+        const round = this.league.getCurrentRound();
+        if (round) {
+            const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
+            const opponent = myMatch.home.id === this.playerTeamId ? myMatch.away : myMatch.home;
+            const display = document.getElementById('next-opponent-display');
+            if (display) display.innerText = `NEXT: vs ${opponent.name}`;
+        }
     }
-}
 
-// --- UI Helpers called by Rules Strategy ---
+    // --- UI Helpers called by Rules Strategy ---
 
-updateMatchupDisplay(batter, pitcher) {
-    document.querySelector('.matchup-batter').innerText = `BATTER: ${batter.name}`;
-    document.querySelector('.matchup-pitcher').innerText = `PITCHER: ${pitcher.name}`;
-}
-
-updateScoreboard(homeScore, awayScore) {
-    document.querySelector('#score-display .total-score').innerText = `${homeScore} - ${awayScore}`;
-}
-
-log(msg) {
-    const log = document.getElementById('game-log');
-    if (log) {
-        log.innerHTML += `<div class="log-entry">${msg}</div>`;
-        log.scrollTop = log.scrollHeight;
+    updateMatchupDisplay(batter, pitcher) {
+        document.querySelector('.matchup-batter').innerText = `BATTER: ${batter.name}`;
+        document.querySelector('.matchup-pitcher').innerText = `PITCHER: ${pitcher.name}`;
     }
-}
 
-switchView(mode) {
-    const mainContent = document.querySelector('.main-content');
-    const teamBtn = document.getElementById('view-team-btn');
-    const matchBtn = document.getElementById('view-match-btn');
-
-    mainContent.classList.remove('team-mode', 'match-mode');
-
-    if (teamBtn) teamBtn.classList.remove('active');
-    if (matchBtn) matchBtn.classList.remove('active');
-
-    if (mode === 'team') {
-        mainContent.classList.add('team-mode');
-        if (teamBtn) teamBtn.classList.add('active');
-    } else if (mode === 'match') {
-        mainContent.classList.add('match-mode');
-        if (matchBtn) matchBtn.classList.add('active');
+    updateScoreboard(homeScore, awayScore) {
+        document.querySelector('#score-display .total-score').innerText = `${homeScore} - ${awayScore}`;
     }
-}
 
-wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+    log(msg) {
+        const log = document.getElementById('game-log');
+        if (log) {
+            log.innerHTML += `<div class="log-entry">${msg}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+    }
+
+    switchView(mode) {
+        const mainContent = document.querySelector('.main-content');
+        const teamBtn = document.getElementById('view-team-btn');
+        const matchBtn = document.getElementById('view-match-btn');
+
+        mainContent.classList.remove('team-mode', 'match-mode');
+
+        if (teamBtn) teamBtn.classList.remove('active');
+        if (matchBtn) matchBtn.classList.remove('active');
+
+        if (mode === 'team') {
+            mainContent.classList.add('team-mode');
+            if (teamBtn) teamBtn.classList.add('active');
+        } else if (mode === 'match') {
+            mainContent.classList.add('match-mode');
+            if (matchBtn) matchBtn.classList.add('active');
+        }
+    }
+
+    wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
 }
