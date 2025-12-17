@@ -106,45 +106,45 @@
                     <!-- Player Cards injected here -->
                 </div>
             </section>
+            <!-- League / Menu Panel -->
+            <section class="panel league-panel">
+                <div class="panel-header">
+                    <h2>SEASON OVERVIEW</h2>
+                </div>
+                <div class="league-content" style="padding: 20px; text-align: center;">
+                    <h1 style="font-size: 3rem; color: var(--accent-green); margin-bottom: 10px;">DIAMOND MANAGER</h1>
+                    <div id="season-info-area">
+                        <p class="menu-subtitle" style="font-size: 1.5rem; color: #aaa;">SEASON 1</p>
+                        <button id="start-season-btn" class="cyber-button" style="margin-top:20px;">START
+                            SEASON</button>
+                    </div>
+
+                    <div id="calendar-area" style="display:none; margin-top: 30px;">
+                        <h2>LEAGUE STANDINGS</h2>
+                        <div class="standings-table-wrapper">
+                            <table class="standings-table" id="standings-table">
+                                <thead>
+                                    <tr>
+                                        <th>RK</th>
+                                        <th>TEAM</th>
+                                        <th>W</th>
+                                        <th>L</th>
+                                        <th>PCT</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="league-actions">
+                            <div id="next-opponent-display">NEXT: vs ---</div>
+                            <button id="play-match-btn-league" class="cyber-button">ENTER MATCH</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
-
-        <!-- League / Menu Panel -->
-        <section class="panel league-panel">
-            <div class="panel-header">
-                <h2>SEASON OVERVIEW</h2>
-            </div>
-            <div class="league-content" style="padding: 20px; text-align: center;">
-                <h1 style="font-size: 3rem; color: var(--accent-green); margin-bottom: 10px;">DIAMOND MANAGER</h1>
-                <div id="season-info-area">
-                    <p class="menu-subtitle" style="font-size: 1.5rem; color: #aaa;">SEASON 1</p>
-                    <button id="start-season-btn" class="cyber-button" style="margin-top:20px;">START SEASON</button>
-                </div>
-
-                <div id="calendar-area" style="display:none; margin-top: 30px;">
-                    <h2>LEAGUE STANDINGS</h2>
-                    <div class="standings-table-wrapper">
-                        <table class="standings-table" id="standings-table">
-                            <thead>
-                                <tr>
-                                    <th>RK</th>
-                                    <th>TEAM</th>
-                                    <th>W</th>
-                                    <th>L</th>
-                                    <th>PCT</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Injected by JS -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="league-actions">
-                        <div id="next-opponent-display">NEXT: vs ---</div>
-                        <button id="play-match-btn-league" class="cyber-button">ENTER MATCH</button>
-                    </div>
-                </div>
-            </div>
-        </section>
 
     </div> <!-- End .app-container -->
 
