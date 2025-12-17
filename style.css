@@ -90,6 +90,8 @@ h3 {
     /* Robust fix for scrolling */
     margin: 10px;
     gap: 10px;
+    height: calc(100vh - 70px);
+    /* Explicit height minus header */
     overflow: hidden;
 }
 

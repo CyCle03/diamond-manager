@@ -452,6 +452,7 @@ export class Game {
     }
 
     renderRotation() {
+        console.log('Rendering Rotation', this.rotation);
         const container = document.getElementById('rotation-slots');
         if (!container) return;
         container.innerHTML = '';
