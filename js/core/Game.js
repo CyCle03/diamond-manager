@@ -20,14 +20,25 @@ export class Game {
         this.currentSlotId = 1; // Default
         this.teamName = "Cyber Nine";
 
-        // Defer Initialization - Show Start Screen
-        this.initStartScreen();
+        // Auto-Load Check
+        const lastSlot = SaveManager.getLastUsedSlot();
+        if (lastSlot && SaveManager.exists(lastSlot)) {
+            console.log("Auto-loading slot", lastSlot);
+            this.startGame(lastSlot, null, false);
+        } else {
+            // Defer Initialization - Show Start Screen
+            this.initStartScreen();
+        }
     }
 
     initStartScreen() {
         const slots = document.querySelectorAll('.save-slot-card');
         slots.forEach(slot => {
-            slot.addEventListener('click', () => {
+            // Slot Click
+            slot.addEventListener('click', (e) => {
+                // Ignore if clicked delete button
+                if (e.target.classList.contains('delete-btn')) return;
+
                 const slotId = parseInt(slot.dataset.slot);
                 const teamNameInput = document.getElementById('team-name-input').value;
                 const isExisting = SaveManager.exists(slotId);
@@ -42,7 +53,37 @@ export class Game {
                     this.startGame(slotId, teamNameInput, true);
                 }
             });
+
+            // Delete Button Handling
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.innerHTML = '&times;';
+            deleteBtn.title = 'Delete Save';
+            deleteBtn.style.display = 'none'; // Hidden by default, shown by CSS if populated
+
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Don't trigger slot click
+                const slotId = parseInt(slot.dataset.slot);
+                if (confirm(`Delete Save Slot ${slotId}? This cannot be undone.`)) {
+                    SaveManager.delete(slotId);
+                    this.updateStartScreenUI();
+                }
+            });
+
+            // Append if not exists (initStartScreen might be called multiple times? No, constructor only, or openOptions re-binds?
+            // We should be careful not to double bind. Ideally check existence.)
+            if (!slot.querySelector('.delete-btn')) {
+                slot.appendChild(deleteBtn);
+            }
         });
+
+        // Close Options Button
+        const closeBtn = document.getElementById('close-options-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                document.getElementById('start-screen-overlay').style.display = 'none';
+            });
+        }
 
         this.updateStartScreenUI();
     }
@@ -53,21 +94,37 @@ export class Game {
             const slotId = parseInt(slot.dataset.slot);
             const meta = SaveManager.getMeta(slotId);
             const infoDiv = slot.querySelector('.slot-info');
+            const deleteBtn = slot.querySelector('.delete-btn');
 
             if (meta) {
                 infoDiv.innerHTML = `${meta.teamName}<br>Season ${meta.season}<br>Round ${meta.round}`;
                 infoDiv.classList.remove('slot-empty');
-                slot.classList.add('populated'); // Optional styling hook
+                slot.classList.add('populated');
+                if (deleteBtn) deleteBtn.style.display = 'block';
             } else {
                 infoDiv.innerHTML = "Empty - Create New";
                 infoDiv.classList.add('slot-empty');
                 slot.classList.remove('populated');
+                if (deleteBtn) deleteBtn.style.display = 'none';
             }
         });
     }
 
+    openOptions() {
+        document.getElementById('start-screen-overlay').style.display = 'flex';
+        this.updateStartScreenUI();
+
+        // Show Close button only if we are inside a game (roster exists)
+        const closeBtn = document.getElementById('close-options-btn');
+        if (closeBtn) {
+            // If we have a roster, we assume game is running
+            closeBtn.style.display = (this.roster && this.roster.length > 0) ? 'block' : 'none';
+        }
+    }
+
     startGame(slotId, teamName, isNew) {
         this.currentSlotId = slotId;
+        SaveManager.setLastUsedSlot(slotId); // Remember this slot
 
         document.getElementById('start-screen-overlay').style.display = 'none';
 
@@ -186,6 +243,9 @@ export class Game {
             }
         });
 
+        // Options Button
+        const optionsBtn = document.getElementById('options-btn');
+        if (optionsBtn) optionsBtn.addEventListener('click', () => this.openOptions());
 
     }
 

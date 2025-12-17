@@ -47,4 +47,20 @@ export class SaveManager {
     static clear(slotId) {
         localStorage.removeItem(this.getSaveKey(slotId));
     }
+
+    static setLastUsedSlot(slotId) {
+        localStorage.setItem('diamond_manager_last_slot', slotId);
+    }
+
+    static getLastUsedSlot() {
+        return localStorage.getItem('diamond_manager_last_slot');
+    }
+
+    static delete(slotId) {
+        this.clear(slotId);
+        // If we deleted the last used slot, clear that record too
+        if (this.getLastUsedSlot() == slotId) {
+            localStorage.removeItem('diamond_manager_last_slot');
+        }
+    }
 }
