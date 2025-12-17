@@ -766,6 +766,36 @@ export class Game {
         this.saveGame();
     }
 
+    releasePlayer(player) {
+        // 1. Minimum roster size check
+        if (this.roster.length <= 16) { // Let's set a minimum
+            alert("Cannot release player. Roster is at the minimum size of 16.");
+            return;
+        }
+
+        // 2. Remove from roster
+        this.roster = this.roster.filter(p => p.id !== player.id);
+
+        // 3. Add to free agents
+        if (this.league && this.league.freeAgents) {
+            this.league.freeAgents.push(player);
+        }
+
+        // 4. Remove from lineup and rotation
+        this.lineup = this.lineup.map(slot => (slot && slot.player.id === player.id) ? null : slot);
+        this.rotation = this.rotation.map(p => (p && p.id === player.id) ? null : p);
+
+        alert(`Released ${player.name}.`);
+
+        // 5. Re-render UI
+        this.renderRosterAndMarket();
+        this.renderLineup();
+        this.renderRotation();
+
+        // 6. Save game
+        this.saveGame();
+    }
+
     // --- GAME FLOW ---
 
     startSeason() {

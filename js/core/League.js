@@ -55,8 +55,14 @@ export class League {
         for (let round = 0; round < rounds * 2; round++) { // Double Round Robin (Home & Away)
             const roundMatches = [];
             for (let i = 0; i < half; i++) {
-                const home = teams[i];
-                const away = teams[numTeams - 1 - i];
+                let home = teams[i];
+                let away = teams[numTeams - 1 - i];
+
+                // For the second half of the season, swap home and away to ensure fairness
+                if (round >= rounds) {
+                    [home, away] = [away, home];
+                }
+
                 roundMatches.push({ home, away });
             }
             this.schedule.push(roundMatches);
