@@ -332,47 +332,86 @@ export class Game {
     autoLineup() {
         // Clear current
         this.lineup.fill(null);
-        // this.pitcher = null; // Deprecated single pitcher
 
-        // 1. Pick Best Pitchers for Rotation
-        const pitchers = this.roster.filter(p => p.position === 'P').sort((a, b) => {
-            // Heuristic: pitch + (speed/2) ? or just pitch
-            return b.stats.pitching - a.stats.pitching; // Assuming 'pitching' stat exists? 
-            // Wait, looking at player generation, stats are contact, power, speed, defense, pitching
-            // Checking Card HTML: CON, POW, SPD. 
-            // Need to verify if 'pitching' stat is available on player object.
-            // Line 137 shows CON, POW, SPD. 
-        });
+        // --- 1. Fill Rotation (Top 5 Pitchers) ---
+        // Sort pitchers by stats
+        const allPitchers = this.roster.filter(p => p.position === 'P').sort((a, b) => b.stats.pitching - a.stats.pitching);
 
-        // Let's assume pitching stat exists or use a proxy if not visible (but logic implies it should).
-        // Actually, let's verify PlayerGenerator or Player struct if possible, but for now assuming 'pitching' or similar.
-        // If previous code lines 352 used 'p.stats.pitching', I will stick with that. 
-        // Re-reading line 352 from previous view_file: "b.stats.pitching - a.stats.pitching" -> Yes it was used.
+        // Reset rotation array
+        this.rotation = new Array(this.rotationSize).fill(null);
 
-        // Fill Rotation
         for (let i = 0; i < this.rotationSize; i++) {
-            if (pitchers[i]) {
-                this.rotation[i] = pitchers[i];
-            } else {
-                this.rotation[i] = null;
+            if (allPitchers[i]) {
+                this.rotation[i] = allPitchers[i];
             }
         }
 
-        // 2. Pick Best Hitters for Lineup
-        // Exclude pitchers currently in rotation? Or just all non-pitchers?
-        // Usually pitchers don't bat in DH leagues, assuming DH since 9 slots and pitcher separate.
-        // Filter out anyone who is in the rotation to be safe, or just filter position != 'P'
-        const rotatingPitchers = this.rotation.filter(p => p !== null);
+        // --- 2. Fill Lineup (Positional) ---
+        // Desired Batting Order Positions (Standard 1-9)
+        // 1. C
+        // 2. 1B
+        // 3. 2B
+        // 4. 3B
+        // 5. SS
+        // 6. LF
+        // 7. CF
+        // 8. RF
+        // 9. DH (Best remaining)
 
-        const hitters = this.roster.filter(p => p.position !== 'P').sort((a, b) => {
-            const statA = a.stats.contact + a.stats.power + a.stats.speed;
-            const statB = b.stats.contact + b.stats.power + b.stats.speed;
-            return statB - statA;
+        const positionsNeeded = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+        const usedPlayerIds = new Set();
+
+        // Helper to find best available player for a position
+        const getBestForPos = (pos) => {
+            const candidates = this.roster.filter(p => p.position === pos && !usedPlayerIds.has(p.id));
+            if (candidates.length === 0) return null;
+            // Sort by combined hitting stats
+            candidates.sort((a, b) => {
+                const statA = a.stats.contact + a.stats.power + a.stats.speed;
+                const statB = b.stats.contact + b.stats.power + b.stats.speed;
+                return statB - statA;
+            });
+            return candidates[0];
+        };
+
+        // Fill standard positions
+        positionsNeeded.forEach((pos, index) => {
+            const player = getBestForPos(pos);
+            if (player) {
+                this.lineup[index] = player;
+                usedPlayerIds.add(player.id);
+            }
         });
 
+        // Fill DH (9th slot) - Best Remaining Non-Pitcher
+        const dhSlotIndex = 8;
+        if (!this.lineup[dhSlotIndex]) {
+            const candidates = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id));
+            candidates.sort((a, b) => {
+                const statA = a.stats.contact + a.stats.power + a.stats.speed;
+                const statB = b.stats.contact + b.stats.power + b.stats.speed;
+                return statB - statA;
+            });
+
+            if (candidates.length > 0) {
+                this.lineup[dhSlotIndex] = candidates[0];
+                usedPlayerIds.add(candidates[0].id);
+            }
+        }
+
+        // Fallback: If any empty slots remain (e.g. no Catcher found), fill with best remaining anyone (non-pitcher)
         for (let i = 0; i < 9; i++) {
-            if (hitters[i]) {
-                this.lineup[i] = hitters[i];
+            if (this.lineup[i] === null) {
+                const candidates = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id));
+                candidates.sort((a, b) => {
+                    const statA = a.stats.contact + a.stats.power + a.stats.speed;
+                    const statB = b.stats.contact + b.stats.power + b.stats.speed;
+                    return statB - statA; // Descending
+                });
+                if (candidates.length > 0) {
+                    this.lineup[i] = candidates[0];
+                    usedPlayerIds.add(candidates[0].id);
+                }
             }
         }
 

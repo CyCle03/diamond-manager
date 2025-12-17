@@ -409,13 +409,15 @@ h3 {
 .lineup-slot {
     background: #2a2a2a;
     border: 1px solid #444;
-    padding: 15px;
-    /* Increased from 8px */
+    padding: 8px;
+    /* Reduced from 15px */
+    /* Increased from 8px -> revert/smaller */
     margin-bottom: 5px;
     display: flex;
     align-items: center;
     border-radius: 4px;
-    min-height: 50px;
+    min-height: 40px;
+    /* Reduced from 50px */
     /* Ensure minimum height */
 }
 
