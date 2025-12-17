@@ -479,7 +479,13 @@ export class Game {
         document.getElementById('play-match-btn').disabled = true;
 
         const starter = this.rotation[this.currentRotationIndex];
+        if (!starter) {
+            alert("No starter for this rotation slot! Check your rotation.");
+            this.finishMatch(0, 0); // Abort
+            return;
+        }
         this.log(`MATCH STARTING! SP: ${starter.name}`);
+        document.getElementById('game-status-text').innerText = "PLAY BALL!";
 
         const round = this.league.getCurrentRound();
         const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
@@ -495,50 +501,36 @@ export class Game {
     }
 
     async simulateGame(match, starter) {
-        // ... (simplified connection to Rules for now)
-        // Ideally we pass lineup and 'starter' to the simulation engine
-        // For now, let's just do visual simulation
+        // Visual Simulation
+        const gameText = document.getElementById('game-status-text');
+        if (gameText) gameText.innerText = "PLAYING...";
 
         let inning = 1;
         let homeScore = 0;
         let awayScore = 0;
 
-        // Mock Simulation Loop
+        // Mock Simulation Loop (Visual only)
+        // Ideally this should use Rules.js to get a real result, but for now we'll stick to 'random' for visual
+        // preserving the existing behavior but fixing the flow.
         while (inning <= 9) {
-            await this.wait(500); // speed up
-            this.updateScoreboard(inning, Math.floor(Math.random() * 2), Math.floor(Math.random() * 2));
+            await this.wait(300); // speed up slightly
+
+            // Logic: Random score increment
+            if (Math.random() > 0.7) homeScore += Math.floor(Math.random() * 2);
+            if (Math.random() > 0.7) awayScore += Math.floor(Math.random() * 2);
+
+            this.updateScoreboard(homeScore, awayScore);
+            this.log(`Inning ${inning}: Home ${homeScore} - Away ${awayScore}`);
+
             inning++;
         }
 
-        this.finishMatch();
+        if (gameText) gameText.innerText = "MATCH FINISHED";
+        this.finishMatch(homeScore, awayScore);
     }
 
-    async finishMatch() {
-        this.isSimulating = false;
-        this.log("MATCH FINISHED");
-
-        this.league.playRound(); // Advances all matches in background
-
-        // Advance Rotation
-        this.currentRotationIndex++;
-        if (this.currentRotationIndex >= this.rotationSize) {
-            this.currentRotationIndex = 0;
-        }
-
-        this.renderRotation(); // Update UI to show next starterthis.pitcher;
-
-        // Setup Match UI
-        document.getElementById('play-match-btn').disabled = true;
-
-        // Run Simulation
-        const homeTeam = myMatch.home;
-        const awayTeam = myMatch.away;
-
-        if (!homeTeam.isPlayer && !homeTeam.pitcher) homeTeam.pitcher = homeTeam.roster[0];
-        if (!awayTeam.isPlayer && !awayTeam.pitcher) awayTeam.pitcher = awayTeam.roster[0];
-
-        await this.rules.simulateMatch(this, homeTeam, awayTeam);
-    }
+    // Previous 'finishMatch' at lines 516-540 is DELETED. 
+    // We keep the one below (callback style).
 
     // Callback after match ends
     async finishMatch(homeScore, awayScore) {
