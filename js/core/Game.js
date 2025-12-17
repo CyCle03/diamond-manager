@@ -5,7 +5,12 @@ export class Game {
     constructor(rules) {
         this.rules = rules;
         this.lineup = new Array(rules.getLineupSize()).fill(null);
-        this.pitcher = null;
+
+        // Pitching Rotation System
+        this.rotationSize = 5; // Default 5-man rotation
+        this.rotation = new Array(6).fill(null); // Max size 6
+        this.currentRotationIndex = 0;
+
         this.roster = [];
         this.league = null;
         this.playerTeamId = "PLAYER_TEAM";
@@ -48,6 +53,12 @@ export class Game {
         const autoLineupBtn = document.getElementById('auto-lineup-btn');
         if (autoLineupBtn) autoLineupBtn.addEventListener('click', () => this.autoLineup());
 
+        const rotSize = document.getElementById('rotation-size-select');
+        if (rotSize) rotSize.addEventListener('change', (e) => {
+            this.rotationSize = parseInt(e.target.value);
+            this.renderRotation();
+        });
+
         // --- MATCH CONTROLS ---
         const playMatchBtn = document.getElementById('play-match-btn');
         if (playMatchBtn) playMatchBtn.addEventListener('click', () => {
@@ -62,7 +73,12 @@ export class Game {
     }
 
     validateLineup() {
-        return this.rules.validateLineup(this.lineup, { pitcher: this.pitcher });
+        const starter = this.rotation[this.currentRotationIndex];
+        if (!starter) {
+            alert(`No Starting Pitcher set for slot SP${this.currentRotationIndex + 1}!`);
+            return false;
+        }
+        return this.rules.validateLineup(this.lineup, { pitcher: starter });
     }
 
     renderRosterAndMarket() {
@@ -196,14 +212,10 @@ renderLineup() {
             slot.className = 'empty-slot';
             slot.innerText = `${index + 1}. Select Batter...`;
 
-            // Keep minimal drag capability if needed for empty slots as targets?
-            // renderLineup adds listeners to 'slot' variable which is the div.
-            // listeners are added before this if/else block in previous code, let's verify.
-            // No, listeners added to `slot` object which is created before.
-            // So removing 'lineup-slot' class just changes visual.
-        }
-        container.appendChild(slot);
-    });
+            container.appendChild(slot);
+        });
+
+    this.renderRotation();
 
     const pitcherSlot = document.getElementById('pitcher-slot');
     if (pitcherSlot) {
@@ -242,6 +254,62 @@ renderLineup() {
     }
 }
 
+renderRotation() {
+    const container = document.getElementById('rotation-slots');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Update rotation size from selector if changed (handled by event but safe to read)
+    // Actually better to handle event separately.
+
+    for (let i = 0; i < this.rotationSize; i++) {
+        const p = this.rotation[i];
+        const isStarter = (i === this.currentRotationIndex);
+
+        const slot = document.createElement('div');
+        // 'lineup-slot' style is good, add extra specific class
+        slot.className = `rotation-slot lineup-slot ${p ? 'filled' : ''} ${isStarter ? 'next-starter' : ''}`;
+        if (isStarter) slot.style.border = '2px solid var(--accent-green)';
+
+        // Drop Zone
+        slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+        slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+        slot.addEventListener('drop', e => {
+            e.preventDefault();
+            slot.classList.remove('drag-over');
+            const data = JSON.parse(e.dataTransfer.getData('application/json'));
+            if (data.source === 'roster') {
+                const player = this.roster.find(pl => pl.id === data.playerId);
+                if (player && player.position === 'P') {
+                    this.rotation[i] = player;
+                    this.renderRotation();
+                } else {
+                    alert("Only Pitchers in Rotation!");
+                }
+            }
+        });
+
+        if (p) {
+            slot.innerHTML = `
+                    <span class="order-num">SP${i + 1}</span>
+                    <span class="player-name">${p.name}</span>
+                    <span class="player-pos">P</span>
+                    <button class="remove-btn">x</button>
+                `;
+            slot.querySelector('.remove-btn').addEventListener('click', () => {
+                this.rotation[i] = null;
+                this.renderRotation();
+            });
+        } else {
+            slot.className = 'empty-slot';
+            if (isStarter) slot.style.border = '2px solid var(--accent-green)';
+            slot.innerHTML = `<span style="color:${isStarter ? 'var(--accent-green)' : '#666'}">SP ${i + 1} ${isStarter ? '(NEXT)' : ''}</span>`;
+        }
+
+        container.appendChild(slot);
+    }
+}
+
 addToLineup(player) {
     if (player.position === 'P') {
         this.pitcher = player;
@@ -259,11 +327,6 @@ addToLineup(player) {
 
 removeFromLineup(index) {
     this.lineup[index] = null;
-    this.renderLineup();
-}
-
-removePitcher() {
-    this.pitcher = null;
     this.renderLineup();
 }
 
@@ -345,42 +408,69 @@ startSeason() {
 
     this.updateLeagueView();
 
-    // 4. Go to Team View to organize
-    this.switchView('team');
-
-    this.renderRosterAndMarket();
-    this.renderLineup();
+    // 4. Go to Team View
 }
 
 enterMatchSetup() {
-    // Go to Match View
     this.switchView('match');
+    this.log("Enter Match Setup... Set Lineup then Play!");
+}
+
+async startMatch() {
+    if (this.isSimulating) return;
+
+    // 1. Setup Match
+    this.isSimulating = true;
+    document.getElementById('play-match-btn').disabled = true;
+
+    const starter = this.rotation[this.currentRotationIndex];
+    this.log(`MATCH STARTING! SP: ${starter.name}`);
 
     const round = this.league.getCurrentRound();
     const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
 
     if (!myMatch) {
-        console.error("No match found for player this round?");
+        this.log("No match scheduled for this round.");
+        this.finishMatch();
         return;
     }
 
-    const opponent = myMatch.home.id === this.playerTeamId ? myMatch.away : myMatch.home;
-    this.log(`NEXT MATCH VS: ${opponent.name}`);
-    this.log("Set your lineup and click PLAY BALL.");
+    // 2. Simulate
+    await this.simulateGame(myMatch, starter);
 }
 
-    async startMatch() {
-    // Switch to Match View
-    this.switchView('match');
+    async simulateGame(match, starter) {
+    // ... (simplified connection to Rules for now)
+    // Ideally we pass lineup and 'starter' to the simulation engine
+    // For now, let's just do visual simulation
 
-    const round = this.league.getCurrentRound();
-    const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
-    const isHome = myMatch.home.id === this.playerTeamId;
+    let inning = 1;
+    let homeScore = 0;
+    let awayScore = 0;
 
-    // Sync latest lineup data
-    const myTeamObj = isHome ? myMatch.home : myMatch.away;
-    myTeamObj.lineup = this.lineup;
-    myTeamObj.pitcher = this.pitcher;
+    // Mock Simulation Loop
+    while (inning <= 9) {
+        await this.wait(500); // speed up
+        this.updateScoreboard(inning, Math.floor(Math.random() * 2), Math.floor(Math.random() * 2));
+        inning++;
+    }
+
+    this.finishMatch();
+}
+
+    async finishMatch() {
+    this.isSimulating = false;
+    this.log("MATCH FINISHED");
+
+    this.league.playRound(); // Advances all matches in background
+
+    // Advance Rotation
+    this.currentRotationIndex++;
+    if (this.currentRotationIndex >= this.rotationSize) {
+        this.currentRotationIndex = 0;
+    }
+
+    this.renderRotation(); // Update UI to show next starterthis.pitcher;
 
     // Setup Match UI
     document.getElementById('play-match-btn').disabled = true;
