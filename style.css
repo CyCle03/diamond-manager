@@ -497,3 +497,109 @@ h3 {
     border: 2px dashed #fff;
     transform: scale(1.02);
 }
+/* START SCREEN OVERLAY */
+#start-screen-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex; /* Flex to center content */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.start-content {
+    background: #111;
+    border: 2px solid var(--accent-green);
+    padding: 40px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+    max-width: 800px;
+    width: 90%;
+}
+
+.start-title {
+    font-size: 4rem;
+    color: var(--accent-green);
+    font-family: 'Teko', sans-serif;
+    margin-bottom: 30px;
+    text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.input-group {
+    margin-bottom: 30px;
+}
+
+.input-group label {
+    display: block;
+    color: #aaa;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+}
+
+#team-name-input {
+    background: #222;
+    border: 1px solid #444;
+    color: white;
+    padding: 10px 20px;
+    font-size: 1.5rem;
+    font-family: 'Teko', sans-serif;
+    width: 300px;
+    text-align: center;
+    outline: none;
+}
+
+#team-name-input:focus {
+    border-color: var(--accent-green);
+}
+
+.save-slots {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.save-slot-card {
+    background: #222;
+    border: 1px solid #444;
+    padding: 20px;
+    width: 200px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 150px;
+}
+
+.save-slot-card:hover {
+    border-color: var(--accent-green);
+    transform: translateY(-5px);
+    background: #2a2a2a;
+}
+
+.save-slot-card h3 {
+    color: var(--accent-green);
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+}
+
+.slot-info {
+    color: #888;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.slot-empty {
+    color: #666;
+    font-style: italic;
+}
+

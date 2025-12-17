@@ -1,5 +1,6 @@
 import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
+import { SaveManager } from './SaveManager.js';
 
 export class Game {
     constructor(rules) {
@@ -16,16 +17,132 @@ export class Game {
         this.playerTeamId = "PLAYER_TEAM";
         this.isSimulating = false;
         this.currentTab = 'tab-roster';
+        this.currentSlotId = 1; // Default
+        this.teamName = "Cyber Nine";
 
-        // Generate initial roster (Demo roster before season starts)
-        this.roster = PlayerGenerator.createTeamRoster(rules, 15);
+        // Defer Initialization - Show Start Screen
+        this.initStartScreen();
+    }
 
-        this.initUI();
+    initStartScreen() {
+        const slots = document.querySelectorAll('.save-slot-card');
+        slots.forEach(slot => {
+            slot.addEventListener('click', () => {
+                const slotId = parseInt(slot.dataset.slot);
+                const teamNameInput = document.getElementById('team-name-input').value;
+                const isExisting = SaveManager.exists(slotId);
+
+                if (isExisting) {
+                    this.startGame(slotId, null, false);
+                } else {
+                    if (!teamNameInput) {
+                        alert("Please enter a Team Name!");
+                        return;
+                    }
+                    this.startGame(slotId, teamNameInput, true);
+                }
+            });
+        });
+
+        this.updateStartScreenUI();
+    }
+
+    updateStartScreenUI() {
+        const slots = document.querySelectorAll('.save-slot-card');
+        slots.forEach(slot => {
+            const slotId = parseInt(slot.dataset.slot);
+            const meta = SaveManager.getMeta(slotId);
+            const infoDiv = slot.querySelector('.slot-info');
+
+            if (meta) {
+                infoDiv.innerHTML = `${meta.teamName}<br>Season ${meta.season}<br>Round ${meta.round}`;
+                infoDiv.classList.remove('slot-empty');
+                slot.classList.add('populated'); // Optional styling hook
+            } else {
+                infoDiv.innerHTML = "Empty - Create New";
+                infoDiv.classList.add('slot-empty');
+                slot.classList.remove('populated');
+            }
+        });
+    }
+
+    startGame(slotId, teamName, isNew) {
+        this.currentSlotId = slotId;
+
+        document.getElementById('start-screen-overlay').style.display = 'none';
+
+        if (isNew) {
+            this.teamName = teamName;
+            // Generate initial roster
+            this.roster = PlayerGenerator.createTeamRoster(this.rules, 25); // Full 25-man roster now
+            // Auto-fill roster/lineup
+            this.autoLineup();
+
+            // Initialize UI elements specifically for new game
+            this.startSeason(); // This initializes League
+            this.saveGame();
+        } else {
+            this.loadGame(slotId);
+        }
+
+        // Initialize UI listeners (only once)
         this.initUI();
         this.renderRosterAndMarket();
         this.renderLineup();
+        this.renderRotation();
 
-        // Start in League Mode (Menu)
+        // Ensure name is updated in UI if element exists
+        // (Optional: Add team name display in header)
+    }
+
+    saveGame() {
+        const data = {
+            teamName: this.teamName,
+            season: this.league ? this.league.season : 1,
+            roster: this.roster, // Player objects should serialize fine
+            lineup: this.lineup,
+            rotation: this.rotation,
+            league: this.league, // Needs care on deserialization
+            playerTeamId: this.playerTeamId,
+            currentRotationIndex: this.currentRotationIndex,
+            rotationSize: this.rotationSize,
+            timestamp: Date.now()
+        };
+        SaveManager.save(this.currentSlotId, data);
+    }
+
+    loadGame(slotId) {
+        const data = SaveManager.load(slotId);
+        if (!data) {
+            alert("Failed to load save data!");
+            return;
+        }
+
+        this.teamName = data.teamName;
+        this.playerTeamId = data.playerTeamId;
+        this.currentRotationIndex = data.currentRotationIndex;
+        this.rotationSize = data.rotationSize;
+
+        // Reconstruct League
+        // Note: League constructor takes rules. accessing internal state requires care.
+        // Option A: Re-create league and stomp state.
+        this.league = new League(this.rules);
+        Object.assign(this.league, data.league);
+
+        // Reconstruct Roster & Lineup
+        // Players are just objects for now, but if they have methods, we lose them.
+        // Assuming Player class is mainly data + prototype methods. 
+        // JSON.parse gives plain objects. We shouldn't need strict class instances if UI just reads props.
+        // BUT if Game.js calls methods on players (like updateStats), checks instanceOf, or if Player has methods, we have an issue.
+        // Looking at Player.js (not viewed but standard pattern), usually simple data structs.
+        // Let's assume plain objects are OK or we re-hydrate if needed.
+        this.roster = data.roster;
+        this.lineup = data.lineup;
+        this.rotation = data.rotation;
+
+        this.updateLeagueView();
+
+        // Go to Dashboard
         this.switchView('league');
     }
 
@@ -437,6 +554,7 @@ export class Game {
         this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
         alert(`Signed ${player.name}!`);
         this.renderRosterAndMarket();
+        this.saveGame();
     }
 
     // --- GAME FLOW ---
@@ -448,7 +566,7 @@ export class Game {
         // 2. Register Player Team
         const myTeam = {
             id: this.playerTeamId,
-            name: "My Team",
+            name: this.teamName,
             roster: this.roster,
             lineup: this.lineup,
             pitcher: this.pitcher,
@@ -568,6 +686,8 @@ export class Game {
         this.switchView('league');
 
         document.getElementById('play-match-btn').disabled = false;
+
+        this.saveGame();
     }
 
     // --- VIEW UPDATES ---

@@ -4,17 +4,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baseball Manager Auto-Battler</title>
+    <title>Baseball Manager Auto Battler</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Teko:wght@500;700&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- Map imports for easier module handling if needed, or just rely on relative paths in modules -->
 </head>
 
 <body>
-    <div class="app-container">
+
+    <!-- START SCREEN OVERLAY -->
+    <div id="start-screen-overlay">
+        <div class="start-content">
+            <div class="start-title">DIAMOND MANAGER</div>
+
+            <div class="input-group">
+                <label>TEAM NAME</label>
+                <input type="text" id="team-name-input" value="Cyber Nine" maxlength="15">
+            </div>
+
+            <div class="input-group">
+                <label>SELECT SAVE SLOT</label>
+                <div class="save-slots">
+                    <div class="save-slot-card" id="slot-1" data-slot="1">
+                        <h3>SLOT 1</h3>
+                        <div class="slot-info slot-empty">Empty</div>
+                    </div>
+                    <div class="save-slot-card" id="slot-2" data-slot="2">
+                        <h3>SLOT 2</h3>
+                        <div class="slot-info slot-empty">Empty</div>
+                    </div>
+                    <div class="save-slot-card" id="slot-3" data-slot="3">
+                        <h3>SLOT 3</h3>
+                        <div class="slot-info slot-empty">Empty</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
         <!-- Header -->
         <header class="main-header">
             <h1 class="game-title">DIAMOND MANAGER</h1>
