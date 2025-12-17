@@ -297,30 +297,21 @@ h3 {
 }
 
 /* ROSTER STYLES */
-.tabs {
+.roster-half {
+    flex: 1;
     display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-bottom: 1px solid #444;
 }
 
-.tab-btn {
-    flex: 1;
-    background: #333;
-    border: none;
-    padding: 10px;
+.section-header {
+    background: #222;
+    padding: 5px 10px;
+    font-size: 0.9rem;
     color: #888;
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-}
-
-.tab-btn.active {
-    color: white;
-    background: #444;
-    border-bottom: 2px solid var(--accent-green);
-}
-
-.card-list {
-    padding: 10px;
-    overflow-y: auto;
-    flex: 1;
+    border-bottom: 1px solid #333;
+    font-weight: bold;
 }
 
 .card-list {
