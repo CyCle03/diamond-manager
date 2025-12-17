@@ -1,3 +1,4 @@
+import { Player } from './Player.js';
 import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
 import { SaveManager } from './SaveManager.js';
