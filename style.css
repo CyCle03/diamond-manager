@@ -226,58 +226,188 @@ h3 {
 .stadium-panel {
     display: flex;
     flex-direction: column;
+    background: #111;
 }
 
 .scoreboard {
-    height: 80px;
+    height: 100px;
     background: #000;
-    color: #ff3333;
-    /* LED Scoreboard Red */
-    border-bottom: 2px solid #555;
+    border-bottom: 4px solid #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    font-family: 'Teko', sans-serif;
+    color: white;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+}
+
+.sb-team {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 15px;
+    width: 40%;
+}
+
+.sb-team.away-team {
+    margin-right: auto;
+}
+
+.sb-team.home-team {
+    margin-left: auto;
+    justify-content: flex-end;
+}
+
+.sb-name {
+    font-size: 1.8rem;
+    font-weight: bold;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+}
+
+.sb-score {
+    font-size: 3.5rem;
+    color: #ff3333;
+    /* LED Red */
     font-family: 'Courier New', monospace;
     font-weight: bold;
-    font-size: 1.2rem;
+    text-shadow: 0 0 10px #ff3333;
+    min-width: 60px;
+    text-align: center;
+}
+
+.sb-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 20%;
+    border-left: 1px solid #333;
+    border-right: 1px solid #333;
+    height: 80%;
+}
+
+.sb-inning {
+    font-size: 1.5rem;
+    color: yellow;
+    font-weight: bold;
+}
+
+.sb-outs {
+    display: flex;
+    gap: 5px;
+    margin-top: 5px;
+    font-size: 0.8rem;
+    color: #888;
+}
+
+.sb-outs .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #333;
+    border: 1px solid #555;
+    display: inline-block;
+}
+
+/* FIELD CONTAINER */
+.field-container {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #1e1e1e;
+    overflow: hidden;
+    position: relative;
 }
 
 .diamond-view {
-    flex: 2;
-    background:
-        radial-gradient(circle at 50% 70%, var(--accent-dirt) 15%, transparent 16%),
-        linear-gradient(to bottom, #2e7d32 0%, #388e3c 100%);
+    width: 100%;
+    max-width: 600px;
+    aspect-ratio: 1 / 1;
+    /* Force Square */
     position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background:
+        radial-gradient(circle at 50% 120%, #2e7d32 20%, transparent 21%),
+        /* Infield Grass shape approx */
+        linear-gradient(to top, #388e3c 0%, #2e7d32 100%);
+    border: 2px solid #555;
+    margin: 10px;
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
 }
 
-.diamond-base {
+/* Dirt Circle */
+.dirt-circle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 35%;
+    height: 35%;
+    background: #8d6e63;
+    /* Dirt color */
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+/* Bases Container - Rotated 45deg for Diamond */
+.diamond {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 45%;
+    height: 45%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    /* Box is rotated, so corners are bases */
+    /* border: 1px dashed rgba(255,255,255,0.1); */
+    /* Debug alignment */
+}
+
+.base {
     width: 25px;
     height: 25px;
     background: white;
-    transform: rotate(45deg);
     position: absolute;
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    transition: background 0.3s;
+}
+
+.base.active {
+    background: yellow;
+    box-shadow: 0 0 10px yellow;
 }
 
 .home-plate {
-    bottom: 20%;
+    bottom: -12.5px;
+    left: -12.5px;
+    cursor: default;
+    clip-path: polygon(0 0, 50% 100%, 100% 0, 100% 100%, 0 100%);
+    border-radius: 0;
+    transform: rotate(45deg);
+    /* Adjustment for shape if needed, plain box fine for now */
+}
+
+/* Actually, let's keep bases simple boxes for now, positioning them at corners of the .diamond box */
+
+.home-plate {
+    bottom: -12px;
+    left: -12px;
 }
 
 .first-base {
-    right: 30%;
-    bottom: 40%;
+    bottom: -12px;
+    right: -12px;
 }
 
 .second-base {
-    top: 30%;
+    top: -12px;
+    right: -12px;
 }
 
 .third-base {
-    left: 30%;
-    bottom: 40%;
+    top: -12px;
+    left: -12px;
 }
 
 .match-info {

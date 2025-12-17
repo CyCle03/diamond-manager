@@ -102,22 +102,33 @@
             <!-- Center: Stadium (Simulation View) -->
             <section class="panel stadium-panel">
                 <div class="scoreboard" id="scoreboard">
-                    <div class="team-name home">HOME</div>
-                    <div class="scores" id="score-display">
-                        <span class="inning-score">0</span>
-                        <span class="inning-score">0</span>
-                        <span class="inning-score">0</span>
-                        <!-- ... -->
-                        <span class="total-score">0</span>
+                    <div class="sb-team away-team">
+                        <div class="sb-name" id="score-away-name">AWAY</div>
+                        <div class="sb-score" id="score-away-val">0</div>
                     </div>
-                    <div class="team-name away">AWAY</div>
+                    <div class="sb-info">
+                        <div class="sb-inning" id="sb-inning">TOP 1</div>
+                        <div class="sb-outs">
+                            <span class="dot"></span><span class="dot"></span> Outs
+                        </div>
+                    </div>
+                    <div class="sb-team home-team">
+                        <div class="sb-score" id="score-home-val">0</div>
+                        <div class="sb-name" id="score-home-name">HOME</div>
+                    </div>
                 </div>
 
-                <div class="diamond-view">
-                    <div class="diamond-base first-base"></div>
-                    <div class="diamond-base second-base"></div>
-                    <div class="diamond-base third-base"></div>
-                    <div class="diamond-base home-plate"></div>
+                <div class="field-container">
+                    <div class="diamond-view">
+                        <div class="dirt-circle"></div>
+                        <div class="diamond">
+                            <!-- Bases -->
+                            <div class="base first-base" id="base-1"></div>
+                            <div class="base second-base" id="base-2"></div>
+                            <div class="base third-base" id="base-3"></div>
+                            <div class="base home-plate" id="base-4"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="match-info">

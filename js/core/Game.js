@@ -805,8 +805,6 @@ export class Game {
             this.finishMatch(0, 0); // Abort
             return;
         }
-        this.log(`MATCH STARTING! SP: ${starter.name}`);
-        document.getElementById('game-status-text').innerText = "PLAY BALL!";
 
         const round = this.league.getCurrentRound();
         const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
@@ -817,6 +815,23 @@ export class Game {
             return;
         }
 
+        // INITIALIZE SCOREBOARD
+        const homeName = document.getElementById('score-home-name');
+        const awayName = document.getElementById('score-away-name');
+        if (homeName) homeName.innerText = myMatch.home.name;
+        if (awayName) awayName.innerText = myMatch.away.name;
+
+        // Highlight Player Team
+        const sbHome = document.querySelector('.sb-team.home-team');
+        const sbAway = document.querySelector('.sb-team.away-team');
+        if (sbHome && sbAway) {
+            sbHome.style.color = (myMatch.home.id === this.playerTeamId) ? 'var(--accent-green)' : 'white';
+            sbAway.style.color = (myMatch.away.id === this.playerTeamId) ? 'var(--accent-green)' : 'white';
+        }
+
+        this.log(`MATCH STARTING! SP: ${starter.name} vs ${myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name}`);
+        document.getElementById('game-status-text').innerText = "PLAY BALL!";
+
         // 2. Simulate
         await this.simulateGame(myMatch, starter);
     }
@@ -824,29 +839,61 @@ export class Game {
     async simulateGame(match, starter) {
         // Visual Simulation
         const gameText = document.getElementById('game-status-text');
+        const homeVal = document.getElementById('score-home-val');
+        const awayVal = document.getElementById('score-away-val');
+        const inningText = document.getElementById('sb-inning');
+
         if (gameText) gameText.innerText = "PLAYING...";
 
         let inning = 1;
         let homeScore = 0;
         let awayScore = 0;
 
-        // Mock Simulation Loop (Visual only)
-        // Ideally this should use Rules.js to get a real result, but for now we'll stick to 'random' for visual
-        // preserving the existing behavior but fixing the flow.
+        // Update Scoreboard Helper
+        const updateUI = (inn, topBot) => {
+            if (homeVal) homeVal.innerText = homeScore;
+            if (awayVal) awayVal.innerText = awayScore;
+            if (inningText) inningText.innerText = `${topBot ? 'TOP' : 'BOT'} ${inn}`;
+            // Random Base Runners visual
+            const bases = [1, 2, 3].filter(() => Math.random() > 0.7);
+            document.querySelectorAll('.base').forEach(b => b.classList.remove('active'));
+            bases.forEach(b => {
+                const el = document.getElementById(`base-${b}`);
+                if (el) el.classList.add('active');
+            });
+        };
+
+        // Mock Simulation Loop
         while (inning <= 9) {
-            await this.wait(300); // speed up slightly
+            // TOP (Away)
+            updateUI(inning, true); // Top
+            if (gameText) gameText.innerText = `TOP ${inning} - ${match.away.name} Batting`;
+            await this.wait(400);
 
-            // Logic: Random score increment
-            if (Math.random() > 0.7) homeScore += Math.floor(Math.random() * 2);
-            if (Math.random() > 0.7) awayScore += Math.floor(Math.random() * 2);
+            // Random events
+            if (Math.random() > 0.6) {
+                awayScore += Math.floor(Math.random() * 3); // 0-2 runs
+                this.log(`${match.away.name} scores!`);
+            }
 
-            this.updateScoreboard(homeScore, awayScore);
-            this.log(`Inning ${inning}: Home ${homeScore} - Away ${awayScore}`);
+            // BOT (Home)
+            updateUI(inning, false); // Bot
+            if (gameText) gameText.innerText = `BOT ${inning} - ${match.home.name} Batting`;
+            await this.wait(400);
 
+            if (Math.random() > 0.6) {
+                homeScore += Math.floor(Math.random() * 3);
+                this.log(`${match.home.name} scores!`);
+            }
+
+            this.updateScoreboard(homeScore, awayScore); // Keep legacy updated too just in case
             inning++;
         }
 
         if (gameText) gameText.innerText = "MATCH FINISHED";
+        if (homeVal) homeVal.innerText = homeScore;
+        if (awayVal) awayVal.innerText = awayScore;
+
         this.finishMatch(homeScore, awayScore);
     }
 
