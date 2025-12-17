@@ -24,7 +24,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 
 ## 🛠️ Tech Stack
 
-*   **Core**: Vanilla JavaScript (ES6+)
+*   **Core**: Vanilla JavaScript (ES6+), Modular architecture using ES6 Modules (Core, Rules)
 *   **UI**: HTML5, CSS3 (Grid/Flexbox), Custom "Cyber/Sports" Theme.
 
 ## 🚀 How to Run Locally
