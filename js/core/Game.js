@@ -544,86 +544,102 @@ export class Game {
         this.lineup.fill(null);
 
         // --- 1. Fill Rotation (Top 5 Pitchers) ---
-        // Sort pitchers by stats
         const allPitchers = this.roster.filter(p => p.position === 'P').sort((a, b) => b.stats.pitching - a.stats.pitching);
-
-        // Reset rotation array
         this.rotation = new Array(this.rotationSize).fill(null);
-
         for (let i = 0; i < this.rotationSize; i++) {
-            if (allPitchers[i]) {
-                this.rotation[i] = allPitchers[i];
-            }
+            if (allPitchers[i]) this.rotation[i] = allPitchers[i];
         }
 
-        // --- 2. Fill Lineup (Positional) ---
-        // Desired Batting Order Positions (Standard 1-9)
-        // 1. C
-        // 2. 1B
-        // 3. 2B
-        // 4. 3B
-        // 5. SS
-        // 6. LF
-        // 7. CF
-        // 8. RF
-        // 9. DH (Best remaining)
-
+        // --- 2. Select Starting 9 (Defensive Integrity) ---
         const positionsNeeded = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+        const selectedPlayers = [];
         const usedPlayerIds = new Set();
 
-        // Helper to find best available player for a position
-        const getBestForPos = (pos) => {
-            const candidates = this.roster.filter(p => p.position === pos && !usedPlayerIds.has(p.id));
-            if (candidates.length === 0) return null;
-            // Sort by combined hitting stats
-            candidates.sort((a, b) => {
-                const statA = a.stats.contact + a.stats.power + a.stats.speed;
-                const statB = b.stats.contact + b.stats.power + b.stats.speed;
-                return statB - statA;
-            });
-            return candidates[0];
-        };
+        // Helper: Get Overall Hitting Ability
+        const getRating = (p) => p.stats.contact + p.stats.power + p.stats.speed;
 
-        // Fill standard positions
-        positionsNeeded.forEach((pos, index) => {
-            const player = getBestForPos(pos);
-            if (player) {
-                this.lineup[index] = player;
-                usedPlayerIds.add(player.id);
+        // A. Fill Fielders
+        positionsNeeded.forEach(pos => {
+            const candidates = this.roster.filter(p => p.position === pos && !usedPlayerIds.has(p.id));
+            candidates.sort((a, b) => getRating(b) - getRating(a));
+
+            if (candidates.length > 0) {
+                selectedPlayers.push(candidates[0]);
+                usedPlayerIds.add(candidates[0].id);
+            } else {
+                // Fallback: Best athlete not used (OOP)
+                const fallback = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id))
+                    .sort((a, b) => getRating(b) - getRating(a));
+                if (fallback.length > 0) {
+                    selectedPlayers.push(fallback[0]);
+                    usedPlayerIds.add(fallback[0].id);
+                }
             }
         });
 
-        // Fill DH (9th slot) - Best Remaining Non-Pitcher
-        const dhSlotIndex = 8;
-        if (!this.lineup[dhSlotIndex]) {
-            const candidates = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id));
-            candidates.sort((a, b) => {
-                const statA = a.stats.contact + a.stats.power + a.stats.speed;
-                const statB = b.stats.contact + b.stats.power + b.stats.speed;
-                return statB - statA;
-            });
-
-            if (candidates.length > 0) {
-                this.lineup[dhSlotIndex] = candidates[0];
-                usedPlayerIds.add(candidates[0].id);
-            }
+        // B. Fill DH (Best Hitter Remaining)
+        const dhCandidates = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id))
+            .sort((a, b) => getRating(b) - getRating(a));
+        if (dhCandidates.length > 0) {
+            selectedPlayers.push(dhCandidates[0]);
+            usedPlayerIds.add(dhCandidates[0].id);
         }
 
-        // Fallback: If any empty slots remain (e.g. no Catcher found), fill with best remaining anyone (non-pitcher)
-        for (let i = 0; i < 9; i++) {
-            if (this.lineup[i] === null) {
-                const candidates = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id));
-                candidates.sort((a, b) => {
-                    const statA = a.stats.contact + a.stats.power + a.stats.speed;
-                    const statB = b.stats.contact + b.stats.power + b.stats.speed;
-                    return statB - statA; // Descending
-                });
-                if (candidates.length > 0) {
-                    this.lineup[i] = candidates[0];
-                    usedPlayerIds.add(candidates[0].id);
-                }
-            }
+        // --- 3. Sort into Batting Order (Strategy) ---
+        // We now have ~9 players in selectedPlayers. Let's order them.
+        // If we have fewer than 9 (roster too small), we just fill what we have.
+
+        const battingOrder = new Array(9).fill(null);
+        const pool = [...selectedPlayers];
+
+        // Evaluators
+        const getSpeed = (p) => p.stats.speed;
+        const getPower = (p) => p.stats.power;
+        const getContact = (p) => p.stats.contact;
+        const getOPS = (p) => p.stats.contact + p.stats.power; // Proxy
+
+        // 1. Leadoff (#1): Best Speed
+        if (pool.length > 0) {
+            pool.sort((a, b) => getSpeed(b) - getSpeed(a));
+            battingOrder[0] = pool.shift();
         }
+
+        // 2. Cleanup (#4): Best Power
+        if (pool.length > 0) {
+            pool.sort((a, b) => getPower(b) - getPower(a));
+            battingOrder[3] = pool.shift();
+        }
+
+        // 3. 3-Hole (#3): Best All-Around Hitter (OPS)
+        if (pool.length > 0) {
+            pool.sort((a, b) => getOPS(b) - getOPS(a));
+            battingOrder[2] = pool.shift();
+        }
+
+        // 4. 2-Hole (#2): Best Contact (Mover)
+        if (pool.length > 0) {
+            pool.sort((a, b) => getContact(b) - getContact(a));
+            battingOrder[1] = pool.shift();
+        }
+
+        // 5. 5-Hole (#5): Best Remaining Power
+        if (pool.length > 0) {
+            pool.sort((a, b) => getPower(b) - getPower(a));
+            battingOrder[4] = pool.shift();
+        }
+
+        // 6. Remaining Slots (#6, #7, #8, #9): Best Overall
+        const remainingSlots = [5, 6, 7, 8]; // Index 5 is 6th batter
+        pool.sort((a, b) => getRating(b) - getRating(a)); // Sort by overall
+
+        remainingSlots.forEach(slotIndex => {
+            if (pool.length > 0) {
+                battingOrder[slotIndex] = pool.shift();
+            }
+        });
+
+        // Apply to Lineup
+        this.lineup = battingOrder;
 
         this.renderLineup();
         this.renderRotation();
