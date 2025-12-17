@@ -91,18 +91,18 @@ h3 {
     overflow: hidden;
 }
 
-/* LEAGUE MODE: Only League Panel */
+/* LEAGUE MODE: Dashboard (Dugout | League | Roster) */
 .main-content.league-mode {
-    grid-template-columns: 1fr;
-}
-
-.main-content.league-mode .league-panel {
-    display: flex;
+    grid-template-columns: 320px 1fr 320px;
 }
 
 .main-content.league-mode .dugout-panel,
-.main-content.league-mode .stadium-panel,
+.main-content.league-mode .league-panel,
 .main-content.league-mode .roster-panel {
+    display: flex;
+}
+
+.main-content.league-mode .stadium-panel {
     display: none;
 }
 
