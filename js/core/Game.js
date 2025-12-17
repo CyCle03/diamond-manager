@@ -21,6 +21,7 @@ export class Game {
         this.currentSlotId = 1; // Default
         this.teamName = "Cyber Nine";
         this.teamBudget = 5000000; // Starting budget
+        this.playerIsHomeInCurrentMatch = true;
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -261,8 +262,6 @@ export class Game {
         if (playMatchBtn) playMatchBtn.addEventListener('click', () => {
             if (this.validateLineup()) {
                 this.startMatch();
-            } else {
-                alert("Please fill your Lineup!");
             }
         });
 
@@ -859,44 +858,22 @@ export class Game {
     async startMatch() {
         if (this.isSimulating) return;
 
-        // 1. Setup Match
-        this.isSimulating = true;
-        document.getElementById('play-match-btn').disabled = true;
-
         const starter = this.rotation[this.currentRotationIndex];
-        if (!starter) {
-            alert("No starter for this rotation slot! Check your rotation.");
-            this.finishMatch(0, 0); // Abort
-            return;
-        }
 
         const round = this.league.getCurrentRound();
         const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
-
         if (!myMatch) {
             this.log("No match scheduled for this round.");
-            this.finishMatch();
             return;
         }
-
-        // INITIALIZE SCOREBOARD
-        const homeName = document.getElementById('score-home-name');
-        const awayName = document.getElementById('score-away-name');
-        if (homeName) homeName.innerText = myMatch.home.name;
-        if (awayName) awayName.innerText = myMatch.away.name;
-
-        // Highlight Player Team
-        const sbHome = document.querySelector('.sb-team.home-team');
-        const sbAway = document.querySelector('.sb-team.away-team');
-        if (sbHome && sbAway) {
-            sbHome.style.color = (myMatch.home.id === this.playerTeamId) ? 'var(--accent-green)' : 'white';
-            sbAway.style.color = (myMatch.away.id === this.playerTeamId) ? 'var(--accent-green)' : 'white';
-        }
-
-        this.log(`MATCH STARTING! SP: ${starter.name} vs ${myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name}`);
+        
+        // 3. Update UI to "Simulating" state
+        this.isSimulating = true;
+        document.getElementById('play-match-btn').disabled = true;
         document.getElementById('game-status-text').innerText = "PLAY BALL!";
+        this.log(`MATCH STARTING! SP: ${starter.name} vs ${myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name}`);
 
-        // 2. Simulate
+        // 4. Simulate
         await this.simulateGame(myMatch, starter);
     }
 
@@ -1077,6 +1054,36 @@ export class Game {
         }
     }
 
+    resetMatchView() {
+        if (!this.league) return;
+
+        // Get next match details
+        const round = this.league.getCurrentRound();
+        if (!round) return;
+
+        const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
+        if (!myMatch) return;
+
+        // Set team names
+        document.getElementById('score-home-name').innerText = myMatch.home.name;
+        document.getElementById('score-away-name').innerText = myMatch.away.name;
+
+        // Reset scores and inning
+        document.getElementById('score-home-val').innerText = '0';
+        document.getElementById('score-away-val').innerText = '0';
+        document.getElementById('sb-inning').innerText = 'TOP 1';
+
+        // Reset game status text and log
+        document.getElementById('game-status-text').innerText = 'WAITING FOR MATCH...';
+        document.getElementById('game-log').innerHTML = '<div class="log-entry">> Set your lineup and click "PLAY BALL" to start.</div>';
+
+        // Reset matchup display
+        this.updateMatchupDisplay({ name: '---' }, { name: '---' });
+        
+        // Ensure play button is enabled
+        document.getElementById('play-match-btn').disabled = false;
+    }
+
     // --- UI Helpers called by Rules Strategy ---
 
     updateMatchupDisplay(batter, pitcher) {
@@ -1117,6 +1124,7 @@ export class Game {
         } else if (mode === 'match') {
             mainContent.classList.add('match-mode');
             if (matchBtn) matchBtn.classList.add('active');
+            this.resetMatchView(); // Reset the view when switching to it
         } else if (mode === 'league') {
             mainContent.classList.add('league-mode');
             if (leagueBtn) leagueBtn.classList.add('active');
