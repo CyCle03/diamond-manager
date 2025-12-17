@@ -1,36 +1,41 @@
 # ⚾ Diamond Manager (Web Auto-Battler)
 
+[![Play Game](https://img.shields.io/badge/Play-Diamond%20Manager-2ea44f?style=for-the-badge&logo=github)](https://cycle03.github.io/diamond-manager/)
+
 A web-based Baseball Manager Auto-Battler game where you build your roster, manage your lineup and pitching rotation, and compete in a simulated league.
 
 ## 🎮 Features
 
-*   **League System**: Compete in a full season against AI teams.
+*   **League System**: Compete in a full season against 7 AI teams.
 *   **Team Management (Dashboard)**:
-    *   **Lineup**: Drag & drop batting order.
-    *   **Rotation**: Manage a 4-6 man starting pitcher rotation.
-    *   **Roster**: View your squad and release players.
-    *   **Market**: Sign free agents (FA) to improve your team.
-*   **Match Simulation**: Watch play-by-play simulations of your games.
-*   **3-View Grid System**:
-    *   **LEAGUE**: All-in-one Dashboard (Lineup, Standings, Roster/Market).
-    *   **TEAM**: Dedicated management view.
-    *   **MATCH**: Stadium view for game day.
+    *   **Strategic Auto-Lineup**: Automatically selects the best defensive players and orders the batting lineup based on stats (Speed #1, Power #4, etc.).
+    *   **Flexible Lineup**: Drag & Drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
+    *   **Pitching Rotation**: Manage a 4-6 man rotation with full Drag & Drop support for reordering starters.
+    *   **Roster & Market**: Sign free agents and manage your 25-man squad.
+*   **Save System**: Auto-saves your progress. Use the **Options** menu to switch save slots or delete data.
+*   **Match Simulation**: Watch play-by-play visual simulations of your games.
+
+## 🕹️ Controls
+
+*   **Lineup**: Drag players from Roster to Lineup. Drag within Lineup to swap.
+*   **Position Change**: Click the green dropdown (e.g., "SS") next to a player in the lineup to change their defensive role.
+*   **Rotation**: Drag Pitchers from Roster/Lineup to Rotation slots. Drag within Rotation to swap order.
+*   **Options**: Click the **OPTIONS** button in the header to manage save data.
 
 ## 🛠️ Tech Stack
 
 *   **Core**: Vanilla JavaScript (ES6+)
-*   **UI**: HTML5, CSS3 (Grid/Flexbox)
-*   **Design**: Dark-themed "Cyber/Sports" aesthetic.
+*   **UI**: HTML5, CSS3 (Grid/Flexbox), Custom "Cyber/Sports" Theme.
 
-## 🚀 How to Run
+## 🚀 How to Run Locally
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/CyCle03/baseball-manager.git
+    git clone https://github.com/CyCle03/diamond-manager.git
     ```
 2.  Navigate to the directory:
     ```bash
-    cd baseball-manager
+    cd diamond-manager
     ```
 3.  Run a local server (required for Modules/CORS):
     ```bash
