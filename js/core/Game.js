@@ -854,7 +854,10 @@ export class Game {
     // We keep the one below (callback style).
 
     // Callback after match ends
+    // Callback after match ends
     async finishMatch(homeScore, awayScore) {
+        this.isSimulating = false; // RESET FLAG
+
         // 1. Update League Standings for Player Match
         const round = this.league.getCurrentRound();
         const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
@@ -878,12 +881,17 @@ export class Game {
 
         // 3. Advance Round
         this.league.currentRoundIndex++;
+
+        // 4. Advance Rotation (Player Team)
+        this.currentRotationIndex = (this.currentRotationIndex + 1) % this.rotationSize;
+        this.renderRotation(); // Update UI to show next starter
+
         if (this.league.currentRoundIndex >= this.league.schedule.length) {
             alert("SEASON OVER!");
             return;
         }
 
-        // 4. Show League View again
+        // 5. Show League View again
         await this.wait(2000);
         this.updateLeagueView();
         this.switchView('league');
