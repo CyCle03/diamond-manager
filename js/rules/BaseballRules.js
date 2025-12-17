@@ -43,6 +43,15 @@ export class BaseballRules extends GameRules {
             baseStats[key] = Math.floor(Math.max(0, Math.min(99, baseStats[key])));
         });
 
+        // Add overall and financial stats
+        const overall = position === 'P'
+            ? baseStats.pitching * 0.8 + baseStats.power * 0.1 + baseStats.contact * 0.1
+            : baseStats.contact * 0.3 + baseStats.power * 0.3 + baseStats.speed * 0.2 + baseStats.defense * 0.2;
+        
+        baseStats.overall = Math.round(overall);
+        baseStats.salary = Math.round(overall * 15000);
+        baseStats.signingBonus = baseStats.salary * 10;
+
         return baseStats;
     }
 
@@ -136,5 +145,40 @@ export class BaseballRules extends GameRules {
             if (outType < 0.6) return { type: 'out', desc: 'Groundout' };
             return { type: 'out', desc: 'Flyout' };
         }
+    }
+
+    updatePlayerStatsForAge(player) {
+        const { stats, age, position } = player;
+        const statKeys = ['contact', 'power', 'speed', 'defense', 'pitching'];
+
+        statKeys.forEach(key => {
+            if (key === 'pitching' && position !== 'P') return;
+            if (key !== 'pitching' && position === 'P') return;
+
+            let change = 0;
+            if (age < 27) {
+                // Young players: Improve
+                change = Math.random() * 4; // 0-4
+            } else if (age >= 27 && age <= 31) {
+                // Prime players: Fluctuate
+                change = Math.random() * 2 - 1; // -1 to +1
+            } else {
+                // Old players: Decline
+                change = -(Math.random() * 4); // -4 to 0
+            }
+            stats[key] += change;
+            stats[key] = Math.floor(Math.max(0, Math.min(99, stats[key])));
+        });
+
+        // Recalculate overall and financial stats
+        const newOverall = position === 'P'
+            ? stats.pitching * 0.8 + stats.power * 0.1 + stats.contact * 0.1
+            : stats.contact * 0.3 + stats.power * 0.3 + stats.speed * 0.2 + stats.defense * 0.2;
+        
+        stats.overall = Math.round(newOverall);
+        stats.salary = Math.round(newOverall * 15000);
+        stats.signingBonus = stats.salary * 10;
+        
+        player.stats = stats;
     }
 }

@@ -19,6 +19,7 @@ export class Game {
         this.currentTab = 'tab-roster';
         this.currentSlotId = 1; // Default
         this.teamName = "Cyber Nine";
+        this.teamBudget = 5000000; // Starting budget
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -113,6 +114,13 @@ export class Game {
         });
     }
 
+    updateBudgetUI() {
+        const budgetEl = document.getElementById('team-budget');
+        if (budgetEl) {
+            budgetEl.innerText = `BUDGET: $${this.teamBudget.toLocaleString()}`;
+        }
+    }
+
     openOptions() {
         document.getElementById('start-screen-overlay').style.display = 'flex';
         this.updateStartScreenUI();
@@ -133,6 +141,8 @@ export class Game {
 
         if (isNew) {
             this.teamName = teamName;
+            this.teamBudget = 5000000;
+            this.currentRotationIndex = 0; // Explicitly reset for new game
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 25); // Full 25-man roster now
             // Auto-fill roster/lineup
@@ -150,6 +160,7 @@ export class Game {
         this.renderRosterAndMarket();
         this.renderLineup();
         this.renderRotation();
+        this.updateBudgetUI();
 
         // Ensure name is updated in UI if element exists
         // (Optional: Add team name display in header)
@@ -158,6 +169,7 @@ export class Game {
     saveGame() {
         const data = {
             teamName: this.teamName,
+            teamBudget: this.teamBudget,
             season: this.league ? this.league.season : 1,
             roster: this.roster, // Player objects should serialize fine
             lineup: this.lineup,
@@ -179,26 +191,27 @@ export class Game {
         }
 
         this.teamName = data.teamName;
+        this.teamBudget = data.teamBudget || 5000000;
         this.playerTeamId = data.playerTeamId;
         this.currentRotationIndex = data.currentRotationIndex;
         this.rotationSize = data.rotationSize;
 
-        // Reconstruct League
-        // Note: League constructor takes rules. accessing internal state requires care.
-        // Option A: Re-create league and stomp state.
+        // Re-hydrate Player objects
+        const rehydrate = p => p ? new Player(p.id, p.name, p.position, p.age, p.stats) : null;
+
+        this.roster = data.roster.map(rehydrate);
+        this.lineup = data.lineup.map(slot => slot ? { ...slot, player: rehydrate(slot.player) } : null);
+        this.rotation = data.rotation.map(rehydrate);
+
+        // Reconstruct League and its players
         this.league = new League(this.rules);
         Object.assign(this.league, data.league);
+        this.league.teams.forEach(team => {
+            team.roster = team.roster.map(rehydrate);
+            // lineup and pitcher objects in AI teams are simpler, direct assignment is fine for now
+        });
+        this.league.freeAgents = this.league.freeAgents.map(rehydrate);
 
-        // Reconstruct Roster & Lineup
-        // Players are just objects for now, but if they have methods, we lose them.
-        // Assuming Player class is mainly data + prototype methods. 
-        // JSON.parse gives plain objects. We shouldn't need strict class instances if UI just reads props.
-        // BUT if Game.js calls methods on players (like updateStats), checks instanceOf, or if Player has methods, we have an issue.
-        // Looking at Player.js (not viewed but standard pattern), usually simple data structs.
-        // Let's assume plain objects are OK or we re-hydrate if needed.
-        this.roster = data.roster;
-        this.lineup = data.lineup;
-        this.rotation = data.rotation;
 
         // Manually update the UI to show the league view correctly
         const startBtn = document.getElementById('start-season-btn');
@@ -305,7 +318,7 @@ export class Game {
             // Click to Buy/Sell/Action
             card.addEventListener('click', () => {
                 if (isMarket) {
-                    if (confirm(`Sign Free Agent ${player.name}?`)) {
+                    if (confirm(`Sign Free Agent ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
                         this.signFreeAgent(player);
                     }
                 } else {
@@ -321,11 +334,15 @@ export class Game {
             if (player.position === 'P') {
                 statsHtml = `PIT:${player.stats.pitching} SPD:${player.stats.speed}`;
             } else {
-                statsHtml = `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed}`;
+                statsHtml = `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            }
+
+            if (isMarket) {
+                statsHtml += ` | COST: $${player.stats.signingBonus.toLocaleString()}`;
             }
 
             card.innerHTML = `
-                <div class="card-pos">${player.position}</div>
+                <div class="card-pos">${player.position} (${player.age})</div>
                 <div class="card-name">${player.name}</div>
                 <div class="card-stats">
                     ${statsHtml}
@@ -758,6 +775,16 @@ export class Game {
             alert("Roster is full (Max 25)!");
             return;
         }
+
+        const cost = player.stats.signingBonus;
+        if (this.teamBudget < cost) {
+            alert("Not enough budget to sign this player!");
+            return;
+        }
+
+        this.teamBudget -= cost;
+        this.updateBudgetUI();
+
         // Move from FA to Roster
         this.roster.push(player);
         this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
@@ -970,7 +997,7 @@ export class Game {
         this.renderRotation(); // Update UI to show next starter
 
         if (this.league.currentRoundIndex >= this.league.schedule.length) {
-            alert("SEASON OVER!");
+            this.advanceSeason();
             return;
         }
 
@@ -984,9 +1011,40 @@ export class Game {
         this.saveGame();
     }
 
+    advanceSeason() {
+        alert("SEASON OVER! Proceeding to Off-Season for player development.");
+
+        // Age all players and apply progression/regression
+        const allPlayers = [...this.roster, ...this.league.freeAgents];
+        allPlayers.forEach(player => {
+            player.age++;
+            this.rules.updatePlayerStatsForAge(player);
+        });
+
+        // Start a new season
+        this.league.season++;
+        this.league.currentRoundIndex = 0;
+        this.league.generateSchedule(); // Regenerate schedule
+        this.league.teams.forEach(t => { // Reset standings
+            this.league.standings[t.id] = { w: 0, l: 0 };
+        });
+
+
+        // Refresh UI
+        this.updateLeagueView();
+        this.renderRosterAndMarket();
+        this.saveGame();
+
+        alert(`Season ${this.league.season} is about to begin!`);
+    }
+
     // --- VIEW UPDATES ---
 
     updateLeagueView() {
+        // Update season display
+        const seasonDisplay = document.getElementById('season-display');
+        if (seasonDisplay) seasonDisplay.innerText = `SEASON ${this.league.season}`;
+
         const sorted = this.league.getSortedStandings();
         const tbody = document.querySelector('#standings-table tbody');
         if (!tbody) return;

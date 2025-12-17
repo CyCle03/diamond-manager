@@ -8,6 +8,7 @@ export class League {
         this.currentRoundIndex = 0;
         this.standings = {}; // teamId -> { w, l, pts }
         this.freeAgents = [];
+        this.season = 1;
     }
 
     initialize(playerTeam) {
@@ -36,7 +37,7 @@ export class League {
 
         // 2. Initialize Standings
         this.teams.forEach(t => {
-            this.standings[t.id] = { w: 0, l: 0, pts: 0 };
+            this.standings[t.id] = { w: 0, l: 0 };
         });
 
         // 3. Generate Round Robin Schedule
@@ -45,12 +46,16 @@ export class League {
 
     generateSchedule() {
         // Simple Round Robin algorithm
+        this.schedule = []; // Clear existing schedule
         const numTeams = this.teams.length;
+        if (numTeams % 2 !== 0) {
+            // In case of odd teams, this simple algorithm might fail. Add a dummy if needed.
+            // For now, we assume 8 teams.
+        }
         const rounds = numTeams - 1;
         const half = numTeams / 2;
 
         let teams = [...this.teams];
-        // Ensure even number (we have 8)
 
         for (let round = 0; round < rounds * 2; round++) { // Double Round Robin (Home & Away)
             const roundMatches = [];
@@ -78,7 +83,6 @@ export class League {
 
     updateStandings(winnerId, loserId) {
         this.standings[winnerId].w++;
-        this.standings[winnerId].pts += 3; // 3 pts for win? Use simple W/L for baseball usually, but points for soccer
         this.standings[loserId].l++;
     }
 
@@ -88,6 +92,6 @@ export class League {
                 const team = this.teams.find(t => t.id === id);
                 return { ...team, ...this.standings[id] };
             })
-            .sort((a, b) => b.w - a.w || b.pts - a.pts); // Sort by Wins, then Points
+            .sort((a, b) => b.w - a.w); // Sort by Wins
     }
 }

@@ -7,11 +7,15 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 ## 🎮 Features
 
 *   **League System**: Compete in a full season against 7 AI teams.
+*   **Deeper Simulation**:
+    *   **Player Development**: Players age each season. Their stats will progress or regress based on their age, with young players improving and older players declining.
+    *   **Team Finances**: Manage a team budget. Signing players from the free agent market costs money, so spend wisely.
+    *   **Expanded Player Stats**: Players have `Age` and `Defense` stats, providing more strategic depth.
 *   **Team Management (Dashboard)**:
     *   **Strategic Auto-Lineup**: Automatically selects the best defensive players and orders the batting lineup based on stats (Speed #1, Power #4, etc.).
     *   **Flexible Lineup**: Drag & Drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
     *   **Pitching Rotation**: Manage a 4-6 man rotation with full Drag & Drop support for reordering starters.
-    *   **Roster & Market**: Sign free agents and manage your 25-man squad.
+    *   **Roster & Market**: Sign free agents from a dynamic market to manage your 25-man squad, keeping an eye on your budget.
 *   **Save System**: Auto-saves your progress. Use the **Options** menu to switch save slots or delete data.
 *   **Match Simulation**: Watch play-by-play visual simulations of your games.
 

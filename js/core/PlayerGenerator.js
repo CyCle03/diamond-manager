@@ -17,11 +17,13 @@ export class PlayerGenerator {
     static createPlayer(rules, position = null) {
         const positions = rules.getPositions();
         const chosenPos = position || positions[Math.floor(Math.random() * positions.length)];
+        const age = 18 + Math.floor(Math.random() * 7); // Generate age 18-24
 
         return new Player(
             this.generateRandomId(),
             this.generateName(),
             chosenPos,
+            age,
             rules.generatePlayerStats(chosenPos)
         );
     }
