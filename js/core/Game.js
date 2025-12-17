@@ -21,7 +21,14 @@ export class Game {
     }
 
     initUI() {
-        // --- NAVIGATION & MENU ---
+        // --- VIEW NAVIGATION ---
+        const viewTeamBtn = document.getElementById('view-team-btn');
+        const viewMatchBtn = document.getElementById('view-match-btn');
+
+        if (viewTeamBtn) viewTeamBtn.addEventListener('click', () => this.switchView('team'));
+        if (viewMatchBtn) viewMatchBtn.addEventListener('click', () => this.switchView('match'));
+
+        // --- GAME ACTIONS ---
         const startBtn = document.getElementById('start-season-btn');
         if (startBtn) startBtn.addEventListener('click', () => this.startSeason());
 
@@ -172,8 +179,14 @@ export class Game {
                     this.removeFromLineup(index);
                 });
             } else {
-                slot.className = 'empty-slot lineup-slot';
-                slot.innerText = `${index + 1}. Drag Player Here...`;
+                slot.className = 'empty-slot';
+                slot.innerText = `${index + 1}. Select Batter...`;
+
+                // Keep minimal drag capability if needed for empty slots as targets?
+                // renderLineup adds listeners to 'slot' variable which is the div.
+                // listeners are added before this if/else block in previous code, let's verify.
+                // No, listeners added to `slot` object which is created before.
+                // So removing 'lineup-slot' class just changes visual.
             }
             container.appendChild(slot);
         });
@@ -209,7 +222,7 @@ export class Game {
             } else {
                 pitcherSlot.innerHTML = `
                     <div class="label">STARTING PITCHER</div>
-                    <div class="empty-slot">Drag Pitcher Here...</div>
+                    <div class="empty-slot">Select Pitcher...</div>
                 `;
             }
         }
@@ -319,6 +332,9 @@ export class Game {
         this.updateLeagueView();
         document.getElementById('league-view').classList.add('active');
 
+        // Default to Team View for management
+        this.switchView('team');
+
         this.renderCardList('tab-roster');
         this.renderLineup();
     }
@@ -340,6 +356,9 @@ export class Game {
     }
 
     async startMatch() {
+        // Switch to Match View
+        this.switchView('match');
+
         const round = this.league.getCurrentRound();
         const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
         const isHome = myMatch.home.id === this.playerTeamId;
@@ -450,6 +469,25 @@ export class Game {
         if (log) {
             log.innerHTML += `<div class="log-entry">${msg}</div>`;
             log.scrollTop = log.scrollHeight;
+        }
+    }
+
+    switchView(mode) {
+        const mainContent = document.querySelector('.main-content');
+        const teamBtn = document.getElementById('view-team-btn');
+        const matchBtn = document.getElementById('view-match-btn');
+
+        mainContent.classList.remove('team-mode', 'match-mode');
+
+        if (teamBtn) teamBtn.classList.remove('active');
+        if (matchBtn) matchBtn.classList.remove('active');
+
+        if (mode === 'team') {
+            mainContent.classList.add('team-mode');
+            if (teamBtn) teamBtn.classList.add('active');
+        } else if (mode === 'match') {
+            mainContent.classList.add('match-mode');
+            if (matchBtn) matchBtn.classList.add('active');
         }
     }
 
