@@ -457,9 +457,6 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
 
-        // Update rotation size from selector if changed (handled by event but safe to read)
-        // Actually better to handle event separately.
-
         for (let i = 0; i < this.rotationSize; i++) {
             const p = this.rotation[i];
             const isStarter = (i === this.currentRotationIndex);
@@ -476,6 +473,7 @@ export class Game {
                 e.preventDefault();
                 slot.classList.remove('drag-over');
                 const data = JSON.parse(e.dataTransfer.getData('application/json'));
+
                 if (data.source === 'roster') {
                     const player = this.roster.find(pl => pl.id === data.playerId);
                     if (player && player.position === 'P') {
@@ -484,17 +482,33 @@ export class Game {
                     } else {
                         alert("Only Pitchers in Rotation!");
                     }
+                } else if (data.source === 'rotation') {
+                    // Swap Logic
+                    const sourceIndex = data.index;
+                    const temp = this.rotation[i];
+                    this.rotation[i] = this.rotation[sourceIndex];
+                    this.rotation[sourceIndex] = temp;
+                    this.renderRotation();
                 }
             });
 
             if (p) {
+                // Drag Source Logic
+                slot.draggable = true;
+                slot.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('application/json', JSON.stringify({ source: 'rotation', index: i }));
+                    slot.classList.add('dragging');
+                });
+                slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
+
                 slot.innerHTML = `
                     <span class="order-num">SP${i + 1}</span>
                     <span class="player-name">${p.name}</span>
                     <span class="player-pos">P</span>
                     <button class="remove-btn">x</button>
                 `;
-                slot.querySelector('.remove-btn').addEventListener('click', () => {
+                slot.querySelector('.remove-btn').addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent drag/click propagation
                     this.rotation[i] = null;
                     this.renderRotation();
                 });
