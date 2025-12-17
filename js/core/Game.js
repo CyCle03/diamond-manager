@@ -513,7 +513,9 @@ export class Game {
         } else {
             const emptyIndex = this.lineup.findIndex(slot => slot === null);
             if (emptyIndex !== -1) {
-                this.lineup[emptyIndex] = player;
+                // Default role = player's primary position, or DH if slot 9 (index 8)
+                const role = (emptyIndex === 8) ? 'DH' : player.position;
+                this.lineup[emptyIndex] = { player, role };
             } else {
                 console.log("Lineup full!");
                 return;
@@ -527,8 +529,10 @@ export class Game {
         this.renderLineup();
     }
 
-    setLineupSlot(index, player) {
-        this.lineup[index] = player;
+    setLineupSlot(index, player, role = null) {
+        // Use existing role if updating same player, or default
+        const effectiveRole = role || ((index === 8) ? 'DH' : player.position);
+        this.lineup[index] = { player, role: effectiveRole };
         this.renderLineup();
     }
 
@@ -551,97 +555,180 @@ export class Game {
         }
 
         // --- 2. Select Starting 9 (Defensive Integrity) ---
-        const positionsNeeded = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
-        const selectedPlayers = [];
-        const usedPlayerIds = new Set();
+        // --- 3. Sort into Batting Order (Strategy) ---
+        // We now have ~9 players in selectedPlayers. Let's order them.
+
+        // Map player IDs to their assigned roles (from Phase 2A/2B)
+        const roleMap = new Map();
+        // RE-REFACTORING PHASE 2 TO STORE ROLES
+        const selectedEntries = []; // Array of { player, role }
+        const usedIds = new Set();
 
         // Helper: Get Overall Hitting Ability
         const getRating = (p) => p.stats.contact + p.stats.power + p.stats.speed;
 
         // A. Fill Fielders
+        const positionsNeeded = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
         positionsNeeded.forEach(pos => {
-            const candidates = this.roster.filter(p => p.position === pos && !usedPlayerIds.has(p.id));
-            candidates.sort((a, b) => getRating(b) - getRating(a));
-
+            const candidates = this.roster.filter(p => p.position === pos && !usedIds.has(p.id))
+                .sort((a, b) => getRating(b) - getRating(a));
+            let pick = null;
             if (candidates.length > 0) {
-                selectedPlayers.push(candidates[0]);
-                usedPlayerIds.add(candidates[0].id);
+                pick = candidates[0];
             } else {
-                // Fallback: Best athlete not used (OOP)
-                const fallback = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id))
+                // Fallback
+                const fallback = this.roster.filter(p => p.position !== 'P' && !usedIds.has(p.id))
                     .sort((a, b) => getRating(b) - getRating(a));
-                if (fallback.length > 0) {
-                    selectedPlayers.push(fallback[0]);
-                    usedPlayerIds.add(fallback[0].id);
-                }
+                if (fallback.length > 0) pick = fallback[0];
+            }
+
+            if (pick) {
+                selectedEntries.push({ player: pick, role: pos });
+                usedIds.add(pick.id);
             }
         });
 
-        // B. Fill DH (Best Hitter Remaining)
-        const dhCandidates = this.roster.filter(p => p.position !== 'P' && !usedPlayerIds.has(p.id))
+        // B. Fill DH
+        const dhCandidates = this.roster.filter(p => p.position !== 'P' && !usedIds.has(p.id))
             .sort((a, b) => getRating(b) - getRating(a));
         if (dhCandidates.length > 0) {
-            selectedPlayers.push(dhCandidates[0]);
-            usedPlayerIds.add(dhCandidates[0].id);
+            selectedEntries.push({ player: dhCandidates[0], role: 'DH' });
+            usedIds.add(dhCandidates[0].id);
         }
 
-        // --- 3. Sort into Batting Order (Strategy) ---
-        // We now have ~9 players in selectedPlayers. Let's order them.
-        // If we have fewer than 9 (roster too small), we just fill what we have.
-
+        // --- Sort into Batting Order ---
         const battingOrder = new Array(9).fill(null);
-        const pool = [...selectedPlayers];
+        let pool = [...selectedEntries]; // Pool of {player, role} objects
 
         // Evaluators
-        const getSpeed = (p) => p.stats.speed;
-        const getPower = (p) => p.stats.power;
-        const getContact = (p) => p.stats.contact;
-        const getOPS = (p) => p.stats.contact + p.stats.power; // Proxy
+        const getSpeed = (entry) => entry.player.stats.speed;
+        const getPower = (entry) => entry.player.stats.power;
+        const getContact = (entry) => entry.player.stats.contact;
+        const getOPS = (entry) => entry.player.stats.contact + entry.player.stats.power;
 
         // 1. Leadoff (#1): Best Speed
         if (pool.length > 0) {
             pool.sort((a, b) => getSpeed(b) - getSpeed(a));
             battingOrder[0] = pool.shift();
         }
-
         // 2. Cleanup (#4): Best Power
         if (pool.length > 0) {
             pool.sort((a, b) => getPower(b) - getPower(a));
             battingOrder[3] = pool.shift();
         }
-
-        // 3. 3-Hole (#3): Best All-Around Hitter (OPS)
+        // 3. 3-Hole (#3): Best OPS
         if (pool.length > 0) {
             pool.sort((a, b) => getOPS(b) - getOPS(a));
             battingOrder[2] = pool.shift();
         }
-
-        // 4. 2-Hole (#2): Best Contact (Mover)
+        // 4. 2-Hole (#2): Best Contact
         if (pool.length > 0) {
             pool.sort((a, b) => getContact(b) - getContact(a));
             battingOrder[1] = pool.shift();
         }
-
-        // 5. 5-Hole (#5): Best Remaining Power
+        // 5. 5-Hole (#5): Best remaining Power
         if (pool.length > 0) {
             pool.sort((a, b) => getPower(b) - getPower(a));
             battingOrder[4] = pool.shift();
         }
-
-        // 6. Remaining Slots (#6, #7, #8, #9): Best Overall
-        const remainingSlots = [5, 6, 7, 8]; // Index 5 is 6th batter
-        pool.sort((a, b) => getRating(b) - getRating(a)); // Sort by overall
+        // 6. Remaining
+        const remainingSlots = [5, 6, 7, 8];
+        const getRatingEntry = (entry) => getRating(entry.player);
+        pool.sort((a, b) => getRatingEntry(b) - getRatingEntry(a));
 
         remainingSlots.forEach(slotIndex => {
-            if (pool.length > 0) {
-                battingOrder[slotIndex] = pool.shift();
-            }
+            if (pool.length > 0) battingOrder[slotIndex] = pool.shift();
         });
 
-        // Apply to Lineup
-        this.lineup = battingOrder;
-
+        // Apply
+        this.lineup = battingOrder; // Now contains {player, role} objects or null
         this.renderLineup();
+        this.renderRotation();
+    }
+
+    validateLineup() {
+        // Check if all 9 slots are filled
+        // this.lineup contains {player, role} or null
+        return this.lineup.every(slot => slot !== null);
+    }
+
+    renderLineup() {
+        const container = document.getElementById('batting-order-list');
+        if (!container) return;
+        container.innerHTML = '';
+
+        this.lineup.forEach((entry, index) => {
+            const slot = document.createElement('div');
+            slot.className = 'lineup-slot';
+            slot.dataset.index = index;
+
+            // Events
+            slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
+            slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+            slot.addEventListener('drop', e => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                const data = JSON.parse(e.dataTransfer.getData('application/json'));
+
+                if (data.source === 'roster') {
+                    const player = this.roster.find(p => p.id === data.playerId);
+
+                    if (player) {
+                        // When dropping from roster, default role is primary relative to slot
+                        // If OOP, we can just assign primary and let them change it.
+                        this.setLineupSlot(index, player, player.position);
+                    }
+                } else if (data.source === 'lineup') {
+                    this.swapLineupSlots(data.index, index);
+                }
+            });
+
+            if (entry && entry.player) {
+                const { player, role } = entry;
+                slot.draggable = true;
+                slot.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('application/json', JSON.stringify({ source: 'lineup', index: index }));
+                    slot.classList.add('dragging');
+                });
+                slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
+
+                slot.classList.add('filled');
+
+                // Construct HTML with Select dropdown
+                const roles = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
+                let optionsHtml = '';
+                roles.forEach(r => {
+                    optionsHtml += `<option value="${r}" ${r === role ? 'selected' : ''}>${r}</option>`;
+                });
+
+                slot.innerHTML = `
+                    <span class="order-num">${index + 1}.</span>
+                    <select class="role-select" style="margin-right:5px; background:var(--accent-green); color:white; border:none; border-radius:3px; padding:2px; cursor:pointer; font-weight:bold;">
+                        ${optionsHtml}
+                    </select>
+                    <span class="player-name">${player.name}</span>
+                    <span class="player-pos-natural" style="font-size:0.8rem; opacity:0.7; margin-left:5px;">(${player.position})</span>
+                    <button class="remove-btn">x</button>
+                `;
+
+                // Add Listeners
+                const select = slot.querySelector('select');
+                select.addEventListener('change', (e) => {
+                    entry.role = e.target.value;
+                });
+                select.addEventListener('click', e => e.stopPropagation()); // Prevent drag
+
+                slot.querySelector('.remove-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.removeFromLineup(index);
+                });
+            } else {
+                slot.className = 'empty-slot';
+                slot.innerHTML = `<span>${index + 1}. Select Batter...</span>`;
+            }
+            container.appendChild(slot);
+        });
+
         this.renderRotation();
     }
 
