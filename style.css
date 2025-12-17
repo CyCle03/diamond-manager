@@ -83,20 +83,33 @@ h3 {
        Let's stick to the plan: layout changes based on class.
        Default might be Match Mode or Team Mode. Let's define specific classes.
     */
-    grid-template-columns: 400px 1fr 350px;
-    /* Keeping this for generic reference but will override */
+    display: grid;
+    /* Default: League Mode */
+    grid-template-columns: 1fr;
     margin: 10px;
     gap: 10px;
     overflow: hidden;
 }
 
-/* TEAM MANAGEMENT MODE: 50% Dugout, 50% Roster */
-.main-content.team-mode {
-    grid-template-columns: 1fr 1fr;
+/* LEAGUE MODE: Only League Panel */
+.main-content.league-mode {
+    grid-template-columns: 1fr;
 }
 
-.main-content.team-mode .stadium-panel {
+.main-content.league-mode .league-panel {
+    display: flex;
+}
+
+.main-content.league-mode .dugout-panel,
+.main-content.league-mode .stadium-panel,
+.main-content.league-mode .roster-panel {
     display: none;
+}
+
+
+/* TEAM MODE: Dugout + Roster */
+.main-content.team-mode {
+    grid-template-columns: 1fr 1fr;
 }
 
 .main-content.team-mode .dugout-panel,
@@ -104,22 +117,25 @@ h3 {
     display: flex;
 }
 
-/* MATCH MODE: Stadium Focused. Check if sidebars are visible or hidden? 
-   User said "Separate Lineup" -> "Focus on Lineup only".
-   So maybe Match Mode just shows Stadium? Or keep classic 3-panel for match?
-   "MATCH 탭: 경기장(중계) 화면만 봅니다." -> Looks like full screen stadium.
-*/
-.main-content.match-mode {
-    grid-template-columns: 1fr;
-}
-
-.main-content.match-mode .dugout-panel,
-.main-content.match-mode .roster-panel {
+.main-content.team-mode .stadium-panel,
+.main-content.team-mode .league-panel {
     display: none;
 }
 
+
+/* MATCH MODE: Dugout + Stadium */
+.main-content.match-mode {
+    grid-template-columns: 400px 1fr;
+}
+
+.main-content.match-mode .dugout-panel,
 .main-content.match-mode .stadium-panel {
     display: flex;
+}
+
+.main-content.match-mode .roster-panel,
+.main-content.match-mode .league-panel {
+    display: none;
 }
 
 .panel {
@@ -254,6 +270,9 @@ h3 {
     text-align: center;
     background: #111;
     border-top: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 #game-status-text {

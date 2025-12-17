@@ -18,19 +18,28 @@ export class Game {
         this.initUI();
         this.renderCardList('tab-roster');
         this.renderLineup();
+
+        // Start in League Mode (Menu)
+        this.switchView('league');
     }
 
     initUI() {
         // --- VIEW NAVIGATION ---
+        const viewLeagueBtn = document.getElementById('view-league-btn');
         const viewTeamBtn = document.getElementById('view-team-btn');
         const viewMatchBtn = document.getElementById('view-match-btn');
 
+        if (viewLeagueBtn) viewLeagueBtn.addEventListener('click', () => this.switchView('league'));
         if (viewTeamBtn) viewTeamBtn.addEventListener('click', () => this.switchView('team'));
         if (viewMatchBtn) viewMatchBtn.addEventListener('click', () => this.switchView('match'));
 
         // --- GAME ACTIONS ---
         const startBtn = document.getElementById('start-season-btn');
         if (startBtn) startBtn.addEventListener('click', () => this.startSeason());
+
+        // New 'Enter Match' button in League Panel
+        const enterMatchBtn = document.getElementById('play-match-btn-league');
+        if (enterMatchBtn) enterMatchBtn.addEventListener('click', () => this.enterMatchSetup());
 
         const playRoundBtn = document.getElementById('play-round-btn');
         if (playRoundBtn) playRoundBtn.addEventListener('click', () => this.enterMatchSetup());
@@ -327,12 +336,13 @@ export class Game {
 
         this.league.initialize(myTeam);
 
-        // 3. Hide Menu, Show League View
-        document.getElementById('main-menu').classList.remove('active');
-        this.updateLeagueView();
-        document.getElementById('league-view').classList.add('active');
+        // 3. Update League Panel UI
+        document.getElementById('start-season-btn').style.display = 'none';
+        document.getElementById('calendar-area').style.display = 'block';
 
-        // Default to Team View for management
+        this.updateLeagueView();
+
+        // 4. Go to Team View to organize
         this.switchView('team');
 
         this.renderCardList('tab-roster');
@@ -340,7 +350,8 @@ export class Game {
     }
 
     enterMatchSetup() {
-        document.getElementById('league-view').classList.remove('active');
+        // Go to Match View
+        this.switchView('match');
 
         const round = this.league.getCurrentRound();
         const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
@@ -413,8 +424,8 @@ export class Game {
 
         // 4. Show League View again
         await this.wait(2000);
-        document.getElementById('league-view').classList.add('active');
         this.updateLeagueView();
+        this.switchView('league');
 
         document.getElementById('play-match-btn').disabled = false;
     }
