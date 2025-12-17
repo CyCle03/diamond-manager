@@ -130,11 +130,19 @@ export class Game {
                 }
             });
 
+
+            let statsHtml = '';
+            if (player.position === 'P') {
+                statsHtml = `PIT:${player.stats.pitching} SPD:${player.stats.speed}`;
+            } else {
+                statsHtml = `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed}`;
+            }
+
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-name">${player.name}</div>
                 <div class="card-stats">
-                    CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed}
+                    ${statsHtml}
                 </div>
             `;
 

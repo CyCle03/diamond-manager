@@ -30,9 +30,19 @@ export class PlayerGenerator {
         const roster = [];
         const positions = rules.getPositions();
 
-        // Ensure some spread (very basic logic)
+        // 1. Ensure at least one of each position
         positions.forEach(pos => roster.push(this.createPlayer(rules, pos)));
 
+        // 2. Ensure Pitching Staff (Target ~12 Pitchers)
+        let pitcherCount = roster.filter(p => p.position === 'P').length;
+        const targetPitchers = 12;
+
+        while (pitcherCount < targetPitchers && roster.length < size) {
+            roster.push(this.createPlayer(rules, 'P'));
+            pitcherCount++;
+        }
+
+        // 3. Fill the rest with random players
         while (roster.length < size) {
             roster.push(this.createPlayer(rules));
         }
