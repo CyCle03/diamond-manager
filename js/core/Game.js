@@ -753,69 +753,10 @@ export class Game {
         this.log(`MATCH STARTING! SP: ${starter.name} vs ${myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name}`);
 
         // 4. Simulate
-        await this.simulateGame(myMatch, starter);
+        await this.rules.simulateMatch(this, myMatch.home, myMatch.away);
     }
 
-    async simulateGame(match, starter) {
-        // Visual Simulation
-        const gameText = document.getElementById('game-status-text');
-        const homeVal = document.getElementById('score-home-val');
-        const awayVal = document.getElementById('score-away-val');
-        const inningText = document.getElementById('sb-inning');
 
-        if (gameText) gameText.innerText = "PLAYING...";
-
-        let inning = 1;
-        let homeScore = 0;
-        let awayScore = 0;
-
-        // Update Scoreboard Helper
-        const updateUI = (inn, topBot) => {
-            if (homeVal) homeVal.innerText = homeScore;
-            if (awayVal) awayVal.innerText = awayScore;
-            if (inningText) inningText.innerText = `${topBot ? 'TOP' : 'BOT'} ${inn}`;
-            // Random Base Runners visual
-            const bases = [1, 2, 3].filter(() => Math.random() > 0.7);
-            document.querySelectorAll('.base').forEach(b => b.classList.remove('active'));
-            bases.forEach(b => {
-                const el = document.getElementById(`base-${b}`);
-                if (el) el.classList.add('active');
-            });
-        };
-
-        // Mock Simulation Loop
-        while (inning <= 9) {
-            // TOP (Away)
-            updateUI(inning, true); // Top
-            if (gameText) gameText.innerText = `TOP ${inning} - ${match.away.name} Batting`;
-            await this.wait(400);
-
-            // Random events
-            if (Math.random() > 0.6) {
-                awayScore += Math.floor(Math.random() * 3); // 0-2 runs
-                this.log(`${match.away.name} scores!`);
-            }
-
-            // BOT (Home)
-            updateUI(inning, false); // Bot
-            if (gameText) gameText.innerText = `BOT ${inning} - ${match.home.name} Batting`;
-            await this.wait(400);
-
-            if (Math.random() > 0.6) {
-                homeScore += Math.floor(Math.random() * 3);
-                this.log(`${match.home.name} scores!`);
-            }
-
-            this.updateScoreboard(homeScore, awayScore); // Keep legacy updated too just in case
-            inning++;
-        }
-
-        if (gameText) gameText.innerText = "MATCH FINISHED";
-        if (homeVal) homeVal.innerText = homeScore;
-        if (awayVal) awayVal.innerText = awayScore;
-
-        this.finishMatch(homeScore, awayScore);
-    }
 
     // Previous 'finishMatch' at lines 516-540 is DELETED. 
     // We keep the one below (callback style).
@@ -833,6 +774,14 @@ export class Game {
         const loserId = homeScore > awayScore ? myMatch.away.id : myMatch.home.id;
 
         this.league.updateStandings(winnerId, loserId);
+
+        // Add budget reward for a win
+        if (winnerId === this.playerTeamId) {
+            const prizeMoney = 50000;
+            this.teamBudget += prizeMoney;
+            this.updateBudgetUI();
+            this.log(`> Your team won! You earned $${prizeMoney.toLocaleString()}!`);
+        }
 
         // 2. Simulate Rest of Round (AI vs AI)
         round.forEach(match => {
@@ -869,6 +818,16 @@ export class Game {
     }
 
     advanceSeason() {
+        // Calculate and deduct annual salaries for all players on the roster
+        let totalSalaries = 0;
+        this.roster.forEach(player => {
+            totalSalaries += player.stats.salary;
+        });
+
+        this.teamBudget -= totalSalaries;
+        this.log(`Annual salaries of $${totalSalaries.toLocaleString()} deducted.`);
+        this.updateBudgetUI();
+        
         alert("SEASON OVER! Proceeding to Off-Season for player development.");
 
         // Age all players and apply progression/regression

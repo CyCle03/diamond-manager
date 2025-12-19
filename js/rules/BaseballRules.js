@@ -74,11 +74,11 @@ export class BaseballRules extends GameRules {
 
             // Top (Away Bats)
             game.log(`TOP ${inning}: Away Team batting.`);
-            scores.away += await this.simulateHalfInning(game, awayTeam.lineup, homeTeam.pitcher);
+            scores.away += await this.simulateHalfInning(game, awayTeam.lineup, homeTeam.pitcher, homeTeam.lineup);
 
             // Bot (Home Bats)
             game.log(`BOT ${inning}: Home Team batting.`);
-            scores.home += await this.simulateHalfInning(game, homeTeam.lineup, awayTeam.pitcher);
+            scores.home += await this.simulateHalfInning(game, homeTeam.lineup, awayTeam.pitcher, awayTeam.lineup);
 
             game.updateScoreboard(scores.home, scores.away);
         }
@@ -94,18 +94,26 @@ export class BaseballRules extends GameRules {
         return scores;
     }
 
-    async simulateHalfInning(game, lineup, opponentPitcher) {
+    async simulateHalfInning(game, battingLineup, opponentPitcher, fieldingLineup) {
         let outs = 0;
         let runs = 0;
 
+        // Helper to get a player object whether the lineup item is a raw Player or an {player, role} entry.
+        const getPlayer = (entry) => entry.player || entry;
+
+        // Calculate average defense for the fielding team
+        const fielders = fieldingLineup.map(getPlayer).filter(p => p.position !== 'P');
+        const totalDefense = fielders.reduce((sum, player) => sum + player.stats.defense, 0);
+        const averageDefense = fielders.length > 0 ? totalDefense / fielders.length : 50; // Default to 50 if no fielders
+
         while (outs < 3) {
-            // Simplified random rotation
-            const batter = lineup[Math.floor(Math.random() * lineup.length)];
+            // Get a random batter from the batting lineup
+            const batter = getPlayer(battingLineup[Math.floor(Math.random() * battingLineup.length)]);
 
             game.updateMatchupDisplay(batter, opponentPitcher);
             await game.wait(500);
 
-            const outcome = this.calculateOutcome(batter, opponentPitcher);
+            const outcome = this.calculateOutcome(batter, opponentPitcher, averageDefense);
 
             if (outcome.type === 'out') {
                 outs++;
@@ -128,9 +136,14 @@ export class BaseballRules extends GameRules {
         return runs;
     }
 
-    calculateOutcome(batter, pitcher) {
+    calculateOutcome(batter, pitcher, fieldingDefense) {
         // Reuse logic from Game.js but isolated here
-        const hitChance = ((batter.stats.contact || 50) - (pitcher.stats.pitching || 50) * 0.5) / 100 + 0.25;
+        let hitChance = ((batter.stats.contact || 50) - (pitcher.stats.pitching || 50) * 0.5) / 100 + 0.25;
+        
+        // Adjust hit chance based on fielding defense
+        // A higher fieldingDefense reduces hit chance
+        hitChance -= (fieldingDefense - 50) * 0.001; // Adjust this factor as needed for balance
+        
         const roll = Math.random();
 
         if (roll < hitChance) {
