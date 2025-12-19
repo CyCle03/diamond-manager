@@ -261,10 +261,12 @@ export class Game {
         const viewLeagueBtn = document.getElementById('view-league-btn');
         const viewTeamBtn = document.getElementById('view-team-btn');
         const viewMatchBtn = document.getElementById('view-match-btn');
+        const viewStatsBtn = document.getElementById('view-stats-btn');
 
         if (viewLeagueBtn) viewLeagueBtn.addEventListener('click', () => this.switchView('league'));
         if (viewTeamBtn) viewTeamBtn.addEventListener('click', () => this.switchView('team'));
         if (viewMatchBtn) viewMatchBtn.addEventListener('click', () => this.switchView('match'));
+        if (viewStatsBtn) viewStatsBtn.addEventListener('click', () => this.switchView('stats'));
 
         // --- GAME ACTIONS ---
         const startBtn = document.getElementById('start-season-btn');
@@ -1025,6 +1027,7 @@ export class Game {
         }
 
         this.updateDraftUI();
+        this.updateTeamStatsView();
     }
 
     resetMatchView() {
@@ -1084,12 +1087,14 @@ export class Game {
         const leagueBtn = document.getElementById('view-league-btn');
         const teamBtn = document.getElementById('view-team-btn');
         const matchBtn = document.getElementById('view-match-btn');
+        const statsBtn = document.getElementById('view-stats-btn');
 
-        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode');
+        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode', 'stats-mode');
 
         if (leagueBtn) leagueBtn.classList.remove('active');
         if (teamBtn) teamBtn.classList.remove('active');
         if (matchBtn) matchBtn.classList.remove('active');
+        if (statsBtn) statsBtn.classList.remove('active');
 
         if (mode === 'team') {
             mainContent.classList.add('team-mode');
@@ -1101,6 +1106,10 @@ export class Game {
         } else if (mode === 'league') {
             mainContent.classList.add('league-mode');
             if (leagueBtn) leagueBtn.classList.add('active');
+        } else if (mode === 'stats') {
+            mainContent.classList.add('stats-mode');
+            if (statsBtn) statsBtn.classList.add('active');
+            this.updateTeamStatsView();
         }
     }
 
@@ -1163,6 +1172,7 @@ export class Game {
                 <div class="season-line">BAT ${this.formatBattingLine(current)}</div>
                 <div class="season-line">PIT ${this.formatPitchingLine(current)}</div>
                 <div class="season-line">G ${current.games} • PA ${current.plateAppearances} • HR ${current.homeRuns} • BB ${current.walks} • HBP ${current.hitByPitch}</div>
+                <div class="season-line">R ${current.pitcherRunsAllowed} • ER ${current.pitcherEarnedRunsAllowed} • UER ${current.pitcherUnearnedRunsAllowed}</div>
             </div>
             ${this.renderSeasonHistory(performance)}
             `
@@ -1217,13 +1227,16 @@ export class Game {
                 homeRuns: legacy.homeRuns || 0,
                 walks: legacy.walks || 0,
                 hitByPitch: legacy.hitByPitch || 0,
+                sacFlies: legacy.sacFlies || 0,
                 outs: legacy.outs || 0,
                 pitcherBattersFaced: legacy.pitcherBattersFaced || 0,
                 pitcherHitsAllowed: legacy.pitcherHitsAllowed || 0,
                 pitcherOuts: legacy.pitcherOuts || 0,
                 pitcherWalksAllowed: legacy.pitcherWalksAllowed || 0,
                 pitcherHitByPitchAllowed: legacy.pitcherHitByPitchAllowed || 0,
-                pitcherRunsAllowed: legacy.pitcherRunsAllowed || 0
+                pitcherRunsAllowed: legacy.pitcherRunsAllowed || 0,
+                pitcherEarnedRunsAllowed: legacy.pitcherEarnedRunsAllowed || 0,
+                pitcherUnearnedRunsAllowed: legacy.pitcherUnearnedRunsAllowed || 0
             };
             player.performance.seasons = legacy.seasons || [];
         }
@@ -1236,8 +1249,11 @@ export class Game {
         if (current) {
             current.walks = current.walks || 0;
             current.hitByPitch = current.hitByPitch || 0;
+            current.sacFlies = current.sacFlies || 0;
             current.pitcherWalksAllowed = current.pitcherWalksAllowed || 0;
             current.pitcherHitByPitchAllowed = current.pitcherHitByPitchAllowed || 0;
+            current.pitcherEarnedRunsAllowed = current.pitcherEarnedRunsAllowed || 0;
+            current.pitcherUnearnedRunsAllowed = current.pitcherUnearnedRunsAllowed || 0;
         }
 
         return player.performance;
@@ -1263,7 +1279,8 @@ export class Game {
         const hits = stats.hits || 0;
         const walks = stats.walks || 0;
         const hbp = stats.hitByPitch || 0;
-        const obpDenominator = atBats + walks + hbp;
+        const sacFlies = stats.sacFlies || 0;
+        const obpDenominator = atBats + walks + hbp + sacFlies;
         const obp = obpDenominator ? (hits + walks + hbp) / obpDenominator : 0;
         const singles = stats.singles || Math.max(0, hits - (stats.doubles || 0) - (stats.triples || 0) - (stats.homeRuns || 0));
         const doubles = stats.doubles || 0;
@@ -1285,10 +1302,11 @@ export class Game {
         const outs = stats.pitcherOuts || 0;
         const ip = outs / 3;
         const runsAllowed = stats.pitcherRunsAllowed || 0;
+        const earnedRuns = stats.pitcherEarnedRunsAllowed || runsAllowed;
         const hitsAllowed = stats.pitcherHitsAllowed || 0;
         const walksAllowed = stats.pitcherWalksAllowed || 0;
         const hbpAllowed = stats.pitcherHitByPitchAllowed || 0;
-        const era = ip ? (runsAllowed * 9) / ip : 0;
+        const era = ip ? (earnedRuns * 9) / ip : 0;
         const whip = ip ? (hitsAllowed + walksAllowed + hbpAllowed) / ip : 0;
         return {
             ip,
@@ -1322,6 +1340,7 @@ export class Game {
                     <td>${batting.ops}</td>
                     <td>${seasonEntry.stats.homeRuns}</td>
                     <td>${pitching.era}</td>
+                    <td>${seasonEntry.stats.pitcherEarnedRunsAllowed || 0}</td>
                     <td>${ip}</td>
                 </tr>
             `;
@@ -1337,6 +1356,7 @@ export class Game {
                             <th>OPS</th>
                             <th>HR</th>
                             <th>ERA</th>
+                            <th>ER</th>
                             <th>IP</th>
                         </tr>
                     </thead>
@@ -1346,6 +1366,133 @@ export class Game {
                 </table>
             </div>
         `;
+    }
+
+    updateTeamStatsView() {
+        const statsArea = document.getElementById('team-stats-area');
+        const calendarArea = document.getElementById('calendar-area');
+        const seasonInfoArea = document.getElementById('season-info-area');
+        const tableBody = document.querySelector('#team-stats-table tbody');
+
+        if (!statsArea || !tableBody) return;
+
+        const mainContent = document.querySelector('.main-content');
+        if (!mainContent || !mainContent.classList.contains('stats-mode')) {
+            statsArea.style.display = 'none';
+            return;
+        }
+
+        if (!this.league) {
+            statsArea.style.display = 'none';
+            if (calendarArea) calendarArea.style.display = 'none';
+            if (seasonInfoArea) seasonInfoArea.style.display = 'block';
+            return;
+        }
+
+        statsArea.style.display = 'block';
+        if (calendarArea) calendarArea.style.display = 'none';
+        if (seasonInfoArea) seasonInfoArea.style.display = 'none';
+
+        const teamStats = this.league.teams.map(team => {
+            const stats = this.calculateTeamStats(team);
+            return {
+                team,
+                ...stats
+            };
+        });
+
+        const opsRank = [...teamStats].sort((a, b) => b.opsValue - a.opsValue);
+        const eraRank = [...teamStats].sort((a, b) => a.eraValue - b.eraValue);
+
+        const opsRankMap = new Map(opsRank.map((entry, index) => [entry.team.id, index + 1]));
+        const eraRankMap = new Map(eraRank.map((entry, index) => [entry.team.id, index + 1]));
+
+        const display = [...teamStats].sort((a, b) => opsRankMap.get(a.team.id) - opsRankMap.get(b.team.id));
+
+        tableBody.innerHTML = '';
+        display.forEach((entry, index) => {
+            const tr = document.createElement('tr');
+            if (entry.team.id === this.playerTeamId) tr.classList.add('player-team');
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${entry.team.name}</td>
+                <td>${entry.avg}</td>
+                <td>${entry.ops}</td>
+                <td>${entry.era}</td>
+                <td>${entry.whip}</td>
+                <td>${opsRankMap.get(entry.team.id)}</td>
+                <td>${eraRankMap.get(entry.team.id)}</td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    calculateTeamStats(team) {
+        const batters = [];
+        team.lineup.forEach(entry => {
+            if (!entry) return;
+            batters.push(entry.player || entry);
+        });
+
+        const battingTotals = batters.reduce((acc, player) => {
+            const perf = this.ensurePerformance(player).currentSeason;
+            acc.plateAppearances += perf.plateAppearances;
+            acc.atBats += perf.atBats;
+            acc.hits += perf.hits;
+            acc.singles += perf.singles;
+            acc.doubles += perf.doubles;
+            acc.triples += perf.triples;
+            acc.homeRuns += perf.homeRuns;
+            acc.walks += perf.walks || 0;
+            acc.hitByPitch += perf.hitByPitch || 0;
+            acc.sacFlies += perf.sacFlies || 0;
+            return acc;
+        }, {
+            plateAppearances: 0,
+            atBats: 0,
+            hits: 0,
+            singles: 0,
+            doubles: 0,
+            triples: 0,
+            homeRuns: 0,
+            walks: 0,
+            hitByPitch: 0,
+            sacFlies: 0
+        });
+
+        const batting = this.calculateBattingStats(battingTotals);
+
+        const pitchers = team.roster.filter(player => player.position === 'P');
+        const pitchingTotals = pitchers.reduce((acc, player) => {
+            const perf = this.ensurePerformance(player).currentSeason;
+            acc.pitcherOuts += perf.pitcherOuts || 0;
+            acc.pitcherRunsAllowed += perf.pitcherRunsAllowed || 0;
+            acc.pitcherEarnedRunsAllowed += perf.pitcherEarnedRunsAllowed || 0;
+            acc.pitcherUnearnedRunsAllowed += perf.pitcherUnearnedRunsAllowed || 0;
+            acc.pitcherHitsAllowed += perf.pitcherHitsAllowed || 0;
+            acc.pitcherWalksAllowed += perf.pitcherWalksAllowed || 0;
+            acc.pitcherHitByPitchAllowed += perf.pitcherHitByPitchAllowed || 0;
+            return acc;
+        }, {
+            pitcherOuts: 0,
+            pitcherRunsAllowed: 0,
+            pitcherEarnedRunsAllowed: 0,
+            pitcherUnearnedRunsAllowed: 0,
+            pitcherHitsAllowed: 0,
+            pitcherWalksAllowed: 0,
+            pitcherHitByPitchAllowed: 0
+        });
+
+        const pitching = this.calculatePitchingStats(pitchingTotals);
+
+        return {
+            avg: batting.avg,
+            ops: batting.ops,
+            era: pitching.era,
+            whip: pitching.whip,
+            opsValue: parseFloat(batting.ops),
+            eraValue: parseFloat(pitching.era)
+        };
     }
 
     finalizeSeasonStats(seasonNumber) {
@@ -1425,6 +1572,9 @@ export class Game {
             current.walks += 1;
         } else if (outcome.type === 'hbp') {
             current.hitByPitch += 1;
+        } else if (outcome.type === 'sac_fly') {
+            current.outs += 1;
+            current.sacFlies = (current.sacFlies || 0) + 1;
         } else if (outcome.type === 'out') {
             current.atBats += 1;
             current.outs += 1;
@@ -1441,14 +1591,21 @@ export class Game {
             current.pitcherWalksAllowed += 1;
         } else if (outcome.type === 'hbp') {
             current.pitcherHitByPitchAllowed += 1;
+        } else if (outcome.type === 'sac_fly') {
+            current.pitcherOuts += 1;
         } else if (outcome.type === 'out') {
             current.pitcherOuts += 1;
         }
     }
 
-    recordPitcherRun(pitcher, runs = 1) {
+    recordPitcherRun(pitcher, runs = 1, earned = true) {
         const perf = this.ensurePerformance(pitcher);
         perf.currentSeason.pitcherRunsAllowed += runs;
+        if (earned) {
+            perf.currentSeason.pitcherEarnedRunsAllowed += runs;
+        } else {
+            perf.currentSeason.pitcherUnearnedRunsAllowed += runs;
+        }
     }
 
     scoutPlayers() {

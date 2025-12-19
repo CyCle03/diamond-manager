@@ -37,13 +37,16 @@ export class Player {
                 homeRuns: 0,
                 walks: 0,
                 hitByPitch: 0,
+                sacFlies: 0,
                 outs: 0,
                 pitcherBattersFaced: 0,
                 pitcherHitsAllowed: 0,
                 pitcherOuts: 0,
                 pitcherWalksAllowed: 0,
                 pitcherHitByPitchAllowed: 0,
-                pitcherRunsAllowed: 0
+                pitcherRunsAllowed: 0,
+                pitcherEarnedRunsAllowed: 0,
+                pitcherUnearnedRunsAllowed: 0
             },
             seasons: []
         };

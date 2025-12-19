@@ -115,14 +115,28 @@ export class BaseballRules extends GameRules {
 
             const outcome = this.calculateOutcome(batter, opponentPitcher, averageDefense);
 
-            if (game.recordAtBat) {
-                game.recordAtBat(batter, outcome);
-            }
-            if (game.recordPitcherOutcome) {
-                game.recordPitcherOutcome(opponentPitcher, outcome);
+            let recordedOutcome = outcome;
+            let sacFlyTriggered = false;
+            if (outcome.type === 'out' && outcome.desc.includes('Flyout') && Math.random() < 0.35) {
+                sacFlyTriggered = true;
+                recordedOutcome = { type: 'sac_fly', desc: 'Sac Fly' };
             }
 
-            if (outcome.type === 'out') {
+            if (game.recordAtBat) {
+                game.recordAtBat(batter, recordedOutcome);
+            }
+            if (game.recordPitcherOutcome) {
+                game.recordPitcherOutcome(opponentPitcher, recordedOutcome);
+            }
+
+            if (recordedOutcome.type === 'sac_fly') {
+                outs++;
+                runs++;
+                game.log(`${batter.name}: Sac Fly (${outs} Out)`);
+                if (game.recordPitcherRun) {
+                    game.recordPitcherRun(opponentPitcher, 1);
+                }
+            } else if (outcome.type === 'out') {
                 outs++;
                 game.log(`${batter.name}: ${outcome.desc} (${outs} Out)`);
             } else {

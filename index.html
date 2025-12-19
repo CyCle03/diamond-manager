@@ -52,7 +52,8 @@
             <h1 class="game-title">DIAMOND MANAGER</h1>
             <div class="header-nav" style="display: flex; gap: 10px;">
                 <button id="view-league-btn" class="nav-btn">LEAGUE</button>
-                <button id="view-team-btn" class="nav-btn active">TEAM</button>
+                <button id="view-team-btn" class="nav-btn active">DUGOUT</button>
+                <button id="view-stats-btn" class="nav-btn">STATS</button>
                 <button id="view-match-btn" class="nav-btn">MATCH</button>
                 <div style="width: 1px; background: #333; height: 20px; margin: 0 5px;"></div>
                 <button id="options-btn" class="nav-btn" style="border-color:#444; color:#666;">OPTIONS</button>
@@ -194,6 +195,28 @@
                                 <button id="draft-best-btn" class="cyber-button compact">DRAFT BEST</button>
                             </div>
                             <div id="draft-list" class="card-list"></div>
+                        </div>
+                    </div>
+                    <div id="team-stats-area" style="display:none; margin-top: 20px;">
+                        <h2>TEAM STATS</h2>
+                        <div class="standings-table-wrapper">
+                            <table class="standings-table team-stats-table" id="team-stats-table">
+                                <thead>
+                                    <tr>
+                                        <th>RK</th>
+                                        <th>TEAM</th>
+                                        <th>AVG</th>
+                                        <th>OPS</th>
+                                        <th>ERA</th>
+                                        <th>WHIP</th>
+                                        <th>OPS RK</th>
+                                        <th>ERA RK</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Injected by JS -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
