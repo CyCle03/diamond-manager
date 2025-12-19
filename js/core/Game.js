@@ -213,7 +213,7 @@ export class Game {
             return;
         }
 
-        const rehydrate = p => p ? new Player(p.id, p.name, p.position, p.age, p.stats) : null;
+        const rehydrate = p => p ? new Player(p.id, p.name, p.position, p.age, p.stats, p.performance) : null;
 
         this.teamName = data.teamName;
         this.teamBudget = data.teamBudget || 5000000;
@@ -240,6 +240,7 @@ export class Game {
             // lineup and pitcher objects in AI teams are simpler, direct assignment is fine for now
         });
         this.league.freeAgents = this.league.freeAgents.map(rehydrate);
+        this.ensureRosterPerformance();
 
 
         // Manually update the UI to show the league view correctly
@@ -306,6 +307,8 @@ export class Game {
         const draftBestBtn = document.getElementById('draft-best-btn');
         if (draftBestBtn) draftBestBtn.addEventListener('click', () => this.draftBestAvailable());
 
+        this.initPlayerModal();
+
     }
 
     renderRosterAndMarket() {
@@ -330,6 +333,7 @@ export class Game {
             const card = document.createElement('div');
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
             card.draggable = !isMarket; // Roster players draggable, Market players not (until bought?)
+            card.title = this.buildPlayerTooltip(player, { includeCost: isMarket, includePerformance: !isMarket });
 
             // ... Drag logic ...
             if (card.draggable) {
@@ -345,17 +349,27 @@ export class Game {
                 });
             }
 
-            // Click to Buy/Sell/Action
             card.addEventListener('click', () => {
                 if (isMarket) {
-                    if (confirm(`Sign Free Agent ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
-                        this.signFreeAgent(player);
-                    }
+                    this.openPlayerModal(player, {
+                        showPerformance: false,
+                        actionLabel: 'SIGN',
+                        action: () => {
+                            if (confirm(`Sign Free Agent ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
+                                this.signFreeAgent(player);
+                            }
+                        }
+                    });
                 } else {
-                    // Logic to release?
-                    if (confirm(`Release ${player.name}?`)) {
-                        this.releasePlayer(player);
-                    }
+                    this.openPlayerModal(player, {
+                        showPerformance: true,
+                        actionLabel: 'RELEASE',
+                        action: () => {
+                            if (confirm(`Release ${player.name}?`)) {
+                                this.releasePlayer(player);
+                            }
+                        }
+                    });
                 }
             });
 
@@ -372,7 +386,8 @@ export class Game {
             }
 
             card.innerHTML = `
-                <div class="card-pos">${player.position} (${player.age})</div>
+                <div class="card-pos">${player.position}</div>
+                <div class="card-age">(${player.age})</div>
                 <div class="card-name">${player.name}</div>
                 <div class="card-stats">
                     ${statsHtml}
@@ -413,6 +428,7 @@ export class Game {
         this.scoutingPool.forEach(player => {
             const card = document.createElement('div');
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+            card.title = this.buildPlayerTooltip(player, { includeCost: true, includePerformance: false });
 
             let statsHtml = '';
             if (player.position === 'P') {
@@ -424,7 +440,8 @@ export class Game {
             statsHtml += ` | COST: $${player.stats.signingBonus.toLocaleString()}`;
 
             card.innerHTML = `
-                <div class="card-pos">${player.position} (${player.age})</div>
+                <div class="card-pos">${player.position}</div>
+                <div class="card-age">(${player.age})</div>
                 <div class="card-name">${player.name}</div>
                 <div class="card-stats">
                     ${statsHtml}
@@ -432,9 +449,15 @@ export class Game {
             `;
 
             card.addEventListener('click', () => {
-                if (confirm(`Sign Scouted Player ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
-                    this.signScoutedPlayer(player);
-                }
+                this.openPlayerModal(player, {
+                    showPerformance: false,
+                    actionLabel: 'SIGN',
+                    action: () => {
+                        if (confirm(`Sign Scouted Player ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
+                            this.signScoutedPlayer(player);
+                        }
+                    }
+                });
             });
 
             container.appendChild(card);
@@ -865,6 +888,9 @@ export class Game {
             myMatch.away.pitcher = starter;
         }
 
+        this.incrementGamesForTeam(myMatch.home);
+        this.incrementGamesForTeam(myMatch.away);
+
         // 3. Update UI to "Simulating" state
         this.isSimulating = true;
         document.getElementById('play-match-btn').disabled = true;
@@ -946,6 +972,8 @@ export class Game {
         this.teamBudget -= totalSalaries;
         this.log(`Annual salaries of $${totalSalaries.toLocaleString()} deducted.`);
         this.updateBudgetUI();
+
+        this.finalizeSeasonStats(this.league.season);
         
         alert("SEASON OVER! Proceeding to Off-Season for player development.");
 
@@ -1080,6 +1108,349 @@ export class Game {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    buildPlayerTooltip(player, options = {}) {
+        const stats = player.stats;
+        const performance = this.ensurePerformance(player);
+        const current = performance.currentSeason;
+        const lines = [
+            `${player.name} (${player.position})`,
+            `Age ${player.age} • OVR ${stats.overall}`,
+            `CON ${stats.contact} | POW ${stats.power} | SPD ${stats.speed} | DEF ${stats.defense}`,
+            `PIT ${stats.pitching}`
+        ];
+        if (options.includePerformance) {
+            const batting = this.formatBattingLine(current);
+            const pitching = this.formatPitchingLine(current);
+            lines.push(`BAT ${batting}`);
+            lines.push(`PIT ${pitching}`);
+        }
+        if (options.includeCost && stats.signingBonus) {
+            lines.push(`COST $${stats.signingBonus.toLocaleString()}`);
+        }
+        return lines.join('\n');
+    }
+
+    initPlayerModal() {
+        const overlay = document.getElementById('player-modal');
+        const closeBtn = document.getElementById('player-modal-close');
+        const cancelBtn = document.getElementById('player-modal-cancel');
+
+        if (!overlay) return;
+
+        const close = () => overlay.classList.add('hidden');
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        if (cancelBtn) cancelBtn.addEventListener('click', close);
+    }
+
+    openPlayerModal(player, options = {}) {
+        const overlay = document.getElementById('player-modal');
+        const titleEl = document.getElementById('player-modal-title');
+        const bodyEl = document.getElementById('player-modal-body');
+        const actionBtn = document.getElementById('player-modal-action');
+        if (!overlay || !titleEl || !bodyEl || !actionBtn) return;
+
+        titleEl.innerText = player.name;
+        const stats = player.stats;
+        const performance = this.ensurePerformance(player);
+        const current = performance.currentSeason;
+        const perfHtml = options.showPerformance
+            ? `
+            <div class="modal-section">
+                <div class="modal-section-title">Current Season</div>
+                <div class="season-line">BAT ${this.formatBattingLine(current)}</div>
+                <div class="season-line">PIT ${this.formatPitchingLine(current)}</div>
+                <div class="season-line">G ${current.games} • PA ${current.plateAppearances} • HR ${current.homeRuns} • BB ${current.walks} • HBP ${current.hitByPitch}</div>
+            </div>
+            ${this.renderSeasonHistory(performance)}
+            `
+            : '';
+
+        bodyEl.innerHTML = `
+            <div class="stat-label">Position</div><div class="stat-value">${player.position}</div>
+            <div class="stat-label">Age</div><div class="stat-value">${player.age}</div>
+            <div class="stat-label">Overall</div><div class="stat-value">${stats.overall}</div>
+            <div class="stat-label">Contact</div><div class="stat-value">${stats.contact}</div>
+            <div class="stat-label">Power</div><div class="stat-value">${stats.power}</div>
+            <div class="stat-label">Speed</div><div class="stat-value">${stats.speed}</div>
+            <div class="stat-label">Defense</div><div class="stat-value">${stats.defense}</div>
+            <div class="stat-label">Pitching</div><div class="stat-value">${stats.pitching}</div>
+            <div class="stat-label">Salary</div><div class="stat-value">$${stats.salary.toLocaleString()}</div>
+            <div class="stat-label">Signing Bonus</div><div class="stat-value">$${stats.signingBonus.toLocaleString()}</div>
+            ${perfHtml}
+        `;
+
+        if (options.actionLabel && options.action) {
+            actionBtn.innerText = options.actionLabel;
+            actionBtn.style.display = 'inline-flex';
+            actionBtn.onclick = () => {
+                options.action();
+                overlay.classList.add('hidden');
+            };
+        } else {
+            actionBtn.style.display = 'none';
+            actionBtn.onclick = null;
+        }
+
+        overlay.classList.remove('hidden');
+    }
+
+    ensurePerformance(player) {
+        if (!player.performance) {
+            player.performance = Player.defaultPerformance();
+        }
+
+        if (!player.performance.currentSeason) {
+            const legacy = player.performance;
+            player.performance = Player.defaultPerformance();
+            player.performance.currentSeason = {
+                ...player.performance.currentSeason,
+                games: legacy.games || 0,
+                plateAppearances: legacy.plateAppearances || 0,
+                atBats: legacy.atBats || 0,
+                hits: legacy.hits || 0,
+                singles: legacy.singles || 0,
+                doubles: legacy.doubles || 0,
+                triples: legacy.triples || 0,
+                homeRuns: legacy.homeRuns || 0,
+                walks: legacy.walks || 0,
+                hitByPitch: legacy.hitByPitch || 0,
+                outs: legacy.outs || 0,
+                pitcherBattersFaced: legacy.pitcherBattersFaced || 0,
+                pitcherHitsAllowed: legacy.pitcherHitsAllowed || 0,
+                pitcherOuts: legacy.pitcherOuts || 0,
+                pitcherWalksAllowed: legacy.pitcherWalksAllowed || 0,
+                pitcherHitByPitchAllowed: legacy.pitcherHitByPitchAllowed || 0,
+                pitcherRunsAllowed: legacy.pitcherRunsAllowed || 0
+            };
+            player.performance.seasons = legacy.seasons || [];
+        }
+
+        if (!player.performance.seasons) {
+            player.performance.seasons = [];
+        }
+
+        const current = player.performance.currentSeason;
+        if (current) {
+            current.walks = current.walks || 0;
+            current.hitByPitch = current.hitByPitch || 0;
+            current.pitcherWalksAllowed = current.pitcherWalksAllowed || 0;
+            current.pitcherHitByPitchAllowed = current.pitcherHitByPitchAllowed || 0;
+        }
+
+        return player.performance;
+    }
+
+    ensureRosterPerformance() {
+        this.roster.forEach(player => this.ensurePerformance(player));
+    }
+
+    formatAverage(hits, atBats) {
+        if (!atBats) return '.000';
+        const avg = (hits / atBats).toFixed(3);
+        return avg.startsWith('0') ? avg.slice(1) : avg;
+    }
+
+    formatRate(value) {
+        const rate = value.toFixed(3);
+        return rate.startsWith('0') ? rate.slice(1) : rate;
+    }
+
+    calculateBattingStats(stats) {
+        const atBats = stats.atBats || 0;
+        const hits = stats.hits || 0;
+        const walks = stats.walks || 0;
+        const hbp = stats.hitByPitch || 0;
+        const obpDenominator = atBats + walks + hbp;
+        const obp = obpDenominator ? (hits + walks + hbp) / obpDenominator : 0;
+        const singles = stats.singles || Math.max(0, hits - (stats.doubles || 0) - (stats.triples || 0) - (stats.homeRuns || 0));
+        const doubles = stats.doubles || 0;
+        const triples = stats.triples || 0;
+        const homeRuns = stats.homeRuns || 0;
+        const totalBases = singles + 2 * doubles + 3 * triples + 4 * homeRuns;
+        const slg = atBats ? totalBases / atBats : 0;
+        const ops = obp + slg;
+        return {
+            avg: this.formatAverage(hits, atBats),
+            obp: this.formatRate(obp),
+            slg: this.formatRate(slg),
+            ops: this.formatRate(ops),
+            totalBases
+        };
+    }
+
+    calculatePitchingStats(stats) {
+        const outs = stats.pitcherOuts || 0;
+        const ip = outs / 3;
+        const runsAllowed = stats.pitcherRunsAllowed || 0;
+        const hitsAllowed = stats.pitcherHitsAllowed || 0;
+        const walksAllowed = stats.pitcherWalksAllowed || 0;
+        const hbpAllowed = stats.pitcherHitByPitchAllowed || 0;
+        const era = ip ? (runsAllowed * 9) / ip : 0;
+        const whip = ip ? (hitsAllowed + walksAllowed + hbpAllowed) / ip : 0;
+        return {
+            ip,
+            era: era.toFixed(2),
+            whip: whip.toFixed(2)
+        };
+    }
+
+    formatBattingLine(stats) {
+        const batting = this.calculateBattingStats(stats);
+        return `AVG ${batting.avg} / OBP ${batting.obp} / SLG ${batting.slg} / OPS ${batting.ops}`;
+    }
+
+    formatPitchingLine(stats) {
+        const pitching = this.calculatePitchingStats(stats);
+        const ip = pitching.ip ? pitching.ip.toFixed(1) : '0.0';
+        return `ERA ${pitching.era} • WHIP ${pitching.whip} • IP ${ip}`;
+    }
+
+    renderSeasonHistory(performance) {
+        if (!performance.seasons || performance.seasons.length === 0) return '';
+        const recent = [...performance.seasons].slice(-5).reverse();
+        const rows = recent.map(seasonEntry => {
+            const batting = this.calculateBattingStats(seasonEntry.stats);
+            const pitching = this.calculatePitchingStats(seasonEntry.stats);
+            const ip = pitching.ip ? pitching.ip.toFixed(1) : '0.0';
+            return `
+                <tr>
+                    <td>S${seasonEntry.season}</td>
+                    <td>${batting.avg}</td>
+                    <td>${batting.ops}</td>
+                    <td>${seasonEntry.stats.homeRuns}</td>
+                    <td>${pitching.era}</td>
+                    <td>${ip}</td>
+                </tr>
+            `;
+        }).join('');
+        return `
+            <div class="modal-section">
+                <div class="modal-section-title">Season History</div>
+                <table class="season-table">
+                    <thead>
+                        <tr>
+                            <th>Season</th>
+                            <th>AVG</th>
+                            <th>OPS</th>
+                            <th>HR</th>
+                            <th>ERA</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    finalizeSeasonStats(seasonNumber) {
+        const players = this.getAllLeaguePlayers();
+        players.forEach(player => {
+            const perf = this.ensurePerformance(player);
+            const current = perf.currentSeason;
+            const hasActivity = current.games > 0 || current.plateAppearances > 0 || current.pitcherBattersFaced > 0;
+            if (hasActivity) {
+                perf.seasons.push({
+                    season: seasonNumber,
+                    stats: { ...current }
+                });
+            }
+            perf.currentSeason = { ...Player.defaultPerformance().currentSeason };
+        });
+    }
+
+    resetSeasonStatsForNewSeason() {
+        const players = this.getAllLeaguePlayers();
+        players.forEach(player => {
+            const perf = this.ensurePerformance(player);
+            perf.currentSeason = { ...Player.defaultPerformance().currentSeason };
+        });
+    }
+
+    getAllLeaguePlayers() {
+        const seen = new Map();
+        const addPlayer = (player) => {
+            if (!player || !player.id) return;
+            seen.set(player.id, player);
+        };
+
+        this.roster.forEach(addPlayer);
+        if (this.league) {
+            this.league.teams.forEach(team => {
+                team.roster.forEach(addPlayer);
+                if (team.pitcher) addPlayer(team.pitcher);
+            });
+            this.league.freeAgents.forEach(addPlayer);
+        }
+
+        return [...seen.values()];
+    }
+
+    incrementGamesForTeam(team) {
+        const players = [];
+        team.lineup.forEach(entry => {
+            if (!entry) return;
+            const player = entry.player || entry;
+            players.push(player);
+        });
+        if (team.pitcher) players.push(team.pitcher);
+        players.forEach(player => {
+            const perf = this.ensurePerformance(player);
+            perf.currentSeason.games += 1;
+        });
+    }
+
+    recordAtBat(batter, outcome) {
+        const perf = this.ensurePerformance(batter);
+        const current = perf.currentSeason;
+        current.plateAppearances += 1;
+        if (outcome.type === 'hit') {
+            current.atBats += 1;
+            current.hits += 1;
+            if (outcome.desc.includes('Home Run')) {
+                current.homeRuns += 1;
+            } else if (outcome.desc.includes('Double')) {
+                current.doubles += 1;
+            } else if (outcome.desc.includes('Triple')) {
+                current.triples += 1;
+            } else {
+                current.singles += 1;
+            }
+        } else if (outcome.type === 'walk') {
+            current.walks += 1;
+        } else if (outcome.type === 'hbp') {
+            current.hitByPitch += 1;
+        } else if (outcome.type === 'out') {
+            current.atBats += 1;
+            current.outs += 1;
+        }
+    }
+
+    recordPitcherOutcome(pitcher, outcome) {
+        const perf = this.ensurePerformance(pitcher);
+        const current = perf.currentSeason;
+        current.pitcherBattersFaced += 1;
+        if (outcome.type === 'hit') {
+            current.pitcherHitsAllowed += 1;
+        } else if (outcome.type === 'walk') {
+            current.pitcherWalksAllowed += 1;
+        } else if (outcome.type === 'hbp') {
+            current.pitcherHitByPitchAllowed += 1;
+        } else if (outcome.type === 'out') {
+            current.pitcherOuts += 1;
+        }
+    }
+
+    recordPitcherRun(pitcher, runs = 1) {
+        const perf = this.ensurePerformance(pitcher);
+        perf.currentSeason.pitcherRunsAllowed += runs;
+    }
+
     scoutPlayers() {
         if (!this.league) {
             alert("Start the season before scouting.");
@@ -1160,6 +1531,7 @@ export class Game {
                 preview.forEach(player => {
                     const card = document.createElement('div');
                     card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+                    card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: false });
                     const statsLine = player.position === 'P'
                         ? `PIT:${player.stats.pitching} SPD:${player.stats.speed}`
                         : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
@@ -1167,7 +1539,8 @@ export class Game {
                     const actionHtml = isPlayerTurn ? '<button class="draft-pick-btn">DRAFT</button>' : '';
 
                     card.innerHTML = `
-                        <div class="card-pos">${player.position} (${player.age})</div>
+                        <div class="card-pos">${player.position}</div>
+                        <div class="card-age">(${player.age})</div>
                         <div class="card-name">${player.name}</div>
                         <div class="card-stats">
                             OVR:${player.stats.overall} | ${statsLine}
@@ -1183,6 +1556,15 @@ export class Game {
                                 this.draftPlayer(player.id);
                             });
                         }
+                        card.addEventListener('click', () => {
+                            this.openPlayerModal(player, {
+                                showPerformance: false,
+                                actionLabel: 'DRAFT',
+                                action: () => this.draftPlayer(player.id)
+                            });
+                        });
+                    } else {
+                        card.addEventListener('click', () => this.openPlayerModal(player, { showPerformance: false }));
                     }
 
                     listEl.appendChild(card);
@@ -1269,6 +1651,8 @@ export class Game {
         this.league.teams.forEach(t => {
             this.league.standings[t.id] = { w: 0, l: 0 };
         });
+
+        this.resetSeasonStatsForNewSeason();
 
         this.updateLeagueView();
         this.renderRosterAndMarket();

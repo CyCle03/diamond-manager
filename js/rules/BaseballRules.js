@@ -115,6 +115,13 @@ export class BaseballRules extends GameRules {
 
             const outcome = this.calculateOutcome(batter, opponentPitcher, averageDefense);
 
+            if (game.recordAtBat) {
+                game.recordAtBat(batter, outcome);
+            }
+            if (game.recordPitcherOutcome) {
+                game.recordPitcherOutcome(opponentPitcher, outcome);
+            }
+
             if (outcome.type === 'out') {
                 outs++;
                 game.log(`${batter.name}: ${outcome.desc} (${outs} Out)`);
@@ -124,10 +131,16 @@ export class BaseballRules extends GameRules {
                     if (outcome.desc.includes('Home Run')) {
                         runs++;
                         game.log(`>>> HOME RUN! <<<<`);
+                        if (game.recordPitcherRun) {
+                            game.recordPitcherRun(opponentPitcher, 1);
+                        }
                     } else {
                         if (Math.random() > 0.7) {
                             runs++;
                             game.log(`> Runner scores!`);
+                            if (game.recordPitcherRun) {
+                                game.recordPitcherRun(opponentPitcher, 1);
+                            }
                         }
                     }
                 }
@@ -154,6 +167,9 @@ export class BaseballRules extends GameRules {
             if (powerRoll < power * 0.6) return { type: 'hit', desc: 'Double' };
             return { type: 'hit', desc: 'Single' };
         } else {
+            const secondaryRoll = Math.random();
+            if (secondaryRoll < 0.07) return { type: 'walk', desc: 'Walk' };
+            if (secondaryRoll < 0.08) return { type: 'hbp', desc: 'Hit By Pitch' };
             const outType = Math.random();
             if (outType < 0.3) return { type: 'out', desc: 'Strikeout' };
             if (outType < 0.6) return { type: 'out', desc: 'Groundout' };

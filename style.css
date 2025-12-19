@@ -553,7 +553,7 @@ h3 {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     min-height: 0;
     /* Allow Flexbox nested scrolling */
 }
@@ -566,11 +566,14 @@ h3 {
 .player-card {
     background: #333;
     border: 1px solid #444;
-    padding: 10px;
+    padding: 8px;
     border-radius: 4px;
     display: grid;
-    grid-template-columns: 40px 1fr auto;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    row-gap: 1px;
     align-items: center;
+    min-height: 60px;
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
 }
@@ -588,23 +591,167 @@ h3 {
 }
 
 .card-pos {
+    grid-column: 1;
+    grid-row: 1;
     font-weight: bold;
     color: #888;
 }
 
+.card-age {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 0.8rem;
+    color: #777;
+}
+
 .card-name {
+    grid-column: 2;
+    grid-row: 1;
     color: white;
     font-family: 'Teko', sans-serif;
-    font-size: 1.2rem;
+    font-size: 1.12rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .card-stats {
-    font-size: 0.8rem;
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 0.75rem;
     color: #aaa;
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    max-height: 1.6em;
+    overflow: hidden;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+.modal-card {
+    background: #1f1f1f;
+    border: 1px solid #444;
+    border-radius: 8px;
+    width: 420px;
+    max-width: 90vw;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #333;
+    padding-bottom: 8px;
+}
+
+.modal-header h3 {
+    font-family: 'Teko', sans-serif;
+    font-size: 1.6rem;
+    margin: 0;
+    color: var(--accent-green);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 1.6rem;
+    cursor: pointer;
+}
+
+.modal-close:hover {
+    color: white;
+}
+
+.modal-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 12px;
+    font-size: 0.95rem;
+    color: #ccc;
+}
+
+.modal-section {
+    grid-column: 1 / -1;
+    border-top: 1px solid #333;
+    padding-top: 6px;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.modal-section-title {
+    color: #777;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.season-line {
+    font-size: 0.85rem;
+    color: #cfcfcf;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.season-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: #cfcfcf;
+}
+
+.season-table th,
+.season-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #2a2a2a;
+    text-align: left;
+}
+
+.season-table th {
+    color: #888;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.modal-body .stat-label {
+    color: #777;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+}
+
+.modal-body .stat-value {
+    color: #eee;
+    font-weight: bold;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 6px;
 }
 
 .draft-pick-btn {
