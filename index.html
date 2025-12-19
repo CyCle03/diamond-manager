@@ -143,6 +143,20 @@
                                 <div class="matchup-pitcher">PITCHER: ---</div>
                             </div>
                             <button id="play-match-btn" class="action-btn" style="margin-top: 10px;">PLAY BALL</button>
+                            <div class="match-controls">
+                                <div class="match-control-row">
+                                    <button id="sim-auto-btn" class="nav-btn">AUTO</button>
+                                    <button id="sim-pitch-btn" class="nav-btn">PITCH</button>
+                                    <button id="sim-batter-btn" class="nav-btn">BATTER</button>
+                                </div>
+                                <div class="match-control-row">
+                                    <label for="auto-view-select">AUTO VIEW</label>
+                                    <select id="auto-view-select">
+                                        <option value="batter" selected>Batter-by-Batter</option>
+                                        <option value="pitch">Pitch-by-Pitch</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="game-log" id="game-log">
@@ -209,6 +223,9 @@
                                         <th>OPS</th>
                                         <th>ERA</th>
                                         <th>WHIP</th>
+                                        <th>R</th>
+                                        <th>RA</th>
+                                        <th>RA9</th>
                                         <th>OPS RK</th>
                                         <th>ERA RK</th>
                                     </tr>

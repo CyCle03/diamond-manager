@@ -31,6 +31,14 @@ export class Game {
         this.draftRound = 0;
         this.draftPickIndex = 0;
         this.draftOrder = [];
+        this.teamSeasonStats = {};
+        this.simulationMode = 'auto';
+        this.manualStepMode = 'batter';
+        this.autoViewMode = 'batter';
+        this.simPitchDelayMs = 250;
+        this.simBatterDelayMs = 600;
+        this.pendingSimResolve = null;
+        this.pendingSimType = null;
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -160,6 +168,7 @@ export class Game {
             this.draftRound = 0;
             this.draftPickIndex = 0;
             this.draftOrder = [];
+            this.teamSeasonStats = {};
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 25); // Full 25-man roster now
             // Auto-fill roster/lineup
@@ -201,6 +210,7 @@ export class Game {
             draftRound: this.draftRound,
             draftPickIndex: this.draftPickIndex,
             draftOrder: this.draftOrder,
+            teamSeasonStats: this.teamSeasonStats,
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
@@ -226,6 +236,7 @@ export class Game {
         this.draftRound = data.draftRound || 0;
         this.draftPickIndex = data.draftPickIndex || 0;
         this.draftOrder = data.draftOrder || [];
+        this.teamSeasonStats = data.teamSeasonStats || {};
 
         // Re-hydrate Player objects
         this.roster = data.roster.map(rehydrate);
@@ -241,6 +252,7 @@ export class Game {
         });
         this.league.freeAgents = this.league.freeAgents.map(rehydrate);
         this.ensureRosterPerformance();
+        this.ensureTeamSeasonStats();
 
 
         // Manually update the UI to show the league view correctly
@@ -309,6 +321,7 @@ export class Game {
         const draftBestBtn = document.getElementById('draft-best-btn');
         if (draftBestBtn) draftBestBtn.addEventListener('click', () => this.draftBestAvailable());
 
+        this.initMatchControls();
         this.initPlayerModal();
 
     }
@@ -857,6 +870,7 @@ export class Game {
         };
 
         this.league.initialize(myTeam);
+        this.initTeamSeasonStats();
 
         // 3. Update League Panel UI
         document.getElementById('start-season-btn').style.display = 'none';
@@ -895,6 +909,7 @@ export class Game {
 
         // 3. Update UI to "Simulating" state
         this.isSimulating = true;
+        this.updateSimControls();
         document.getElementById('play-match-btn').disabled = true;
         document.getElementById('game-status-text').innerText = "PLAY BALL!";
         this.log(`MATCH STARTING! SP: ${starter.name} vs ${myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name}`);
@@ -960,6 +975,8 @@ export class Game {
         this.switchView('league');
 
         document.getElementById('play-match-btn').disabled = false;
+        this.isSimulating = false;
+        this.updateSimControls();
 
         this.saveGame();
     }
@@ -1030,6 +1047,36 @@ export class Game {
         this.updateTeamStatsView();
     }
 
+    initTeamSeasonStats() {
+        if (!this.league) return;
+        this.teamSeasonStats = {};
+        this.league.teams.forEach(team => {
+            this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0 };
+        });
+    }
+
+    ensureTeamSeasonStats() {
+        if (!this.league) return;
+        if (!this.teamSeasonStats) this.teamSeasonStats = {};
+        this.league.teams.forEach(team => {
+            if (!this.teamSeasonStats[team.id]) {
+                this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0 };
+            }
+        });
+    }
+
+    recordTeamRuns(battingTeamId, fieldingTeamId, runs) {
+        if (!this.teamSeasonStats) this.teamSeasonStats = {};
+        if (!this.teamSeasonStats[battingTeamId]) {
+            this.teamSeasonStats[battingTeamId] = { runsFor: 0, runsAgainst: 0 };
+        }
+        if (!this.teamSeasonStats[fieldingTeamId]) {
+            this.teamSeasonStats[fieldingTeamId] = { runsFor: 0, runsAgainst: 0 };
+        }
+        this.teamSeasonStats[battingTeamId].runsFor += runs;
+        this.teamSeasonStats[fieldingTeamId].runsAgainst += runs;
+    }
+
     resetMatchView() {
         if (!this.league) return;
 
@@ -1058,6 +1105,8 @@ export class Game {
         
         // Ensure play button is enabled
         document.getElementById('play-match-btn').disabled = false;
+        this.isSimulating = false;
+        this.updateSimControls();
     }
 
     // --- UI Helpers called by Rules Strategy ---
@@ -1106,6 +1155,17 @@ export class Game {
         } else if (mode === 'league') {
             mainContent.classList.add('league-mode');
             if (leagueBtn) leagueBtn.classList.add('active');
+            const calendarArea = document.getElementById('calendar-area');
+            const seasonInfoArea = document.getElementById('season-info-area');
+            const statsArea = document.getElementById('team-stats-area');
+            if (statsArea) statsArea.style.display = 'none';
+            if (this.league) {
+                if (calendarArea) calendarArea.style.display = 'block';
+                if (seasonInfoArea) seasonInfoArea.style.display = 'none';
+            } else {
+                if (calendarArea) calendarArea.style.display = 'none';
+                if (seasonInfoArea) seasonInfoArea.style.display = 'block';
+            }
         } else if (mode === 'stats') {
             mainContent.classList.add('stats-mode');
             if (statsBtn) statsBtn.classList.add('active');
@@ -1115,6 +1175,108 @@ export class Game {
 
     wait(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    initMatchControls() {
+        const autoBtn = document.getElementById('sim-auto-btn');
+        const pitchBtn = document.getElementById('sim-pitch-btn');
+        const batterBtn = document.getElementById('sim-batter-btn');
+        const autoViewSelect = document.getElementById('auto-view-select');
+
+        if (autoBtn) autoBtn.addEventListener('click', () => this.setSimulationMode('auto'));
+        if (pitchBtn) pitchBtn.addEventListener('click', () => this.setSimulationMode('pitch'));
+        if (batterBtn) batterBtn.addEventListener('click', () => this.setSimulationMode('batter'));
+
+        if (autoViewSelect) {
+            autoViewSelect.addEventListener('change', (e) => {
+                this.autoViewMode = e.target.value;
+            });
+        }
+
+        this.updateSimControls();
+    }
+
+    setSimulationMode(mode) {
+        if (mode === 'auto') {
+            this.simulationMode = 'auto';
+        } else {
+            this.simulationMode = 'manual';
+            this.manualStepMode = mode;
+        }
+        this.updateSimControls();
+        this.resolvePendingSimStep(mode);
+    }
+
+    updateSimControls() {
+        const autoBtn = document.getElementById('sim-auto-btn');
+        const pitchBtn = document.getElementById('sim-pitch-btn');
+        const batterBtn = document.getElementById('sim-batter-btn');
+        const autoViewSelect = document.getElementById('auto-view-select');
+
+        const enabled = this.isSimulating;
+        if (autoBtn) {
+            autoBtn.disabled = !enabled;
+            autoBtn.classList.toggle('active', this.simulationMode === 'auto');
+        }
+        if (pitchBtn) {
+            pitchBtn.disabled = !enabled;
+            pitchBtn.classList.toggle('active', this.simulationMode === 'manual' && this.manualStepMode === 'pitch');
+            pitchBtn.onclick = () => {
+                if (this.simulationMode === 'manual' && this.manualStepMode === 'pitch') {
+                    this.resolvePendingSimStep('pitch');
+                }
+            };
+        }
+        if (batterBtn) {
+            batterBtn.disabled = !enabled;
+            batterBtn.classList.toggle('active', this.simulationMode === 'manual' && this.manualStepMode === 'batter');
+            batterBtn.onclick = () => {
+                if (this.simulationMode === 'manual' && this.manualStepMode === 'batter') {
+                    this.resolvePendingSimStep('batter');
+                }
+            };
+        }
+        if (autoViewSelect) {
+            autoViewSelect.disabled = !enabled;
+        }
+    }
+
+    resolvePendingSimStep(triggeredMode) {
+        if (this.pendingSimResolve) {
+            if (this.simulationMode === 'manual') {
+                if (this.manualStepMode === 'batter' && this.pendingSimType === 'pitch') {
+                    return;
+                }
+                if (this.manualStepMode === 'pitch' && (triggeredMode === 'pitch' || this.pendingSimType === 'pitch' || this.pendingSimType === 'batter')) {
+                    this.pendingSimResolve();
+                } else if (this.manualStepMode === 'batter' && this.pendingSimType === 'batter') {
+                    this.pendingSimResolve();
+                }
+            }
+            this.pendingSimResolve = null;
+            this.pendingSimType = null;
+        }
+    }
+
+    waitForSimulationEvent(type) {
+        if (!this.isSimulating) return Promise.resolve();
+
+        if (this.simulationMode === 'auto') {
+            if (this.autoViewMode === 'pitch') {
+                return this.wait(type === 'pitch' ? this.simPitchDelayMs : this.simBatterDelayMs);
+            }
+            if (type === 'pitch') return Promise.resolve();
+            return this.wait(this.simBatterDelayMs);
+        }
+
+        if (this.manualStepMode === 'batter' && type === 'pitch') {
+            return Promise.resolve();
+        }
+
+        return new Promise(resolve => {
+            this.pendingSimResolve = resolve;
+            this.pendingSimType = type;
+        });
     }
 
     buildPlayerTooltip(player, options = {}) {
@@ -1389,6 +1551,7 @@ export class Game {
             return;
         }
 
+        this.ensureTeamSeasonStats();
         statsArea.style.display = 'block';
         if (calendarArea) calendarArea.style.display = 'none';
         if (seasonInfoArea) seasonInfoArea.style.display = 'none';
@@ -1420,6 +1583,9 @@ export class Game {
                 <td>${entry.ops}</td>
                 <td>${entry.era}</td>
                 <td>${entry.whip}</td>
+                <td>${entry.runsFor}</td>
+                <td>${entry.runsAgainst}</td>
+                <td>${entry.ra9}</td>
                 <td>${opsRankMap.get(entry.team.id)}</td>
                 <td>${eraRankMap.get(entry.team.id)}</td>
             `;
@@ -1484,12 +1650,18 @@ export class Game {
         });
 
         const pitching = this.calculatePitchingStats(pitchingTotals);
+        const teamSeason = this.teamSeasonStats[team.id] || { runsFor: 0, runsAgainst: 0 };
+        const ip = pitchingTotals.pitcherOuts / 3;
+        const ra9 = ip ? ((teamSeason.runsAgainst * 9) / ip).toFixed(2) : '0.00';
 
         return {
             avg: batting.avg,
             ops: batting.ops,
             era: pitching.era,
             whip: pitching.whip,
+            runsFor: teamSeason.runsFor,
+            runsAgainst: teamSeason.runsAgainst,
+            ra9,
             opsValue: parseFloat(batting.ops),
             eraValue: parseFloat(pitching.era)
         };
@@ -1810,6 +1982,7 @@ export class Game {
         });
 
         this.resetSeasonStatsForNewSeason();
+        this.initTeamSeasonStats();
 
         this.updateLeagueView();
         this.renderRosterAndMarket();

@@ -74,11 +74,19 @@ export class BaseballRules extends GameRules {
 
             // Top (Away Bats)
             game.log(`TOP ${inning}: Away Team batting.`);
-            scores.away += await this.simulateHalfInning(game, awayTeam.lineup, homeTeam.pitcher, homeTeam.lineup);
+            const awayRuns = await this.simulateHalfInning(game, awayTeam, homeTeam);
+            scores.away += awayRuns;
+            if (game.recordTeamRuns) {
+                game.recordTeamRuns(awayTeam.id, homeTeam.id, awayRuns);
+            }
 
             // Bot (Home Bats)
             game.log(`BOT ${inning}: Home Team batting.`);
-            scores.home += await this.simulateHalfInning(game, homeTeam.lineup, awayTeam.pitcher, awayTeam.lineup);
+            const homeRuns = await this.simulateHalfInning(game, homeTeam, awayTeam);
+            scores.home += homeRuns;
+            if (game.recordTeamRuns) {
+                game.recordTeamRuns(homeTeam.id, awayTeam.id, homeRuns);
+            }
 
             game.updateScoreboard(scores.home, scores.away);
         }
@@ -94,7 +102,7 @@ export class BaseballRules extends GameRules {
         return scores;
     }
 
-    async simulateHalfInning(game, battingLineup, opponentPitcher, fieldingLineup) {
+    async simulateHalfInning(game, battingTeam, fieldingTeam) {
         let outs = 0;
         let runs = 0;
 
@@ -102,16 +110,31 @@ export class BaseballRules extends GameRules {
         const getPlayer = (entry) => entry.player || entry;
 
         // Calculate average defense for the fielding team
-        const fielders = fieldingLineup.map(getPlayer).filter(p => p.position !== 'P');
+        const fielders = battingTeam && fieldingTeam && fieldingTeam.lineup
+            ? fieldingTeam.lineup.map(getPlayer).filter(p => p.position !== 'P')
+            : [];
         const totalDefense = fielders.reduce((sum, player) => sum + player.stats.defense, 0);
         const averageDefense = fielders.length > 0 ? totalDefense / fielders.length : 50; // Default to 50 if no fielders
 
         while (outs < 3) {
             // Get a random batter from the batting lineup
-            const batter = getPlayer(battingLineup[Math.floor(Math.random() * battingLineup.length)]);
+            const batter = getPlayer(battingTeam.lineup[Math.floor(Math.random() * battingTeam.lineup.length)]);
+            const opponentPitcher = fieldingTeam.pitcher;
 
             game.updateMatchupDisplay(batter, opponentPitcher);
-            await game.wait(500);
+            for (let pitchIndex = 0; pitchIndex < 3; pitchIndex++) {
+                if (game.waitForSimulationEvent) {
+                    await game.waitForSimulationEvent('pitch');
+                } else {
+                    await game.wait(200);
+                }
+            }
+
+            if (game.waitForSimulationEvent) {
+                await game.waitForSimulationEvent('batter');
+            } else {
+                await game.wait(500);
+            }
 
             const outcome = this.calculateOutcome(batter, opponentPitcher, averageDefense);
 
@@ -134,7 +157,7 @@ export class BaseballRules extends GameRules {
                 runs++;
                 game.log(`${batter.name}: Sac Fly (${outs} Out)`);
                 if (game.recordPitcherRun) {
-                    game.recordPitcherRun(opponentPitcher, 1);
+                    game.recordPitcherRun(opponentPitcher, 1, true);
                 }
             } else if (outcome.type === 'out') {
                 outs++;
@@ -146,14 +169,14 @@ export class BaseballRules extends GameRules {
                         runs++;
                         game.log(`>>> HOME RUN! <<<<`);
                         if (game.recordPitcherRun) {
-                            game.recordPitcherRun(opponentPitcher, 1);
+                            game.recordPitcherRun(opponentPitcher, 1, true);
                         }
                     } else {
                         if (Math.random() > 0.7) {
                             runs++;
                             game.log(`> Runner scores!`);
                             if (game.recordPitcherRun) {
-                                game.recordPitcherRun(opponentPitcher, 1);
+                                game.recordPitcherRun(opponentPitcher, 1, Math.random() > 0.15);
                             }
                         }
                     }
