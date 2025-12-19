@@ -16,7 +16,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
     *   **Flexible Lineup**: Drag & Drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
     *   **Pitching Rotation**: Manage a 4-6 man rotation with full Drag & Drop support for reordering starters.
     *   **Roster & Market**: Sign free agents from a dynamic market to manage your 25-man squad, keeping an eye on your budget.
-*   **Save System**: Auto-saves your progress. Use the **Options** menu to switch save slots or delete data.
+*   **Save System**: Saves on key actions (sign/release, match results, season advance). Use the **Options** menu to switch save slots or delete data.
 *   **Match Simulation**: Watch play-by-play visual simulations of your games.
 
 ## 🕹️ Controls
@@ -30,6 +30,21 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 
 *   **Core**: Vanilla JavaScript (ES6+), Modular architecture using ES6 Modules (Core, Rules)
 *   **UI**: HTML5, CSS3 (Grid/Flexbox), Custom "Cyber/Sports" Theme.
+
+## 🧭 Project Structure
+
+*   **index.html**: UI shell and layout for league/team/match views.
+*   **js/main.js**: Bootstraps the game with the baseball ruleset.
+*   **js/core/Game.js**: Game state, UI orchestration, season flow, and save hooks.
+*   **js/core/League.js**: Schedule generation and standings tracking.
+*   **js/core/Player*.js**: Player data model and roster generation.
+*   **js/rules/BaseballRules.js**: Lineup validation and match simulation.
+
+## 🔁 Game Flow
+
+*   Pick a save slot or start a new team from the start screen.
+*   Set your lineup and rotation, then start the season.
+*   Enter a match to simulate play-by-play and advance the league.
 
 ## 🚀 How to Run Locally
 

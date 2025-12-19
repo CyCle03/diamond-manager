@@ -271,15 +271,6 @@ export class Game {
 
     }
 
-    validateLineup() {
-        const starter = this.rotation[this.currentRotationIndex];
-        if (!starter) {
-            alert(`No Starting Pitcher set for slot SP${this.currentRotationIndex + 1}!`);
-            return false;
-        }
-        return this.rules.validateLineup(this.lineup, { pitcher: starter });
-    }
-
     renderRosterAndMarket() {
         this.renderList('#roster-list', this.roster, false);
 
@@ -351,127 +342,6 @@ export class Game {
 
             container.appendChild(card);
         });
-    }
-
-    renderLineup() {
-        const container = document.getElementById('batting-order-list');
-        if (!container) return;
-        container.innerHTML = '';
-
-        this.lineup.forEach((player, index) => {
-            const slot = document.createElement('div');
-            slot.className = 'lineup-slot';
-            slot.dataset.index = index;
-
-            // Drop Zone Logic
-            slot.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                slot.classList.add('drag-over');
-            });
-
-            slot.addEventListener('dragleave', () => {
-                slot.classList.remove('drag-over');
-            });
-
-            const positions = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
-            const targetPos = positions[index];
-
-            slot.addEventListener('drop', (e) => {
-                e.preventDefault();
-                slot.classList.remove('drag-over');
-                const data = JSON.parse(e.dataTransfer.getData('application/json'));
-
-                if (data.source === 'roster') {
-                    const playerToAdd = this.roster.find(p => p.id === data.playerId);
-
-                    if (playerToAdd) {
-                        // Logic for flexible lineup
-                        if (index === 8) { // DH
-                            if (playerToAdd.position === 'P') {
-                                alert("Pitchers cannot be DH!");
-                                return;
-                            }
-                            this.setLineupSlot(index, playerToAdd);
-                        } else {
-                            if (playerToAdd.position !== targetPos) {
-                                if (confirm(`Play ${playerToAdd.name} (${playerToAdd.position}) at ${targetPos}?`)) {
-                                    this.setLineupSlot(index, playerToAdd);
-                                }
-                            } else {
-                                this.setLineupSlot(index, playerToAdd);
-                            }
-                        }
-                    }
-                } else if (data.source === 'lineup') {
-                    const sourceIndex = data.index;
-                    this.swapLineupSlots(sourceIndex, index);
-                }
-            });
-
-            if (player) {
-                slot.draggable = true;
-                slot.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData('application/json', JSON.stringify({ source: 'lineup', index: index }));
-                    slot.classList.add('dragging');
-                });
-                slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
-
-                slot.classList.add('filled');
-                slot.innerHTML = `
-                    <span class="order-num">${index + 1}.</span>
-                    <span class="player-pos" style="background: var(--accent-green); color: white; margin-right:5px;">${targetPos}</span>
-                    <span class="player-name">${player.name}</span>
-                    <span class="player-pos" style="font-size:0.8rem; opacity:0.7;">(${player.position})</span>
-                    <button class="remove-btn">x</button>
-                `;
-                slot.querySelector('.remove-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.removeFromLineup(index);
-                });
-            } else {
-                slot.className = 'empty-slot';
-                slot.innerHTML = `<span style="color:var(--accent-green); font-weight:bold; margin-right:10px;">${targetPos}</span> Select Batter...`;
-            }
-            container.appendChild(slot);
-        });
-
-        this.renderRotation();
-
-        const pitcherSlot = document.getElementById('pitcher-slot');
-        if (pitcherSlot) {
-            // Drop Zone for Pitcher
-            pitcherSlot.addEventListener('dragover', e => { e.preventDefault(); pitcherSlot.classList.add('drag-over'); });
-            pitcherSlot.addEventListener('dragleave', () => pitcherSlot.classList.remove('drag-over'));
-            pitcherSlot.addEventListener('drop', e => {
-                e.preventDefault();
-                pitcherSlot.classList.remove('drag-over');
-                const data = JSON.parse(e.dataTransfer.getData('application/json'));
-                if (data.source === 'roster') {
-                    const p = this.roster.find(pl => pl.id === data.playerId);
-                    if (p) {
-                        if (p.position === 'P') this.pitcher = p;
-                        else alert("Only Pitchers allowed in SP slot!");
-                    }
-                    this.renderLineup();
-                }
-            });
-
-            if (this.pitcher) {
-                pitcherSlot.innerHTML = `
-                    <div class="label">STARTING PITCHER</div>
-                    <div class="lineup-slot filled">
-                        <span class="player-name">${this.pitcher.name}</span>
-                        <span class="player-pos">SP</span>
-                        <button class="remove-btn" onclick="game.removePitcher()">x</button>
-                    </div>
-                `;
-            } else {
-                pitcherSlot.innerHTML = `
-                    <div class="label">STARTING PITCHER</div>
-                    <div class="empty-slot">Select Pitcher...</div>
-                `;
-            }
-        }
     }
 
     renderRotation() {
@@ -685,9 +555,12 @@ export class Game {
     }
 
     validateLineup() {
-        // Check if all 9 slots are filled
-        // this.lineup contains {player, role} or null
-        return this.lineup.every(slot => slot !== null);
+        const starter = this.rotation[this.currentRotationIndex];
+        if (!starter) {
+            alert(`No Starting Pitcher set for slot SP${this.currentRotationIndex + 1}!`);
+            return false;
+        }
+        return this.rules.validateLineup(this.lineup, { pitcher: starter });
     }
 
     renderLineup() {
@@ -867,6 +740,12 @@ export class Game {
             return;
         }
         
+        if (myMatch.home.id === this.playerTeamId) {
+            myMatch.home.pitcher = starter;
+        } else {
+            myMatch.away.pitcher = starter;
+        }
+
         // 3. Update UI to "Simulating" state
         this.isSimulating = true;
         document.getElementById('play-match-btn').disabled = true;
