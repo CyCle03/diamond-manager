@@ -49,7 +49,7 @@ export class Game {
         this.currentMatch = null;
         this.bullpenRoles = ['Long Relief', 'Middle Relief', 'Setup', 'Closer', 'Opener'];
         this.autoBullpenEnabled = false;
-        this.autoBullpenThreshold = 0.35;
+        this.autoBullpenThreshold = 0.4;
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -1483,7 +1483,7 @@ export class Game {
         const bullpen = this.getBullpenPitchers().filter(player => player.id !== pitcher.id);
         if (bullpen.length === 0) return;
 
-        const rolePriority = ['Closer', 'Setup', 'Middle Relief', 'Long Relief', 'Opener'];
+        const rolePriority = ['Middle Relief', 'Long Relief', 'Setup', 'Closer', 'Opener'];
         const best = bullpen
             .map(player => ({
                 player,
