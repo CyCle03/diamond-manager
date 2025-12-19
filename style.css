@@ -110,6 +110,14 @@ h3 {
     display: none;
 }
 
+.main-content.league-mode #bullpen-container {
+    display: none;
+}
+
+.main-content.league-mode .bench-panel {
+    display: none;
+}
+
 
 /* TEAM MODE: Dugout + Roster */
 .main-content.team-mode {
@@ -162,6 +170,29 @@ h3 {
     gap: 16px;
 }
 
+.stats-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 16px;
+}
+
+.stats-column {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.player-rank-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+}
+
+.stats-column h2 {
+    margin: 0;
+}
+
+
 .panel {
     background: var(--panel-bg);
     border: 1px solid var(--border-color);
@@ -194,12 +225,118 @@ h3 {
     /* Manage internal scrolling */
 }
 
+.dugout-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.batting-section {
+    flex: 1;
+}
+
+.pitching-section {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
+    background: #252525;
+}
+
+.section-title {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    color: #cfcfcf;
+    background: #1f1f1f;
+    border-bottom: 1px solid #333;
+}
+
 .batting-order {
     flex: 1;
     padding: 10px;
     overflow-y: auto;
     min-height: 0;
     /* Allow Flexbox nested scrolling */
+}
+
+.bench-panel {
+    padding: 10px 12px;
+    background: #262626;
+    border-top: 1px solid #333;
+    max-height: 170px;
+    overflow-y: auto;
+}
+
+.bench-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.bench-panel .label {
+    font-weight: bold;
+    color: var(--accent-green);
+}
+
+.bench-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.bench-controls select {
+    background: #1f1f1f;
+    color: #ddd;
+    border: 1px solid #444;
+    padding: 2px 6px;
+    font-family: 'Teko', sans-serif;
+}
+
+.bench-controls .nav-btn {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+}
+
+#bench-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bench-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #222;
+    border: 1px solid #333;
+    padding: 6px 8px;
+    border-radius: 4px;
+    font-family: 'Teko', sans-serif;
+    color: #e0e0e0;
+}
+
+.bench-card .bench-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.bench-card .bench-pos {
+    font-size: 0.85rem;
+    color: var(--accent-green);
+}
+
+.bench-card .bench-age {
+    font-size: 0.75rem;
+    color: #888;
+}
+
+.bench-card .bench-stats {
+    font-size: 0.75rem;
+    color: #aaa;
 }
 
 .empty-slot {
@@ -242,10 +379,27 @@ h3 {
     border-radius: 4px;
 }
 
+.bullpen-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .bullpen-card .bullpen-name {
     font-family: 'Teko', sans-serif;
     color: #e0e0e0;
     font-size: 1rem;
+}
+
+.bullpen-card .bullpen-stamina {
+    font-size: 0.75rem;
+    color: #aaa;
+}
+
+.rotation-slot .player-stamina {
+    font-size: 0.7rem;
+    color: #9dc3a7;
+    margin-left: auto;
 }
 
 .bullpen-card select {
@@ -551,7 +705,8 @@ h3 {
 .rotation-slot {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 8px;
     padding: 8px;
     background: #333;
     margin-bottom: 5px;
@@ -575,6 +730,7 @@ h3 {
 .rotation-slot.next-starter .order-num {
     color: var(--accent-green);
 }
+
 
 /* ROSTER PANEL (Horizontal Split) */
 /* ROSTER PANEL (Horizontal Split) */
@@ -847,6 +1003,7 @@ h3 {
 .player-rank-table th[data-sort-key]:hover {
     color: var(--accent-green);
 }
+
 
 .team-trend-card {
     border: 1px solid #333;

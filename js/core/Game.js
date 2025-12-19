@@ -45,7 +45,12 @@ export class Game {
         this.batterRankSortDir = 'desc';
         this.pitcherRankSortKey = 'era';
         this.pitcherRankSortDir = 'asc';
+        this.benchSortKey = 'overall';
+        this.benchSortDir = 'desc';
         this.pitcherStamina = new Map();
+        this.pitcherRestDays = new Map();
+        this.pitcherWorkload = new Map();
+        this.pitcherWorkloadHistory = new Map();
         this.currentMatch = null;
         this.bullpenRoles = ['Long Relief', 'Middle Relief', 'Setup', 'Closer', 'Opener'];
         this.autoBullpenEnabled = false;
@@ -223,6 +228,9 @@ export class Game {
             draftOrder: this.draftOrder,
             teamSeasonStats: this.teamSeasonStats,
             autoBullpenEnabled: this.autoBullpenEnabled,
+            pitcherStamina: Array.from(this.pitcherStamina.entries()),
+            pitcherRestDays: Array.from(this.pitcherRestDays.entries()),
+            pitcherWorkloadHistory: Array.from(this.pitcherWorkloadHistory.entries()),
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
@@ -250,6 +258,9 @@ export class Game {
         this.draftOrder = data.draftOrder || [];
         this.teamSeasonStats = data.teamSeasonStats || {};
         this.autoBullpenEnabled = !!data.autoBullpenEnabled;
+        this.pitcherStamina = new Map(data.pitcherStamina || []);
+        this.pitcherRestDays = new Map(data.pitcherRestDays || []);
+        this.pitcherWorkloadHistory = new Map(data.pitcherWorkloadHistory || []);
 
         // Re-hydrate Player objects
         this.roster = data.roster.map(rehydrate);
@@ -267,6 +278,7 @@ export class Game {
         this.ensureRosterPerformance();
         this.ensureTeamSeasonStats();
         this.ensureBullpenRoles();
+        this.ensurePitcherRestDays();
 
 
         // Manually update the UI to show the league view correctly
@@ -338,6 +350,7 @@ export class Game {
         this.initMatchControls();
         this.initPlayerModal();
         this.initStatsSorting();
+        this.initBenchControls();
         this.renderBullpen();
 
     }
@@ -354,6 +367,7 @@ export class Game {
 
         this.renderScoutingList();
         this.renderBullpen();
+        this.renderBench();
     }
 
     renderList(selector, players, isMarket) {
@@ -545,11 +559,14 @@ export class Game {
                     slot.classList.add('dragging');
                 });
                 slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
+                slot.dataset.pitcherId = p.id;
+                const staminaPct = Math.round(this.getPitcherStaminaRatio(p) * 100);
 
                 slot.innerHTML = `
                     <span class="order-num">SP${i + 1}</span>
                     <span class="player-name">${p.name}</span>
                     <span class="player-pos">P</span>
+                    <span class="player-stamina" data-stamina-for="${p.id}">STA ${staminaPct}%</span>
                     <button class="remove-btn">x</button>
                 `;
                 slot.querySelector('.remove-btn').addEventListener('click', (e) => {
@@ -565,12 +582,16 @@ export class Game {
 
             container.appendChild(slot);
         }
+
+        this.updatePitcherStaminaBadges();
     }
 
     renderBullpen() {
         const container = document.getElementById('bullpen-list');
         if (!container) return;
         container.innerHTML = '';
+
+        this.autoAssignBullpenRoles();
 
         const bullpen = this.getBullpenPitchers();
         if (bullpen.length === 0) {
@@ -582,6 +603,7 @@ export class Game {
             this.ensureBullpenRole(player);
             const card = document.createElement('div');
             card.className = 'bullpen-card';
+            card.dataset.pitcherId = player.id;
             const select = document.createElement('select');
             this.bullpenRoles.forEach(role => {
                 const option = document.createElement('option');
@@ -594,12 +616,19 @@ export class Game {
                 player.bullpenRole = e.target.value;
                 this.saveGame();
             });
-            card.innerHTML = `<div class="bullpen-name">${player.name}</div>`;
+            const staminaPct = Math.round(this.getPitcherStaminaRatio(player) * 100);
+            card.innerHTML = `
+                <div class="bullpen-meta">
+                    <div class="bullpen-name">${player.name}</div>
+                    <div class="bullpen-stamina" data-stamina-for="${player.id}">STA ${staminaPct}%</div>
+                </div>
+            `;
             card.appendChild(select);
             container.appendChild(card);
         });
 
         this.updateBullpenSelect();
+        this.updatePitcherStaminaBadges();
     }
 
     addToLineup(player) {
@@ -739,6 +768,100 @@ export class Game {
         this.lineup = battingOrder; // Now contains {player, role} objects or null
         this.renderLineup();
         this.renderRotation();
+        this.renderBench();
+    }
+
+    renderBench() {
+        const container = document.getElementById('bench-list');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const lineupIds = new Set(
+            this.lineup
+                .filter(entry => entry && entry.player)
+                .map(entry => entry.player.id)
+        );
+        const bench = this.roster.filter(player => player.position !== 'P' && !lineupIds.has(player.id));
+
+        if (bench.length === 0) {
+            container.innerHTML = '<div style="padding:6px; color:#777;">No bench batters</div>';
+            return;
+        }
+
+        const benchData = bench.map(player => {
+            const perf = this.ensurePerformance(player).currentSeason;
+            const batting = this.calculateBattingStats(perf);
+            return { player, perf, batting };
+        });
+
+        const getSortValue = (entry) => {
+            const { player, perf, batting } = entry;
+            switch (this.benchSortKey) {
+                case 'ops':
+                    return parseFloat(batting.ops);
+                case 'avg':
+                    return parseFloat(batting.avg);
+                case 'hr':
+                    return perf.homeRuns || 0;
+                case 'contact':
+                    return player.stats.contact;
+                case 'power':
+                    return player.stats.power;
+                case 'speed':
+                    return player.stats.speed;
+                case 'age':
+                    return player.age;
+                case 'name':
+                    return player.name;
+                case 'overall':
+                default:
+                    return player.stats.overall;
+            }
+        };
+
+        benchData.sort((a, b) => {
+            const aVal = getSortValue(a);
+            const bVal = getSortValue(b);
+            if (typeof aVal === 'string') {
+                return this.benchSortDir === 'asc'
+                    ? aVal.localeCompare(bVal)
+                    : bVal.localeCompare(aVal);
+            }
+            return this.benchSortDir === 'asc' ? aVal - bVal : bVal - aVal;
+        });
+
+        benchData.forEach(({ player, perf, batting }) => {
+            const card = document.createElement('div');
+            card.className = 'bench-card';
+            card.draggable = true;
+            card.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('application/json', JSON.stringify({
+                    source: 'roster',
+                    playerId: player.id
+                }));
+            });
+            card.addEventListener('click', () => {
+                this.openPlayerModal(player, {
+                    showPerformance: true,
+                    actionLabel: 'RELEASE',
+                    action: () => {
+                        if (confirm(`Release ${player.name}?`)) {
+                            this.releasePlayer(player);
+                        }
+                    }
+                });
+            });
+            card.innerHTML = `
+                <div class="bench-meta">
+                    <span class="bench-pos">${player.position}</span>
+                    <span class="bench-name">${player.name}</span>
+                    <span class="bench-age">(${player.age})</span>
+                </div>
+                <div class="bench-stats">OVR ${player.stats.overall} | AVG ${batting.avg} | OPS ${batting.ops} | HR ${perf.homeRuns || 0}</div>
+                <div class="bench-stats">CON ${player.stats.contact} | POW ${player.stats.power} | SPD ${player.stats.speed}</div>
+            `;
+            container.appendChild(card);
+        });
     }
 
     validateLineup() {
@@ -960,7 +1083,9 @@ export class Game {
         this.incrementGamesForTeam(myMatch.away);
         this.currentMatch = myMatch;
         this.playerIsHomeInCurrentMatch = myMatch.home.id === this.playerTeamId;
-        this.resetPitcherStamina();
+        this.ensurePitcherStamina();
+        this.ensurePitcherRestDays();
+        this.pitcherWorkload = new Map();
         this.updatePitcherStaminaUI();
         this.updateBullpenSelect();
 
@@ -1039,6 +1164,10 @@ export class Game {
         this.updateSimControls();
         this.currentMatch = null;
         this.updatePitcherStaminaUI();
+        this.updatePitcherRestDaysAfterMatch();
+        this.recoverPitcherStamina();
+        this.renderRotation();
+        this.renderBullpen();
 
         this.saveGame();
     }
@@ -1297,6 +1426,36 @@ export class Game {
         this.updateSimControls();
     }
 
+    initBenchControls() {
+        const sortSelect = document.getElementById('bench-sort-select');
+        const sortDirBtn = document.getElementById('bench-sort-dir');
+
+        if (sortSelect) {
+            sortSelect.value = this.benchSortKey;
+            sortSelect.addEventListener('change', (e) => {
+                this.benchSortKey = e.target.value;
+                this.renderBench();
+            });
+        }
+
+        if (sortDirBtn) {
+            sortDirBtn.addEventListener('click', () => {
+                this.benchSortDir = this.benchSortDir === 'desc' ? 'asc' : 'desc';
+                this.updateBenchSortUI();
+                this.renderBench();
+            });
+        }
+
+        this.updateBenchSortUI();
+    }
+
+    updateBenchSortUI() {
+        const sortSelect = document.getElementById('bench-sort-select');
+        const sortDirBtn = document.getElementById('bench-sort-dir');
+        if (sortSelect) sortSelect.value = this.benchSortKey;
+        if (sortDirBtn) sortDirBtn.innerText = this.benchSortDir.toUpperCase();
+    }
+
     setSimulationMode(mode) {
         if (mode === 'auto') {
             this.simulationMode = 'auto';
@@ -1401,6 +1560,20 @@ export class Game {
         const ratio = this.getPitcherStaminaRatio(pitcher);
         staminaEl.innerText = `PITCHER STAMINA: ${Math.round(ratio * 100)}%`;
         this.maybeAutoSubstitute(pitcher, ratio);
+        this.updatePitcherStaminaBadges();
+    }
+
+    updatePitcherStaminaBadges() {
+        const nodes = document.querySelectorAll('[data-stamina-for]');
+        if (nodes.length === 0) return;
+        const pitchers = new Map(this.roster.filter(p => p.position === 'P').map(p => [String(p.id), p]));
+        nodes.forEach(node => {
+            const id = node.dataset.staminaFor;
+            const pitcher = pitchers.get(id);
+            if (!pitcher) return;
+            const staminaPct = Math.round(this.getPitcherStaminaRatio(pitcher) * 100);
+            node.textContent = `STA ${staminaPct}%`;
+        });
     }
 
     getBullpenPitchers() {
@@ -1422,6 +1595,90 @@ export class Game {
         });
     }
 
+    autoAssignBullpenRoles() {
+        const bullpen = this.getBullpenPitchers();
+        if (bullpen.length === 0) return;
+
+        const byPitching = [...bullpen].sort((a, b) => b.stats.pitching - a.stats.pitching);
+        const byStamina = [...bullpen].sort((a, b) => (b.stats.stamina || 80) - (a.stats.stamina || 80));
+        const byLowStamina = [...bullpen].sort((a, b) => (a.stats.stamina || 80) - (b.stats.stamina || 80));
+        const pool = new Set(bullpen);
+        const pickFrom = (list, predicate = null) => {
+            for (const player of list) {
+                if (pool.has(player) && (!predicate || predicate(player))) {
+                    pool.delete(player);
+                    return player;
+                }
+            }
+            return null;
+        };
+
+        const getStamina = (player) => player.stats.stamina || 80;
+        const getPitching = (player) => player.stats.pitching || 50;
+        const getOverall = (player) => player.stats.overall || 50;
+        const getPerformanceScore = (player) => {
+            const perf = this.ensurePerformance(player).currentSeason;
+            const outs = perf.pitcherOuts || 0;
+            if (outs < 15) return 0;
+            const pitching = this.calculatePitchingStats(perf);
+            const era = parseFloat(pitching.era);
+            const whip = parseFloat(pitching.whip);
+            const eraScore = Number.isFinite(era) ? Math.max(0, 5 - era) : 0;
+            const whipScore = Number.isFinite(whip) ? Math.max(0, 2 - whip) : 0;
+            return (eraScore * 6) + (whipScore * 6);
+        };
+        const score = (player, weights) => (
+            getPitching(player) * weights.pitching +
+            getStamina(player) * weights.stamina +
+            getOverall(player) * weights.overall +
+            getPerformanceScore(player) * weights.performance
+        );
+        const pickBest = (weights, predicate = null) => {
+            let best = null;
+            let bestScore = -Infinity;
+            pool.forEach(player => {
+                if (predicate && !predicate(player)) return;
+                const value = score(player, weights);
+                if (value > bestScore) {
+                    bestScore = value;
+                    best = player;
+                }
+            });
+            if (best) pool.delete(best);
+            return best;
+        };
+
+        const closer = pickBest(
+            { pitching: 1.35, stamina: -0.1, overall: 0.35, performance: 0.55 },
+            player => getPitching(player) >= 78
+        ) || pickBest({ pitching: 1.2, stamina: 0.0, overall: 0.25, performance: 0.4 });
+
+        const setup = pickBest(
+            { pitching: 1.15, stamina: 0.15, overall: 0.25, performance: 0.4 },
+            player => getPitching(player) >= 72
+        ) || pickBest({ pitching: 1.05, stamina: 0.2, overall: 0.2, performance: 0.3 });
+
+        const middle = pickBest({ pitching: 0.9, stamina: 0.4, overall: 0.2, performance: 0.15 });
+        const longRelief = pickBest(
+            { pitching: 0.4, stamina: 1.2, overall: 0.1, performance: 0.1 },
+            player => getStamina(player) >= 70
+        ) || pickBest({ pitching: 0.3, stamina: 1.0, overall: 0.1, performance: 0.05 });
+        const opener = pickBest(
+            { pitching: 0.8, stamina: 0.6, overall: 0.2, performance: 0.2 },
+            player => getStamina(player) <= 70
+        ) || pickBest({ pitching: 0.7, stamina: 0.7, overall: 0.2, performance: 0.15 });
+
+        if (closer) closer.bullpenRole = 'Closer';
+        if (setup) setup.bullpenRole = 'Setup';
+        if (middle) middle.bullpenRole = 'Middle Relief';
+        if (longRelief) longRelief.bullpenRole = 'Long Relief';
+        if (opener) opener.bullpenRole = 'Opener';
+
+        pool.forEach(player => {
+            player.bullpenRole = 'Middle Relief';
+        });
+    }
+
     getCurrentPlayerPitcher() {
         if (!this.currentMatch) return null;
         return this.playerIsHomeInCurrentMatch ? this.currentMatch.home.pitcher : this.currentMatch.away.pitcher;
@@ -1437,11 +1694,40 @@ export class Game {
         });
     }
 
+    ensurePitcherStamina() {
+        this.roster.forEach(player => {
+            if (player.position !== 'P') return;
+            if (!this.pitcherStamina.has(player.id)) {
+                const max = Math.max(50, player.stats.stamina || 80);
+                this.pitcherStamina.set(player.id, max);
+            }
+        });
+    }
+
+    ensurePitcherRestDays() {
+        this.roster.forEach(player => {
+            if (player.position !== 'P') return;
+            if (!this.pitcherRestDays.has(player.id)) {
+                this.pitcherRestDays.set(player.id, 2);
+            }
+            if (!this.pitcherWorkloadHistory.has(player.id)) {
+                this.pitcherWorkloadHistory.set(player.id, []);
+            }
+        });
+    }
+
     consumePitcherStamina(pitcher, amount) {
         if (!pitcher) return;
         const current = this.pitcherStamina.get(pitcher.id);
         if (typeof current !== 'number') return;
-        this.pitcherStamina.set(pitcher.id, Math.max(0, current - amount));
+        const max = Math.max(50, pitcher.stats.stamina || 80);
+        const staminaBonus = Math.max(0, (max - 60) / 200);
+        const randomFactor = 0.8 + Math.random() * 0.4;
+        const fatigueFactor = Math.max(0.6, 1 - staminaBonus);
+        const drain = Math.max(0.5, amount * randomFactor * fatigueFactor);
+        this.pitcherStamina.set(pitcher.id, Math.max(0, current - drain));
+        const workload = this.pitcherWorkload.get(pitcher.id) || 0;
+        this.pitcherWorkload.set(pitcher.id, workload + drain);
     }
 
     getPitcherStaminaRatio(pitcher) {
@@ -1454,6 +1740,63 @@ export class Game {
     getPitcherFatigueMultiplier(pitcher) {
         const ratio = this.getPitcherStaminaRatio(pitcher);
         return (1 - ratio) * 0.18;
+    }
+
+    recoverPitcherStamina() {
+        this.roster.forEach(player => {
+            if (player.position !== 'P') return;
+            const max = Math.max(50, player.stats.stamina || 80);
+            const current = this.pitcherStamina.get(player.id) ?? max;
+            const used = this.pitcherWorkload.get(player.id) || 0;
+            const usedRatio = Math.min(1, used / max);
+            const restDays = Math.min(5, this.pitcherRestDays.get(player.id) || 0);
+            const history = this.pitcherWorkloadHistory.get(player.id) || [];
+            const recentAvg = history.length
+                ? history.reduce((sum, val) => sum + val, 0) / history.length
+                : 0;
+            const recentRatio = Math.min(1, recentAvg / max);
+            const staminaBonus = Math.max(0, (max - 60) / 200);
+            const isStarter = this.rotation.some(starter => starter && starter.id === player.id);
+            let recoveryCap;
+            if (isStarter) {
+                const restFactor = Math.min(4, restDays) / 4;
+                recoveryCap = 0.5 + (restFactor * 0.45);
+                if (usedRatio > 0.95) recoveryCap -= 0.28;
+                else if (usedRatio > 0.75) recoveryCap -= 0.2;
+                else if (usedRatio > 0.6) recoveryCap -= 0.12;
+                if (recentRatio > 0.7) recoveryCap -= 0.08;
+                recoveryCap += staminaBonus * 0.12;
+            } else {
+                const restFactor = Math.min(3, restDays) / 3;
+                recoveryCap = 0.65 + (restFactor * 0.3);
+                if (used >= 50) recoveryCap -= 0.4;
+                else if (used >= 35) recoveryCap -= 0.28;
+                else if (used >= 20) recoveryCap -= 0.14;
+                if (recentRatio > 0.6) recoveryCap -= 0.08;
+                recoveryCap += staminaBonus * 0.1;
+            }
+            recoveryCap = Math.max(0.4, Math.min(1, recoveryCap));
+            const target = Math.round(max * recoveryCap);
+            this.pitcherStamina.set(player.id, Math.max(current, target));
+        });
+        this.pitcherWorkload = new Map();
+    }
+
+    updatePitcherRestDaysAfterMatch() {
+        this.roster.forEach(player => {
+            if (player.position !== 'P') return;
+            const used = this.pitcherWorkload.get(player.id) || 0;
+            if (used > 0) {
+                this.pitcherRestDays.set(player.id, 0);
+                const history = this.pitcherWorkloadHistory.get(player.id) || [];
+                history.push(used);
+                while (history.length > 3) history.shift();
+                this.pitcherWorkloadHistory.set(player.id, history);
+            } else {
+                const current = this.pitcherRestDays.get(player.id) || 0;
+                this.pitcherRestDays.set(player.id, Math.min(5, current + 1));
+            }
+        });
     }
 
     updateBullpenSelect() {

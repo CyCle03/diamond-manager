@@ -70,38 +70,65 @@
             <!-- Left: Lineup / Dugout -->
             <section class="panel dugout-panel">
                 <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
-                    <h2>DUGOUT (LINEUP)</h2>
+                    <h2>DUGOUT</h2>
                     <button id="auto-lineup-btn"
                         style="background:var(--accent-green); color:white; border:none; padding:5px 10px; cursor:pointer;">AUTO</button>
                 </div>
-                <div class="batting-order" id="batting-order-list">
-                    <!-- 1-9 Batters injected here -->
-                    <div class="empty-slot">1. Select Batter...</div>
-                    <div class="empty-slot">2. Select Batter...</div>
-                    <div class="empty-slot">3. Select Batter...</div>
-                    <div class="empty-slot">4. Select Batter...</div>
-                    <div class="empty-slot">5. Select Batter...</div>
-                    <div class="empty-slot">6. Select Batter...</div>
-                    <div class="empty-slot">7. Select Batter...</div>
-                    <div class="empty-slot">8. Select Batter...</div>
-                    <div class="empty-slot">9. Select Batter...</div>
-                </div>
-                <div class="pitcher-selection" id="rotation-container">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <div class="label">PITCHING ROTATION</div>
-                        <select id="rotation-size-select"
-                            style="background:#222; color:white; border:1px solid #444; padding:2px;">
-                            <option value="4">4-Man</option>
-                            <option value="5" selected>5-Man</option>
-                            <option value="6">6-Man</option>
-                        </select>
+                <div class="dugout-section batting-section">
+                    <div class="section-title">BATTERS</div>
+                    <div class="batting-order" id="batting-order-list">
+                        <!-- 1-9 Batters injected here -->
+                        <div class="empty-slot">1. Select Batter...</div>
+                        <div class="empty-slot">2. Select Batter...</div>
+                        <div class="empty-slot">3. Select Batter...</div>
+                        <div class="empty-slot">4. Select Batter...</div>
+                        <div class="empty-slot">5. Select Batter...</div>
+                        <div class="empty-slot">6. Select Batter...</div>
+                        <div class="empty-slot">7. Select Batter...</div>
+                        <div class="empty-slot">8. Select Batter...</div>
+                        <div class="empty-slot">9. Select Batter...</div>
                     </div>
-                    <!-- Rotation Slots Injected Here -->
-                    <div id="rotation-slots"></div>
+                    <div class="bench-panel">
+                        <div class="bench-header">
+                            <div class="label">BENCH BATTERS</div>
+                            <div class="bench-controls">
+                                <label for="bench-sort-select">SORT</label>
+                                <select id="bench-sort-select">
+                                    <option value="overall">OVR</option>
+                                    <option value="ops">OPS</option>
+                                    <option value="avg">AVG</option>
+                                    <option value="hr">HR</option>
+                                    <option value="contact">CON</option>
+                                    <option value="power">POW</option>
+                                    <option value="speed">SPD</option>
+                                    <option value="age">AGE</option>
+                                    <option value="name">NAME</option>
+                                </select>
+                                <button id="bench-sort-dir" class="nav-btn" type="button">DESC</button>
+                            </div>
+                        </div>
+                        <div id="bench-list"></div>
+                    </div>
                 </div>
-                <div class="pitcher-selection" id="bullpen-container">
-                    <div class="label">BULLPEN ROLES</div>
-                    <div id="bullpen-list"></div>
+                <div class="dugout-section pitching-section">
+                    <div class="section-title">PITCHERS</div>
+                    <div class="pitcher-selection" id="rotation-container">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <div class="label">PITCHING ROTATION</div>
+                            <select id="rotation-size-select"
+                                style="background:#222; color:white; border:1px solid #444; padding:2px;">
+                                <option value="4">4-Man</option>
+                                <option value="5" selected>5-Man</option>
+                                <option value="6">6-Man</option>
+                            </select>
+                        </div>
+                        <!-- Rotation Slots Injected Here -->
+                        <div id="rotation-slots"></div>
+                    </div>
+                    <div class="pitcher-selection" id="bullpen-container">
+                        <div class="label">BULLPEN ROLES</div>
+                        <div id="bullpen-list"></div>
+                    </div>
                 </div>
             </section>
 
@@ -226,70 +253,75 @@
                         </div>
                     </div>
                     <div id="team-stats-area" style="display:none; margin-top: 20px;">
-                        <h2>TEAM STATS</h2>
-                        <div class="team-trend-card">
-                            <div class="team-trend-header">
-                                <span>RUNS TREND</span>
-                                <span id="team-trend-legend">R vs RA</span>
+                        <div class="stats-layout">
+                            <div class="stats-column stats-left">
+                                <h2>TEAM STATS</h2>
+                                <div class="team-trend-card">
+                                    <div class="team-trend-header">
+                                        <span>RUNS TREND</span>
+                                        <span id="team-trend-legend">R vs RA</span>
+                                    </div>
+                                    <div id="team-trend-chart" class="team-trend-chart"></div>
+                                </div>
+                                <div class="standings-table-wrapper">
+                                    <table class="standings-table team-stats-table" id="team-stats-table">
+                                        <thead>
+                                            <tr>
+                                                <th>RK</th>
+                                                <th data-sort-key="team">TEAM</th>
+                                                <th data-sort-key="avg">AVG</th>
+                                                <th data-sort-key="ops">OPS</th>
+                                                <th data-sort-key="era">ERA</th>
+                                                <th data-sort-key="whip">WHIP</th>
+                                                <th data-sort-key="runsFor">R</th>
+                                                <th data-sort-key="runsAgainst">RA</th>
+                                                <th data-sort-key="raPerGame">RA/G</th>
+                                                <th data-sort-key="ra9">RA9</th>
+                                                <th data-sort-key="opsRank">OPS RK</th>
+                                                <th data-sort-key="eraRank">ERA RK</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Injected by JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                            <div id="team-trend-chart" class="team-trend-chart"></div>
-                        </div>
-                        <div class="standings-table-wrapper">
-                            <table class="standings-table team-stats-table" id="team-stats-table">
-                                <thead>
-                                    <tr>
-                                        <th>RK</th>
-                                        <th data-sort-key="team">TEAM</th>
-                                        <th data-sort-key="avg">AVG</th>
-                                        <th data-sort-key="ops">OPS</th>
-                                        <th data-sort-key="era">ERA</th>
-                                        <th data-sort-key="whip">WHIP</th>
-                                        <th data-sort-key="runsFor">R</th>
-                                        <th data-sort-key="runsAgainst">RA</th>
-                                        <th data-sort-key="raPerGame">RA/G</th>
-                                        <th data-sort-key="ra9">RA9</th>
-                                        <th data-sort-key="opsRank">OPS RK</th>
-                                        <th data-sort-key="eraRank">ERA RK</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Injected by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="standings-table-wrapper" style="margin-top: 20px;">
-                            <h2>PLAYER RANKINGS</h2>
-                            <div class="player-rank-section">
-                                <div class="section-header">BATTERS</div>
-                                <table class="standings-table player-rank-table" id="player-rank-batters">
-                                    <thead>
-                                        <tr>
-                                            <th>RK</th>
-                                            <th data-sort-key="name">PLAYER</th>
-                                            <th data-sort-key="avg">AVG</th>
-                                            <th data-sort-key="ops">OPS</th>
-                                            <th data-sort-key="hr">HR</th>
-                                            <th data-sort-key="games">G</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                            <div class="player-rank-section">
-                                <div class="section-header">PITCHERS</div>
-                                <table class="standings-table player-rank-table" id="player-rank-pitchers">
-                                    <thead>
-                                        <tr>
-                                            <th>RK</th>
-                                            <th data-sort-key="name">PLAYER</th>
-                                            <th data-sort-key="era">ERA</th>
-                                            <th data-sort-key="whip">WHIP</th>
-                                            <th data-sort-key="ip">IP</th>
-                                            <th data-sort-key="games">G</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
+                            <div class="stats-column stats-right">
+                                <div class="player-rank-grid">
+                                    <div class="player-rank-section">
+                                        <div class="section-header">BATTERS</div>
+                                        <table class="standings-table player-rank-table" id="player-rank-batters">
+                                            <thead>
+                                                <tr>
+                                                    <th>RK</th>
+                                                    <th data-sort-key="name">PLAYER</th>
+                                                    <th data-sort-key="avg">AVG</th>
+                                                    <th data-sort-key="ops">OPS</th>
+                                                    <th data-sort-key="hr">HR</th>
+                                                    <th data-sort-key="games">G</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                    <div class="player-rank-section">
+                                        <div class="section-header">PITCHERS</div>
+                                        <table class="standings-table player-rank-table" id="player-rank-pitchers">
+                                            <thead>
+                                                <tr>
+                                                    <th>RK</th>
+                                                    <th data-sort-key="name">PLAYER</th>
+                                                    <th data-sort-key="era">ERA</th>
+                                                    <th data-sort-key="whip">WHIP</th>
+                                                    <th data-sort-key="ip">IP</th>
+                                                    <th data-sort-key="games">G</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
