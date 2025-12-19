@@ -209,6 +209,13 @@ h3 {
     text-align: center;
 }
 
+.roster-panel .panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+
 .panel-header h2 {
     font-size: 1.4rem;
 }
@@ -239,6 +246,14 @@ h3 {
     flex-shrink: 0;
     border-top: 1px solid var(--border-color);
     background: #252525;
+}
+
+.rankings-section {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    background: #1f1f1f;
+    max-height: 220px;
 }
 
 .section-title {
@@ -746,22 +761,49 @@ h3 {
 /* ROSTER PANEL (Horizontal Split) */
 .roster-content {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     flex: 1;
     overflow: hidden;
 }
 
-.roster-half {
-    flex: 1;
+.roster-nav {
     display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    justify-content: center;
+}
+
+.roster-view {
+    flex: 1;
+    display: none;
     flex-direction: column;
     overflow: hidden;
-    border-bottom: none;
-    border-right: 1px solid #444;
+    min-height: 0;
 }
 
-.roster-half:last-child {
-    border-right: none;
+.roster-view.active {
+    display: flex;
+}
+
+.market-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #333;
+    background: #1f1f1f;
+}
+
+.market-section {
+    display: none;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.market-section.active {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
 }
 
 .section-header {
@@ -781,6 +823,41 @@ h3 {
 
 .scouting-section {
     border-top: 1px solid #333;
+}
+
+.position-rankings {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+}
+
+.position-rank-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #222;
+    font-size: 0.85rem;
+    color: #ddd;
+}
+
+.position-rank-row .pos-name {
+    font-weight: bold;
+    color: #cfcfcf;
+}
+
+.position-rank-row .pos-rank {
+    color: var(--accent-green);
+}
+
+.position-rank-row .pos-value {
+    color: #aaa;
+    min-width: 36px;
+    text-align: right;
 }
 
 .trade-section {

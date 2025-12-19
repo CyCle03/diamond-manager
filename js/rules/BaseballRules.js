@@ -113,10 +113,21 @@ export class BaseballRules extends GameRules {
 
         // Calculate average defense for the fielding team
         const fielders = battingTeam && fieldingTeam && fieldingTeam.lineup
-            ? fieldingTeam.lineup.map(getPlayer).filter(p => p.position !== 'P')
+            ? fieldingTeam.lineup.map(entry => {
+                const player = getPlayer(entry);
+                const role = entry && entry.role ? entry.role : player.position;
+                return { player, role };
+            }).filter(entry => entry.player.position !== 'P')
             : [];
-        const totalDefense = fielders.reduce((sum, player) => sum + player.stats.defense, 0);
-        const averageDefense = fielders.length > 0 ? totalDefense / fielders.length : 50; // Default to 50 if no fielders
+        const weightedDefense = fielders.reduce((sum, entry) => {
+            const weight = entry.role === 'C' ? 1.6 : (entry.role === 'SS' || entry.role === 'CF' ? 1.2 : 1);
+            return sum + entry.player.stats.defense * weight;
+        }, 0);
+        const weightTotal = fielders.reduce((sum, entry) => {
+            const weight = entry.role === 'C' ? 1.6 : (entry.role === 'SS' || entry.role === 'CF' ? 1.2 : 1);
+            return sum + weight;
+        }, 0);
+        const averageDefense = weightTotal > 0 ? weightedDefense / weightTotal : 50; // Default to 50 if no fielders
 
         while (outs < 3) {
             // Get a random batter from the batting lineup

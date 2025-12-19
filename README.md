@@ -16,6 +16,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
     *   **Flexible Lineup**: Drag & Drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
     *   **Pitching Rotation**: Manage a 4-6 man rotation with full Drag & Drop support for reordering starters.
     *   **Roster & Market**: Sign free agents from a dynamic market to manage your 25-man squad, keeping an eye on your budget.
+    *   **Position Rankings**: View your team’s league rank by position in the Dugout.
 *   **Scouting & Draft**: Spend budget to scout prospects during the season, then draft players in a 5-round offseason draft.
 *   **Scouting Lead Time**: Scouting reports now arrive after a short delay (a few games), not instantly.
 *   **Team Stats**: Compare league-wide team rankings (AVG/OPS/ERA/WHIP, Runs, RA, RA/G, RA9) and run trends.
@@ -78,6 +79,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **팀 재정**: 예산으로 FA/스카우트 선수 영입을 관리합니다.
 *   **스카우트 & 드래프트**: 시즌 중 스카우트, 시즌 종료 후 5라운드 드래프트 진행.
 *   **스카우트 소요 시간**: 스카우트 결과는 즉시가 아니라 몇 경기 후 도착합니다.
+*   **포지션 순위**: DUGOUT에서 포지션별 리그 순위를 확인할 수 있습니다.
 *   **팀 스탯 순위**: AVG/OPS/ERA/WHIP, 득점/실점/RA/G/RA9 순위를 확인합니다.
 *   **팀 득점/실점 추세**: 경기별 득점/실점 흐름 그래프를 확인합니다.
 *   **개인 순위**: 팀 내 타자/투수 순위를 확인합니다.

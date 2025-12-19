@@ -110,6 +110,12 @@
                         <div id="bench-list"></div>
                     </div>
                 </div>
+                <div class="dugout-section rankings-section">
+                    <div class="section-title">LEAGUE POSITION RANKS</div>
+                    <div id="position-rankings" class="position-rankings">
+                        <div class="empty-slot">Start Season to view rankings</div>
+                    </div>
+                </div>
                 <div class="dugout-section pitching-section">
                     <div class="section-title">PITCHERS</div>
                     <div class="pitcher-selection" id="rotation-container">
@@ -337,26 +343,27 @@
             <section class="panel roster-panel">
                 <div class="panel-header">
                     <h2>ROSTER / MARKET</h2>
+                    <div class="roster-nav">
+                        <button id="roster-tab-btn" class="nav-btn active">ROSTER</button>
+                        <button id="market-tab-btn" class="nav-btn">MARKET</button>
+                    </div>
                 </div>
                 <div class="roster-content">
-                    <div id="roster-section" class="roster-half">
+                    <div id="roster-view" class="roster-view active">
                         <div class="section-header">MY ROSTER</div>
                         <div id="roster-list" class="card-list"></div>
                     </div>
-                    <div id="market-section" class="roster-half">
-                        <div class="stack-section">
+                    <div id="market-view" class="roster-view">
+                        <div class="market-nav">
+                            <button id="market-fa-tab" class="nav-btn active">FA</button>
+                            <button id="market-trade-tab" class="nav-btn">TRADE</button>
+                            <button id="market-scout-tab" class="nav-btn">SCOUTING</button>
+                        </div>
+                        <div id="market-fa-section" class="market-section">
                             <div class="section-header">FREE AGENTS</div>
                             <div id="market-list" class="card-list"></div>
                         </div>
-                        <div class="stack-section scouting-section">
-                            <div class="section-header">SCOUTING</div>
-                            <div class="scouting-controls">
-                                <button id="scout-btn" class="cyber-button compact">SCOUT ($75,000)</button>
-                                <div id="scout-status" class="subtext">Find 3 prospects</div>
-                            </div>
-                            <div id="scouting-list" class="card-list compact"></div>
-                        </div>
-                        <div class="stack-section trade-section">
+                        <div id="market-trade-section" class="market-section">
                             <div class="section-header">TRADE MARKET</div>
                             <div class="trade-controls">
                                 <label for="trade-team-select">TEAM</label>
@@ -370,6 +377,14 @@
                                 <button id="trade-submit-btn" class="cyber-button compact">PROPOSE TRADE</button>
                                 <div id="trade-status" class="subtext">Pick a team and players to trade.</div>
                             </div>
+                        </div>
+                        <div id="market-scouting-section" class="market-section">
+                            <div class="section-header">SCOUTING</div>
+                            <div class="scouting-controls">
+                                <button id="scout-btn" class="cyber-button compact">SCOUT ($75,000)</button>
+                                <div id="scout-status" class="subtext">Find 3 prospects</div>
+                            </div>
+                            <div id="scouting-list" class="card-list compact"></div>
                         </div>
                     </div>
                 </div>

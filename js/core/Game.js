@@ -51,6 +51,8 @@ export class Game {
         this.pitcherRankSortDir = 'asc';
         this.benchSortKey = 'overall';
         this.benchSortDir = 'desc';
+        this.rosterView = 'roster';
+        this.marketTab = 'fa';
         this.pitcherStamina = new Map();
         this.pitcherRestDays = new Map();
         this.pitcherWorkload = new Map();
@@ -366,6 +368,7 @@ export class Game {
         this.initStatsSorting();
         this.initBenchControls();
         this.initTradeControls();
+        this.initRosterMarketNav();
         this.renderBullpen();
 
     }
@@ -385,6 +388,8 @@ export class Game {
         this.renderBullpen();
         this.renderBench();
         this.renderTradeUI();
+        this.updateRosterMarketUI();
+        this.renderPositionRankings();
     }
 
     renderList(selector, players, isMarket) {
@@ -1324,6 +1329,7 @@ export class Game {
         this.updateTeamStatsView();
         this.updateGoalProgress();
         this.updateGoalUI();
+        this.renderPositionRankings();
     }
 
     getTeamLastFive(teamId) {
@@ -1342,6 +1348,62 @@ export class Game {
             count++;
         }
         return `${last}${count}`;
+    }
+
+    renderPositionRankings() {
+        const container = document.getElementById('position-rankings');
+        if (!container) return;
+        if (!this.league) {
+            container.innerHTML = '<div class="empty-slot">Start Season to view rankings</div>';
+            return;
+        }
+
+        const positions = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'P'];
+        const teamStrengths = this.league.teams.map(team => ({
+            teamId: team.id,
+            map: this.calculatePositionStrength(team)
+        }));
+
+        const playerMap = teamStrengths.find(entry => entry.teamId === this.playerTeamId);
+        container.innerHTML = '';
+        positions.forEach(pos => {
+            const ranked = [...teamStrengths]
+                .map(entry => ({ teamId: entry.teamId, value: entry.map[pos] || 0 }))
+                .sort((a, b) => b.value - a.value);
+            const rankIndex = ranked.findIndex(entry => entry.teamId === this.playerTeamId);
+            const rank = rankIndex >= 0 ? rankIndex + 1 : '-';
+            const value = playerMap ? playerMap.map[pos] || 0 : 0;
+            const row = document.createElement('div');
+            row.className = 'position-rank-row';
+            row.innerHTML = `
+                <span class="pos-name">${pos}</span>
+                <span class="pos-rank">#${rank} / ${ranked.length}</span>
+                <span class="pos-value">${Math.round(value)}</span>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    calculatePositionStrength(team) {
+        const map = {};
+        const roster = team.roster || [];
+        const getBest = (pos) => {
+            const candidates = roster.filter(p => p.position === pos);
+            if (candidates.length === 0) return 0;
+            return candidates.sort((a, b) => (b.stats.overall || 0) - (a.stats.overall || 0))[0].stats.overall || 0;
+        };
+        ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'].forEach(pos => {
+            map[pos] = getBest(pos);
+        });
+        const dhCandidates = roster.filter(p => p.position !== 'P');
+        map.DH = dhCandidates.length
+            ? dhCandidates.sort((a, b) => (b.stats.overall || 0) - (a.stats.overall || 0))[0].stats.overall || 0
+            : 0;
+        const pitchers = roster.filter(p => p.position === 'P');
+        map.P = pitchers.length
+            ? pitchers.sort((a, b) => (b.stats.pitching || 0) - (a.stats.pitching || 0))[0].stats.pitching || 0
+            : 0;
+        return map;
     }
 
     initSeasonGoals() {
@@ -1660,6 +1722,58 @@ export class Game {
         if (tradeBtn) {
             tradeBtn.addEventListener('click', () => this.proposeTrade());
         }
+    }
+
+    initRosterMarketNav() {
+        const rosterTab = document.getElementById('roster-tab-btn');
+        const marketTab = document.getElementById('market-tab-btn');
+        const faTab = document.getElementById('market-fa-tab');
+        const tradeTab = document.getElementById('market-trade-tab');
+        const scoutTab = document.getElementById('market-scout-tab');
+
+        if (rosterTab) rosterTab.addEventListener('click', () => this.setRosterView('roster'));
+        if (marketTab) marketTab.addEventListener('click', () => this.setRosterView('market'));
+        if (faTab) faTab.addEventListener('click', () => this.setMarketTab('fa'));
+        if (tradeTab) tradeTab.addEventListener('click', () => this.setMarketTab('trade'));
+        if (scoutTab) scoutTab.addEventListener('click', () => this.setMarketTab('scout'));
+
+        this.updateRosterMarketUI();
+    }
+
+    setRosterView(view) {
+        this.rosterView = view;
+        this.updateRosterMarketUI();
+    }
+
+    setMarketTab(tab) {
+        this.marketTab = tab;
+        this.updateRosterMarketUI();
+    }
+
+    updateRosterMarketUI() {
+        const rosterView = document.getElementById('roster-view');
+        const marketView = document.getElementById('market-view');
+        const rosterTab = document.getElementById('roster-tab-btn');
+        const marketTab = document.getElementById('market-tab-btn');
+
+        if (rosterView) rosterView.classList.toggle('active', this.rosterView === 'roster');
+        if (marketView) marketView.classList.toggle('active', this.rosterView === 'market');
+        if (rosterTab) rosterTab.classList.toggle('active', this.rosterView === 'roster');
+        if (marketTab) marketTab.classList.toggle('active', this.rosterView === 'market');
+
+        const faTab = document.getElementById('market-fa-tab');
+        const tradeTab = document.getElementById('market-trade-tab');
+        const scoutTab = document.getElementById('market-scout-tab');
+        const faSection = document.getElementById('market-fa-section');
+        const tradeSection = document.getElementById('market-trade-section');
+        const scoutSection = document.getElementById('market-scouting-section');
+
+        if (faTab) faTab.classList.toggle('active', this.marketTab === 'fa');
+        if (tradeTab) tradeTab.classList.toggle('active', this.marketTab === 'trade');
+        if (scoutTab) scoutTab.classList.toggle('active', this.marketTab === 'scout');
+        if (faSection) faSection.classList.toggle('active', this.marketTab === 'fa');
+        if (tradeSection) tradeSection.classList.toggle('active', this.marketTab === 'trade');
+        if (scoutSection) scoutSection.classList.toggle('active', this.marketTab === 'scout');
     }
 
     renderTradeUI() {
