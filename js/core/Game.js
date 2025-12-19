@@ -34,6 +34,7 @@ export class Game {
         this.draftPickIndex = 0;
         this.draftOrder = [];
         this.teamSeasonStats = {};
+        this.seasonGoals = [];
         this.scoutingQueue = [];
         this.simulationMode = 'auto';
         this.manualStepMode = 'batter';
@@ -190,6 +191,7 @@ export class Game {
             this.teamSeasonStats = {};
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 25); // Full 25-man roster now
+            this.ensureRosterHealth();
             // Auto-fill roster/lineup
             this.autoLineup();
 
@@ -230,6 +232,7 @@ export class Game {
             draftPickIndex: this.draftPickIndex,
             draftOrder: this.draftOrder,
             teamSeasonStats: this.teamSeasonStats,
+            seasonGoals: this.seasonGoals,
             autoBullpenEnabled: this.autoBullpenEnabled,
             pitcherStamina: Array.from(this.pitcherStamina.entries()),
             pitcherRestDays: Array.from(this.pitcherRestDays.entries()),
@@ -261,6 +264,7 @@ export class Game {
         this.draftPickIndex = data.draftPickIndex || 0;
         this.draftOrder = data.draftOrder || [];
         this.teamSeasonStats = data.teamSeasonStats || {};
+        this.seasonGoals = data.seasonGoals || [];
         this.autoBullpenEnabled = !!data.autoBullpenEnabled;
         this.pitcherStamina = new Map(data.pitcherStamina || []);
         this.pitcherRestDays = new Map(data.pitcherRestDays || []);
@@ -287,6 +291,8 @@ export class Game {
         this.ensureTeamSeasonStats();
         this.ensureBullpenRoles();
         this.ensurePitcherRestDays();
+        this.ensureAllPlayerHealth();
+        this.ensureSeasonGoals();
 
 
         // Manually update the UI to show the league view correctly
@@ -359,11 +365,13 @@ export class Game {
         this.initPlayerModal();
         this.initStatsSorting();
         this.initBenchControls();
+        this.initTradeControls();
         this.renderBullpen();
 
     }
 
     renderRosterAndMarket() {
+        this.ensureRosterHealth();
         this.renderList('#roster-list', this.roster, false);
 
         if (this.league) {
@@ -376,6 +384,7 @@ export class Game {
         this.renderScoutingList();
         this.renderBullpen();
         this.renderBench();
+        this.renderTradeUI();
     }
 
     renderList(selector, players, isMarket) {
@@ -385,7 +394,9 @@ export class Game {
 
         players.forEach(player => {
             const card = document.createElement('div');
-            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+            const injuryDays = player.health?.injuryDays || 0;
+            const fatigue = player.health?.fatigue || 0;
+            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''} ${injuryDays > 0 ? 'injured' : ''}`;
             card.draggable = !isMarket; // Roster players draggable, Market players not (until bought?)
             card.title = this.buildPlayerTooltip(player, { includeCost: isMarket, includePerformance: !isMarket });
 
@@ -439,10 +450,14 @@ export class Game {
                 statsHtml += ` | COST: $${player.stats.signingBonus.toLocaleString()}`;
             }
 
+            const badges = [];
+            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
+            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
+
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-age">(${player.age})</div>
-                <div class="card-name">${player.name}</div>
+                <div class="card-name">${player.name}${badges.join('')}</div>
                 <div class="card-stats">
                     ${statsHtml}
                 </div>
@@ -555,6 +570,10 @@ export class Game {
                 if (data.source === 'roster') {
                     const player = this.roster.find(pl => pl.id === data.playerId);
                     if (player && player.position === 'P') {
+                        if (player.health?.injuryDays > 0) {
+                            alert(`${player.name} is injured and cannot pitch.`);
+                            return;
+                        }
                         this.rotation[i] = player;
                         this.renderRotation();
                     } else {
@@ -580,10 +599,13 @@ export class Game {
                 slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
                 slot.dataset.pitcherId = p.id;
                 const staminaPct = Math.round(this.getPitcherStaminaRatio(p) * 100);
+                const injuryDays = p.health?.injuryDays || 0;
+                if (injuryDays > 0) slot.classList.add('injured');
+                const injuryBadge = injuryDays > 0 ? `<span class="status-badge injury">INJ ${injuryDays}</span>` : '';
 
                 slot.innerHTML = `
                     <span class="order-num">SP${i + 1}</span>
-                    <span class="player-name">${p.name}</span>
+                    <span class="player-name">${p.name}${injuryBadge}</span>
                     <span class="player-pos">P</span>
                     <span class="player-stamina" data-stamina-for="${p.id}">STA ${staminaPct}%</span>
                     <button class="remove-btn">x</button>
@@ -651,6 +673,10 @@ export class Game {
     }
 
     addToLineup(player) {
+        if (player.health?.injuryDays > 0) {
+            alert(`${player.name} is injured and cannot be added to the lineup.`);
+            return;
+        }
         if (player.position === 'P') {
             this.pitcher = player;
         } else {
@@ -692,9 +718,11 @@ export class Game {
 
         // --- 1. Fill Rotation (Top 5 Pitchers) ---
         const allPitchers = this.roster.filter(p => p.position === 'P').sort((a, b) => b.stats.pitching - a.stats.pitching);
+        const healthyPitchers = allPitchers.filter(p => (p.health?.injuryDays || 0) === 0);
+        const pitcherPool = healthyPitchers.length >= this.rotationSize ? healthyPitchers : allPitchers;
         this.rotation = new Array(this.rotationSize).fill(null);
         for (let i = 0; i < this.rotationSize; i++) {
-            if (allPitchers[i]) this.rotation[i] = allPitchers[i];
+            if (pitcherPool[i]) this.rotation[i] = pitcherPool[i];
         }
 
         // --- 2. Select Starting 9 (Defensive Integrity) ---
@@ -712,15 +740,17 @@ export class Game {
 
         // A. Fill Fielders
         const positionsNeeded = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+        const healthyBatters = this.roster.filter(p => p.position !== 'P' && (p.health?.injuryDays || 0) === 0);
+        const batterPool = healthyBatters.length >= 9 ? healthyBatters : this.roster.filter(p => p.position !== 'P');
         positionsNeeded.forEach(pos => {
-            const candidates = this.roster.filter(p => p.position === pos && !usedIds.has(p.id))
+            const candidates = batterPool.filter(p => p.position === pos && !usedIds.has(p.id))
                 .sort((a, b) => getRating(b) - getRating(a));
             let pick = null;
             if (candidates.length > 0) {
                 pick = candidates[0];
             } else {
                 // Fallback
-                const fallback = this.roster.filter(p => p.position !== 'P' && !usedIds.has(p.id))
+                const fallback = batterPool.filter(p => p.position !== 'P' && !usedIds.has(p.id))
                     .sort((a, b) => getRating(b) - getRating(a));
                 if (fallback.length > 0) pick = fallback[0];
             }
@@ -732,7 +762,7 @@ export class Game {
         });
 
         // B. Fill DH
-        const dhCandidates = this.roster.filter(p => p.position !== 'P' && !usedIds.has(p.id))
+        const dhCandidates = batterPool.filter(p => p.position !== 'P' && !usedIds.has(p.id))
             .sort((a, b) => getRating(b) - getRating(a));
         if (dhCandidates.length > 0) {
             selectedEntries.push({ player: dhCandidates[0], role: 'DH' });
@@ -851,7 +881,12 @@ export class Game {
 
         benchData.forEach(({ player, perf, batting }) => {
             const card = document.createElement('div');
-            card.className = 'bench-card';
+            const injuryDays = player.health?.injuryDays || 0;
+            const fatigue = player.health?.fatigue || 0;
+            const badges = [];
+            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
+            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
+            card.className = `bench-card ${injuryDays > 0 ? 'injured' : ''}`;
             card.draggable = true;
             card.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('application/json', JSON.stringify({
@@ -875,6 +910,7 @@ export class Game {
                     <span class="bench-pos">${player.position}</span>
                     <span class="bench-name">${player.name}</span>
                     <span class="bench-age">(${player.age})</span>
+                    ${badges.join('')}
                 </div>
                 <div class="bench-stats">OVR ${player.stats.overall} | AVG ${batting.avg} | OPS ${batting.ops} | HR ${perf.homeRuns || 0}</div>
                 <div class="bench-stats">CON ${player.stats.contact} | POW ${player.stats.power} | SPD ${player.stats.speed}</div>
@@ -887,6 +923,15 @@ export class Game {
         const starter = this.rotation[this.currentRotationIndex];
         if (!starter) {
             alert(`No Starting Pitcher set for slot SP${this.currentRotationIndex + 1}!`);
+            return false;
+        }
+        if (starter.health?.injuryDays > 0) {
+            alert(`${starter.name} is injured and cannot start.`);
+            return false;
+        }
+        const injured = this.lineup.find(slot => slot && slot.player && slot.player.health?.injuryDays > 0);
+        if (injured) {
+            alert(`${injured.player.name} is injured and cannot play.`);
             return false;
         }
         return this.rules.validateLineup(this.lineup, { pitcher: starter });
@@ -914,6 +959,10 @@ export class Game {
                     const player = this.roster.find(p => p.id === data.playerId);
 
                     if (player) {
+                        if (player.health?.injuryDays > 0) {
+                            alert(`${player.name} is injured and cannot be added to the lineup.`);
+                            return;
+                        }
                         // When dropping from roster, default role is primary relative to slot
                         // If OOP, we can just assign primary and let them change it.
                         this.setLineupSlot(index, player, player.position);
@@ -933,6 +982,9 @@ export class Game {
                 slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
 
                 slot.classList.add('filled');
+                const injuryDays = player.health?.injuryDays || 0;
+                if (injuryDays > 0) slot.classList.add('injured');
+                const injuryBadge = injuryDays > 0 ? `<span class=\"status-badge injury\">INJ ${injuryDays}</span>` : '';
 
                 // Construct HTML with Select dropdown
                 const roles = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'];
@@ -946,7 +998,7 @@ export class Game {
                     <select class="role-select" style="margin-right:5px; background:var(--accent-green); color:white; border:none; border-radius:3px; padding:2px; cursor:pointer; font-weight:bold;">
                         ${optionsHtml}
                     </select>
-                    <span class="player-name">${player.name}</span>
+                    <span class="player-name">${player.name}${injuryBadge}</span>
                     <span class="player-pos-natural" style="font-size:0.8rem; opacity:0.7; margin-left:5px;">(${player.position})</span>
                     <button class="remove-btn">x</button>
                 `;
@@ -988,6 +1040,7 @@ export class Game {
         this.updateBudgetUI();
 
         // Move from FA to Roster
+        this.ensurePlayerHealth(player);
         this.roster.push(player);
         this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
         alert(`Signed ${player.name}!`);
@@ -1010,6 +1063,7 @@ export class Game {
         this.teamBudget -= cost;
         this.updateBudgetUI();
 
+        this.ensurePlayerHealth(player);
         this.roster.push(player);
         this.scoutingPool = this.scoutingPool.filter(p => p.id !== player.id);
         alert(`Signed ${player.name}!`);
@@ -1065,6 +1119,8 @@ export class Game {
 
         this.league.initialize(myTeam);
         this.initTeamSeasonStats();
+        this.initSeasonGoals();
+        this.ensureAllPlayerHealth();
 
         // 3. Update League Panel UI
         document.getElementById('start-season-btn').style.display = 'none';
@@ -1148,6 +1204,8 @@ export class Game {
 
         this.recordTeamGame(myMatch.home.id, myMatch.away.id, homeScore, awayScore);
         this.advanceScoutingProgress();
+        this.applyMatchFatigue(myMatch.home, myMatch.away);
+        this.applyMatchFatigue(myMatch.away, myMatch.home);
 
         // 2. Simulate Rest of Round (AI vs AI)
         round.forEach(match => {
@@ -1160,6 +1218,8 @@ export class Game {
             const lose = hScore >= aScore ? match.away.id : match.home.id;
             this.league.updateStandings(win, lose);
             this.recordTeamGame(match.home.id, match.away.id, hScore, aScore);
+            this.applyMatchFatigue(match.home, match.away);
+            this.applyMatchFatigue(match.away, match.home);
         });
 
         // 3. Advance Round
@@ -1185,6 +1245,7 @@ export class Game {
         this.currentMatch = null;
         this.updatePitcherStaminaUI();
         this.updatePitcherRestDaysAfterMatch();
+        this.advancePlayerRecovery();
         this.recoverPitcherStamina();
         this.renderRotation();
         this.renderBullpen();
@@ -1235,6 +1296,8 @@ export class Game {
             if (t.isPlayer) tr.classList.add('player-team');
 
             const pct = (t.w + t.l) > 0 ? (t.w / (t.w + t.l)).toFixed(3) : '.000';
+            const lastFive = this.getTeamLastFive(t.id);
+            const streak = this.getTeamStreak(t.id);
 
             tr.innerHTML = `
                 <td>${index + 1}</td>
@@ -1242,6 +1305,8 @@ export class Game {
                 <td>${t.w}</td>
                 <td>${t.l}</td>
                 <td>${pct}</td>
+                <td>${lastFive}</td>
+                <td>${streak}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -1257,13 +1322,106 @@ export class Game {
 
         this.updateDraftUI();
         this.updateTeamStatsView();
+        this.updateGoalProgress();
+        this.updateGoalUI();
+    }
+
+    getTeamLastFive(teamId) {
+        const results = (this.teamSeasonStats[teamId]?.results || []);
+        const lastFive = results.slice(-5);
+        return lastFive.length ? lastFive.join('') : '-';
+    }
+
+    getTeamStreak(teamId) {
+        const results = (this.teamSeasonStats[teamId]?.results || []);
+        if (results.length === 0) return '-';
+        const last = results[results.length - 1];
+        let count = 1;
+        for (let i = results.length - 2; i >= 0; i--) {
+            if (results[i] !== last) break;
+            count++;
+        }
+        return `${last}${count}`;
+    }
+
+    initSeasonGoals() {
+        if (!this.league) return;
+        const totalGames = this.league.schedule.length || 14;
+        const winTarget = Math.max(8, Math.round(totalGames * 0.6));
+        this.seasonGoals = [
+            { id: 'wins', label: `Win ${winTarget} games`, target: winTarget, current: 0, reward: 250000, comparator: '>=', achieved: false, claimed: false },
+            { id: 'ops', label: 'Team OPS ≥ .780', target: 0.78, current: 0, reward: 150000, comparator: '>=', achieved: false, claimed: false },
+            { id: 'era', label: 'Team ERA ≤ 4.20', target: 4.2, current: 99, reward: 150000, comparator: '<=', achieved: false, claimed: false }
+        ];
+    }
+
+    ensureSeasonGoals() {
+        if (!this.seasonGoals || this.seasonGoals.length === 0) {
+            this.initSeasonGoals();
+        }
+    }
+
+    updateGoalProgress() {
+        if (!this.league || !this.seasonGoals) return;
+        const standings = this.league.standings[this.playerTeamId] || { w: 0, l: 0 };
+        const team = this.league.teams.find(t => t.id === this.playerTeamId);
+        const stats = team ? this.calculateTeamStats(team) : null;
+
+        this.seasonGoals.forEach(goal => {
+            if (goal.id === 'wins') goal.current = standings.w;
+            if (goal.id === 'ops' && stats) goal.current = parseFloat(stats.ops);
+            if (goal.id === 'era' && stats) goal.current = parseFloat(stats.era);
+
+            const achieved = goal.comparator === '>='
+                ? goal.current >= goal.target
+                : goal.current <= goal.target;
+            if (achieved && !goal.achieved) {
+                goal.achieved = true;
+            }
+            if (goal.achieved && !goal.claimed) {
+                goal.claimed = true;
+                this.teamBudget += goal.reward;
+                this.updateBudgetUI();
+                this.log(`Goal achieved: ${goal.label} (+$${goal.reward.toLocaleString()})`);
+            }
+        });
+        this.saveGame();
+    }
+
+    updateGoalUI() {
+        const list = document.getElementById('goal-list');
+        if (!list) return;
+        list.innerHTML = '';
+        if (!this.seasonGoals || this.seasonGoals.length === 0) {
+            list.innerHTML = '<div style="padding:8px; color:#777;">No goals yet</div>';
+            return;
+        }
+        this.seasonGoals.forEach(goal => {
+            const row = document.createElement('div');
+            row.className = `goal-row ${goal.achieved ? 'achieved' : ''}`;
+            const progress = goal.id === 'wins'
+                ? `${goal.current}/${goal.target}`
+                : `${goal.current.toFixed ? goal.current.toFixed(3) : goal.current} / ${goal.target}`;
+            row.innerHTML = `
+                <div class="goal-label">${goal.label}</div>
+                <div class="goal-meta">$${goal.reward.toLocaleString()} • ${progress}</div>
+            `;
+            list.appendChild(row);
+        });
     }
 
     initTeamSeasonStats() {
         if (!this.league) return;
         this.teamSeasonStats = {};
         this.league.teams.forEach(team => {
-            this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
+            this.teamSeasonStats[team.id] = {
+                runsFor: 0,
+                runsAgainst: 0,
+                games: 0,
+                runsForByGame: [],
+                runsAgainstByGame: [],
+                results: []
+            };
         });
     }
 
@@ -1272,7 +1430,17 @@ export class Game {
         if (!this.teamSeasonStats) this.teamSeasonStats = {};
         this.league.teams.forEach(team => {
             if (!this.teamSeasonStats[team.id]) {
-                this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
+                this.teamSeasonStats[team.id] = {
+                    runsFor: 0,
+                    runsAgainst: 0,
+                    games: 0,
+                    runsForByGame: [],
+                    runsAgainstByGame: [],
+                    results: []
+                };
+            }
+            if (!this.teamSeasonStats[team.id].results) {
+                this.teamSeasonStats[team.id].results = [];
             }
         });
     }
@@ -1293,8 +1461,16 @@ export class Game {
         if (!this.teamSeasonStats) this.teamSeasonStats = {};
         const ensure = (id) => {
             if (!this.teamSeasonStats[id]) {
-                this.teamSeasonStats[id] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
+                this.teamSeasonStats[id] = {
+                    runsFor: 0,
+                    runsAgainst: 0,
+                    games: 0,
+                    runsForByGame: [],
+                    runsAgainstByGame: [],
+                    results: []
+                };
             }
+            if (!this.teamSeasonStats[id].results) this.teamSeasonStats[id].results = [];
         };
         ensure(homeTeamId);
         ensure(awayTeamId);
@@ -1304,6 +1480,10 @@ export class Game {
         this.teamSeasonStats[awayTeamId].runsAgainstByGame.push(homeRuns);
         this.teamSeasonStats[homeTeamId].games += 1;
         this.teamSeasonStats[awayTeamId].games += 1;
+        const homeResult = homeRuns >= awayRuns ? 'W' : 'L';
+        const awayResult = homeRuns >= awayRuns ? 'L' : 'W';
+        this.teamSeasonStats[homeTeamId].results.push(homeResult);
+        this.teamSeasonStats[awayTeamId].results.push(awayResult);
     }
 
     resetMatchView() {
@@ -1355,10 +1535,11 @@ export class Game {
         if (awayScoreEl) awayScoreEl.innerText = awayScore;
     }
 
-    log(msg) {
+    log(msg, options = {}) {
         const log = document.getElementById('game-log');
         if (log) {
-            log.innerHTML += `<div class="log-entry">${msg}</div>`;
+            const cls = options.highlight ? 'log-entry highlight' : 'log-entry';
+            log.innerHTML += `<div class="${cls}">${msg}</div>`;
             log.scrollTop = log.scrollHeight;
         }
     }
@@ -1468,6 +1649,168 @@ export class Game {
         }
 
         this.updateBenchSortUI();
+    }
+
+    initTradeControls() {
+        const teamSelect = document.getElementById('trade-team-select');
+        const tradeBtn = document.getElementById('trade-submit-btn');
+        if (teamSelect) {
+            teamSelect.addEventListener('change', () => this.updateTradeTargets());
+        }
+        if (tradeBtn) {
+            tradeBtn.addEventListener('click', () => this.proposeTrade());
+        }
+    }
+
+    renderTradeUI() {
+        const teamSelect = document.getElementById('trade-team-select');
+        const playerSelect = document.getElementById('trade-player-select');
+        if (!teamSelect || !playerSelect) return;
+
+        if (!this.league) {
+            teamSelect.innerHTML = '';
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Start season first';
+            teamSelect.appendChild(opt);
+            playerSelect.innerHTML = '';
+            return;
+        }
+
+        const aiTeams = this.league.teams.filter(team => team.id !== this.playerTeamId);
+        teamSelect.innerHTML = '';
+        aiTeams.forEach(team => {
+            const opt = document.createElement('option');
+            opt.value = team.id;
+            opt.textContent = team.name;
+            teamSelect.appendChild(opt);
+        });
+
+        playerSelect.innerHTML = '';
+        this.roster.forEach(player => {
+            const opt = document.createElement('option');
+            opt.value = player.id;
+            opt.textContent = `${player.name} (${player.position})`;
+            playerSelect.appendChild(opt);
+        });
+
+        this.updateTradeTargets();
+    }
+
+    updateTradeTargets() {
+        const teamSelect = document.getElementById('trade-team-select');
+        const targetSelect = document.getElementById('trade-target-select');
+        if (!teamSelect || !targetSelect) return;
+        const team = this.league ? this.league.teams.find(t => t.id === teamSelect.value) : null;
+        targetSelect.innerHTML = '';
+        if (!team) return;
+        team.roster.forEach(player => {
+            const opt = document.createElement('option');
+            opt.value = player.id;
+            opt.textContent = `${player.name} (${player.position})`;
+            targetSelect.appendChild(opt);
+        });
+    }
+
+    proposeTrade() {
+        const teamSelect = document.getElementById('trade-team-select');
+        const giveSelect = document.getElementById('trade-player-select');
+        const getSelect = document.getElementById('trade-target-select');
+        const cashInput = document.getElementById('trade-cash-input');
+        const status = document.getElementById('trade-status');
+        if (!teamSelect || !giveSelect || !getSelect || !cashInput) return;
+
+        const team = this.league ? this.league.teams.find(t => t.id === teamSelect.value) : null;
+        if (!team) return;
+
+        const givePlayer = this.roster.find(p => p.id === giveSelect.value);
+        const getPlayer = team.roster.find(p => p.id === getSelect.value);
+        if (!givePlayer || !getPlayer) return;
+
+        const cash = Math.max(0, parseInt(cashInput.value, 10) || 0);
+        if (cash > this.teamBudget) {
+            if (status) status.innerText = 'Not enough budget for cash add-on.';
+            return;
+        }
+
+        const value = (player) => (player.stats.overall || 50) * 100000;
+        const giveValue = value(givePlayer) + cash;
+        const getValue = value(getPlayer);
+        const diff = giveValue - getValue;
+        let accepted = false;
+        if (diff >= 0) {
+            accepted = true;
+        } else {
+            const chance = Math.max(0.05, Math.min(0.65, 0.25 + diff / getValue));
+            accepted = Math.random() < chance;
+        }
+
+        if (!accepted) {
+            if (status) status.innerText = 'Trade rejected by the other team.';
+            return;
+        }
+
+        this.teamBudget -= cash;
+        this.updateBudgetUI();
+        this.swapPlayersBetweenTeams(team, givePlayer, getPlayer);
+        if (status) status.innerText = 'Trade accepted!';
+        this.renderRosterAndMarket();
+        this.renderLineup();
+        this.renderRotation();
+        this.saveGame();
+    }
+
+    swapPlayersBetweenTeams(otherTeam, givePlayer, getPlayer) {
+        this.removePlayerFromTeam(this.getPlayerTeam(), givePlayer);
+        this.removePlayerFromTeam(otherTeam, getPlayer);
+        this.addPlayerToTeam(this.getPlayerTeam(), getPlayer);
+        this.addPlayerToTeam(otherTeam, givePlayer);
+        this.autoFillAiLineup(otherTeam);
+    }
+
+    getPlayerTeam() {
+        return this.league ? this.league.teams.find(team => team.id === this.playerTeamId) : null;
+    }
+
+    removePlayerFromTeam(team, player) {
+        if (!team) return;
+        team.roster = team.roster.filter(p => p.id !== player.id);
+        if (team.id === this.playerTeamId) {
+            this.lineup = this.lineup.map(slot => (slot && slot.player.id === player.id) ? null : slot);
+            this.rotation = this.rotation.map(p => (p && p.id === player.id) ? null : p);
+        } else if (team.lineup) {
+            team.lineup = team.lineup.map(entry => {
+                const p = entry && entry.player ? entry.player : entry;
+                if (p && p.id === player.id) return null;
+                return entry;
+            });
+        }
+        if (team.pitcher && team.pitcher.id === player.id) {
+            team.pitcher = team.roster.find(p => p.position === 'P') || team.roster[0] || null;
+        }
+    }
+
+    addPlayerToTeam(team, player) {
+        if (!team) return;
+        team.roster.push(player);
+        if (team.id !== this.playerTeamId && team.lineup) {
+            const filled = team.lineup.filter(Boolean).length;
+            if (filled < this.rules.getLineupSize() && player.position !== 'P') {
+                team.lineup.push(player);
+            }
+        }
+    }
+
+    autoFillAiLineup(team) {
+        if (!team || team.id === this.playerTeamId) return;
+        const lineupSize = this.rules.getLineupSize();
+        const current = (team.lineup || []).map(entry => entry && entry.player ? entry.player : entry).filter(Boolean);
+        const used = new Set(current.map(p => p.id));
+        const candidates = team.roster.filter(p => p.position !== 'P' && !used.has(p.id));
+        while (current.length < lineupSize && candidates.length > 0) {
+            current.push(candidates.shift());
+        }
+        team.lineup = current.slice(0, lineupSize);
     }
 
     updateBenchSortUI() {
@@ -1820,6 +2163,63 @@ export class Game {
         });
     }
 
+    getTeamLineupPlayers(team) {
+        if (!team || !team.lineup) return [];
+        return team.lineup
+            .map(entry => entry && entry.player ? entry.player : entry)
+            .filter(player => player && player.position !== 'P');
+    }
+
+    getTeamActivePitcher(team) {
+        if (!team) return null;
+        if (team.pitcher) return team.pitcher;
+        return team.roster ? team.roster.find(player => player.position === 'P') : null;
+    }
+
+    applyMatchFatigue(team, opponent) {
+        if (!team) return;
+        const batters = this.getTeamLineupPlayers(team);
+        const pitcher = this.getTeamActivePitcher(team);
+
+        batters.forEach(player => {
+            this.ensurePlayerHealth(player);
+            const fatigueGain = 10 + Math.random() * 6;
+            player.health.fatigue = Math.min(100, player.health.fatigue + fatigueGain);
+            this.applyInjuryCheck(player, 0.02);
+        });
+
+        if (pitcher) {
+            this.ensurePlayerHealth(pitcher);
+            const fatigueGain = 6 + Math.random() * 6;
+            pitcher.health.fatigue = Math.min(100, pitcher.health.fatigue + fatigueGain);
+            this.applyInjuryCheck(pitcher, 0.03);
+        }
+    }
+
+    applyInjuryCheck(player, baseChance) {
+        if (!player || player.health.injuryDays > 0) return;
+        const fatigue = player.health.fatigue || 0;
+        if (fatigue < 70) return;
+        const chance = baseChance + Math.max(0, (fatigue - 70) / 200);
+        if (Math.random() < chance) {
+            player.health.injuryDays = 2 + Math.floor(Math.random() * 10);
+            this.log(`${player.name} is injured (${player.health.injuryDays} games).`, { highlight: true });
+        }
+    }
+
+    advancePlayerRecovery() {
+        const players = this.getAllLeaguePlayers();
+        players.forEach(player => {
+            this.ensurePlayerHealth(player);
+            if (player.health.injuryDays > 0) {
+                player.health.injuryDays = Math.max(0, player.health.injuryDays - 1);
+                player.health.fatigue = Math.max(0, player.health.fatigue - 4);
+            } else {
+                player.health.fatigue = Math.max(0, player.health.fatigue - 12);
+            }
+        });
+    }
+
     advanceScoutingProgress() {
         if (!this.scoutingQueue || this.scoutingQueue.length === 0) return;
         const completed = [];
@@ -1913,6 +2313,9 @@ export class Game {
             `CON ${stats.contact} | POW ${stats.power} | SPD ${stats.speed} | DEF ${stats.defense}`,
             `PIT ${stats.pitching}`
         ];
+        if (player.health) {
+            lines.push(`FAT ${Math.round(player.health.fatigue || 0)} • INJ ${player.health.injuryDays || 0}`);
+        }
         if (options.includePerformance) {
             const batting = this.formatBattingLine(current);
             const pitching = this.formatPitchingLine(current);
@@ -1974,6 +2377,8 @@ export class Game {
             <div class="stat-label">Defense</div><div class="stat-value">${stats.defense}</div>
             <div class="stat-label">Pitching</div><div class="stat-value">${stats.pitching}</div>
             <div class="stat-label">Stamina</div><div class="stat-value">${stats.stamina || 0}</div>
+            <div class="stat-label">Fatigue</div><div class="stat-value">${Math.round(player.health?.fatigue || 0)}</div>
+            <div class="stat-label">Injury</div><div class="stat-value">${player.health?.injuryDays || 0} days</div>
             <div class="stat-label">Salary</div><div class="stat-value">$${stats.salary.toLocaleString()}</div>
             <div class="stat-label">Signing Bonus</div><div class="stat-value">$${stats.signingBonus.toLocaleString()}</div>
             ${perfHtml}
@@ -2048,6 +2453,23 @@ export class Game {
 
     ensureRosterPerformance() {
         this.roster.forEach(player => this.ensurePerformance(player));
+    }
+
+    ensurePlayerHealth(player) {
+        if (!player.health) {
+            player.health = { fatigue: 0, injuryDays: 0 };
+        }
+        if (typeof player.health.fatigue !== 'number') player.health.fatigue = 0;
+        if (typeof player.health.injuryDays !== 'number') player.health.injuryDays = 0;
+    }
+
+    ensureRosterHealth() {
+        this.roster.forEach(player => this.ensurePlayerHealth(player));
+    }
+
+    ensureAllPlayerHealth() {
+        const players = this.league ? this.getAllLeaguePlayers() : this.roster;
+        players.forEach(player => this.ensurePlayerHealth(player));
     }
 
     formatAverage(hits, atBats) {

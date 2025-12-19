@@ -231,6 +231,8 @@
                                         <th>W</th>
                                         <th>L</th>
                                         <th>PCT</th>
+                                        <th>L5</th>
+                                        <th>STK</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -241,6 +243,10 @@
                         <div class="league-actions">
                             <div id="next-opponent-display">NEXT: vs ---</div>
                             <button id="play-match-btn-league" class="cyber-button">ENTER MATCH</button>
+                        </div>
+                        <div class="goals-card" id="goals-card">
+                            <div class="section-header">GOALS</div>
+                            <div id="goal-list"></div>
                         </div>
                         <div id="draft-area" style="display:none; margin-top: 20px;">
                             <h2>DRAFT ROOM</h2>
@@ -349,6 +355,21 @@
                                 <div id="scout-status" class="subtext">Find 3 prospects</div>
                             </div>
                             <div id="scouting-list" class="card-list compact"></div>
+                        </div>
+                        <div class="stack-section trade-section">
+                            <div class="section-header">TRADE MARKET</div>
+                            <div class="trade-controls">
+                                <label for="trade-team-select">TEAM</label>
+                                <select id="trade-team-select"></select>
+                                <label for="trade-player-select">YOU GIVE</label>
+                                <select id="trade-player-select"></select>
+                                <label for="trade-target-select">THEY GIVE</label>
+                                <select id="trade-target-select"></select>
+                                <label for="trade-cash-input">CASH</label>
+                                <input type="number" id="trade-cash-input" value="0" min="0" max="500000" step="25000" />
+                                <button id="trade-submit-btn" class="cyber-button compact">PROPOSE TRADE</button>
+                                <div id="trade-status" class="subtext">Pick a team and players to trade.</div>
+                            </div>
                         </div>
                     </div>
                 </div>

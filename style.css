@@ -318,6 +318,11 @@ h3 {
     color: #e0e0e0;
 }
 
+.bench-card.injured {
+    border-color: #ff5252;
+    box-shadow: 0 0 6px rgba(255, 82, 82, 0.4);
+}
+
 .bench-card .bench-meta {
     display: flex;
     align-items: center;
@@ -701,6 +706,11 @@ h3 {
     margin-bottom: 4px;
 }
 
+.log-entry.highlight {
+    color: #ffd54f;
+    font-weight: bold;
+}
+
 /* Rotation Slots */
 .rotation-slot {
     display: flex;
@@ -773,6 +783,32 @@ h3 {
     border-top: 1px solid #333;
 }
 
+.trade-section {
+    border-top: 1px solid #333;
+}
+
+.trade-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+}
+
+.trade-controls label {
+    font-size: 0.75rem;
+    color: #888;
+    letter-spacing: 0.04em;
+}
+
+.trade-controls select,
+.trade-controls input {
+    background: #1f1f1f;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 4px 6px;
+    font-family: 'Teko', sans-serif;
+}
+
 .scouting-controls {
     display: flex;
     align-items: center;
@@ -823,6 +859,35 @@ h3 {
     min-height: 60px;
     cursor: pointer;
     transition: background 0.2s, transform 0.1s;
+}
+
+.player-card.injured,
+.lineup-slot.injured,
+.rotation-slot.injured {
+    border-color: #ff5252;
+    box-shadow: 0 0 6px rgba(255, 82, 82, 0.4);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: #3a3a3a;
+    color: #ddd;
+    margin-left: 6px;
+}
+
+.status-badge.injury {
+    background: #5a1e1e;
+    color: #ffb3b3;
+}
+
+.status-badge.fatigue {
+    background: #2a2f3f;
+    color: #b9c6ff;
 }
 
 .player-card:hover {
@@ -1141,6 +1206,46 @@ h3 {
     border-top: 1px solid #444;
 }
 
+.goals-card {
+    margin-top: 16px;
+    padding: 10px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #1f1f1f;
+}
+
+#goal-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.goal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #222;
+    color: #ddd;
+    font-size: 0.85rem;
+}
+
+.goal-row.achieved {
+    border-color: var(--accent-green);
+    color: #c7f5c7;
+}
+
+.goal-label {
+    font-weight: bold;
+}
+
+.goal-meta {
+    color: #aaa;
+    font-size: 0.8rem;
+}
+
 #next-opponent-display {
     font-size: 1.5rem;
     color: #e0e0e0;
@@ -1188,7 +1293,7 @@ h3 {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.95);
-    display: flex;
+    display: none;
     /* Flex to center content */
     flex-direction: column;
     justify-content: center;

@@ -161,7 +161,7 @@ export class BaseballRules extends GameRules {
             if (recordedOutcome.type === 'sac_fly') {
                 outs++;
                 runs++;
-                game.log(`${batter.name}: Sac Fly (${outs} Out)`);
+                game.log(`${batter.name}: Sac Fly (${outs} Out)`, { highlight: true });
                 if (game.recordPitcherRun) {
                     game.recordPitcherRun(opponentPitcher, 1, true);
                 }
@@ -173,14 +173,14 @@ export class BaseballRules extends GameRules {
                 if (outcome.type === 'hit') {
                     if (outcome.desc.includes('Home Run')) {
                         runs++;
-                        game.log(`>>> HOME RUN! <<<<`);
+                        game.log(`>>> HOME RUN! <<<<`, { highlight: true });
                         if (game.recordPitcherRun) {
                             game.recordPitcherRun(opponentPitcher, 1, true);
                         }
                     } else {
                         if (Math.random() > 0.7) {
                             runs++;
-                            game.log(`> Runner scores!`);
+                            game.log(`> Runner scores!`, { highlight: true });
                             if (game.recordPitcherRun) {
                                 game.recordPitcherRun(opponentPitcher, 1, Math.random() > 0.15);
                             }

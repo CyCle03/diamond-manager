@@ -6,7 +6,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 
 ## 🎮 Features
 
-*   **League System**: Compete in a full season against 7 AI teams.
+*   **League System**: Compete in a full season against 7 AI teams with last-5 and streak indicators.
 *   **Deeper Simulation**:
     *   **Player Development**: Players age each season. Their stats will progress or regress based on their age, with young players improving and older players declining.
     *   **Team Finances**: Manage a team budget. Signing players from the free agent market costs money, so spend wisely.
@@ -22,6 +22,9 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **Player Rankings**: View your team's batter/pitcher leaderboards.
 *   **Bullpen Roles & Stamina**: Assign bullpen roles and manage pitcher stamina with in-game substitutions.
 *   **Performance-Based Training**: Player attributes adjust based on seasonal performance plus end-of-season training.
+*   **Injuries & Fatigue**: Players accumulate fatigue and can miss games when injured.
+*   **Goals & Rewards**: Complete season goals for budget bonuses.
+*   **Trades**: Propose player-for-player trades with AI teams (optional cash add-on).
 *   **Save System**: Saves on key actions (sign/release, match results, season advance). Use the **Options** menu to switch save slots or delete data.
 *   **Match Simulation**: Watch play-by-play visual simulations of your games.
 
@@ -70,7 +73,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 
 ## 🎮 주요 기능
 
-*   **리그 시스템**: 7개의 AI 팀과 시즌을 진행합니다.
+*   **리그 시스템**: 7개의 AI 팀과 시즌을 진행하며 최근 5경기/연속 승패를 확인합니다.
 *   **선수 성장**: 시즌마다 나이에 따라 능력치가 성장/하락합니다.
 *   **팀 재정**: 예산으로 FA/스카우트 선수 영입을 관리합니다.
 *   **스카우트 & 드래프트**: 시즌 중 스카우트, 시즌 종료 후 5라운드 드래프트 진행.
@@ -80,6 +83,9 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **개인 순위**: 팀 내 타자/투수 순위를 확인합니다.
 *   **불펜 역할/체력**: 불펜 역할을 지정하고 투수 체력을 관리하며 교체할 수 있습니다.
 *   **성적 기반 성장**: 시즌 성적과 훈련에 따라 능력치가 변화합니다.
+*   **부상 & 피로**: 선수 피로 누적과 부상으로 결장이 발생합니다.
+*   **목표 & 보상**: 시즌 목표 달성 시 예산 보상을 받습니다.
+*   **트레이드**: AI 팀과 선수 트레이드를 제안할 수 있습니다.
 
 ## 🕹️ 조작
 
