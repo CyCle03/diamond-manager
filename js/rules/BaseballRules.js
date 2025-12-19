@@ -19,7 +19,8 @@ export class BaseballRules extends GameRules {
             power: 20 + Math.random() * 70,
             speed: 30 + Math.random() * 60,
             defense: 40 + Math.random() * 50,
-            pitching: 0
+            pitching: 0,
+            stamina: 50 + Math.random() * 40
         };
 
         // Position specific adjustments
@@ -27,6 +28,7 @@ export class BaseballRules extends GameRules {
             baseStats.pitching = 50 + Math.random() * 50;
             baseStats.contact = Math.random() * 30;
             baseStats.power = Math.random() * 20;
+            baseStats.stamina = 60 + Math.random() * 40;
         } else if (position === '1B' || position === 'DH') {
             baseStats.power += 10;
             baseStats.speed -= 10;
@@ -128,6 +130,9 @@ export class BaseballRules extends GameRules {
                 } else {
                     await game.wait(200);
                 }
+                if (game.consumePitcherStamina) {
+                    game.consumePitcherStamina(opponentPitcher, 1);
+                }
             }
 
             if (game.waitForSimulationEvent) {
@@ -136,7 +141,8 @@ export class BaseballRules extends GameRules {
                 await game.wait(500);
             }
 
-            const outcome = this.calculateOutcome(batter, opponentPitcher, averageDefense);
+            const fatigue = game.getPitcherFatigueMultiplier ? game.getPitcherFatigueMultiplier(opponentPitcher) : 0;
+            const outcome = this.calculateOutcome(batter, opponentPitcher, averageDefense, fatigue);
 
             let recordedOutcome = outcome;
             let sacFlyTriggered = false;
@@ -186,13 +192,14 @@ export class BaseballRules extends GameRules {
         return runs;
     }
 
-    calculateOutcome(batter, pitcher, fieldingDefense) {
+    calculateOutcome(batter, pitcher, fieldingDefense, fatigue = 0) {
         // Reuse logic from Game.js but isolated here
         let hitChance = ((batter.stats.contact || 50) - (pitcher.stats.pitching || 50) * 0.5) / 100 + 0.25;
         
         // Adjust hit chance based on fielding defense
         // A higher fieldingDefense reduces hit chance
         hitChance -= (fieldingDefense - 50) * 0.0012;
+        hitChance += fatigue;
         hitChance = Math.max(0.05, Math.min(0.6, hitChance));
         
         const roll = Math.random();

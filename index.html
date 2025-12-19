@@ -99,6 +99,10 @@
                     <!-- Rotation Slots Injected Here -->
                     <div id="rotation-slots"></div>
                 </div>
+                <div class="pitcher-selection" id="bullpen-container">
+                    <div class="label">BULLPEN ROLES</div>
+                    <div id="bullpen-list"></div>
+                </div>
             </section>
 
             <!-- Center: Stadium (Simulation View) -->
@@ -137,6 +141,7 @@
 
                         <div class="match-info">
                             <div id="game-status-text">WAITING FOR MATCH...</div>
+                            <div id="pitcher-stamina">PITCHER STAMINA: --</div>
                             <div id="current-matchup">
                                 <div class="matchup-batter">BATTER: ---</div>
                                 <div class="matchup-vs">VS</div>
@@ -155,6 +160,15 @@
                                         <option value="batter" selected>Batter-by-Batter</option>
                                         <option value="pitch">Pitch-by-Pitch</option>
                                     </select>
+                                </div>
+                                <div class="match-control-row">
+                                    <label for="bullpen-select">BULLPEN</label>
+                                    <select id="bullpen-select"></select>
+                                    <button id="sub-pitcher-btn" class="nav-btn">SUB</button>
+                                </div>
+                                <div class="match-control-row">
+                                    <label for="auto-bullpen-toggle">AUTO BP</label>
+                                    <input type="checkbox" id="auto-bullpen-toggle" />
                                 </div>
                             </div>
                         </div>

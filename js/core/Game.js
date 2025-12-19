@@ -45,6 +45,11 @@ export class Game {
         this.batterRankSortDir = 'desc';
         this.pitcherRankSortKey = 'era';
         this.pitcherRankSortDir = 'asc';
+        this.pitcherStamina = new Map();
+        this.currentMatch = null;
+        this.bullpenRoles = ['Long Relief', 'Middle Relief', 'Setup', 'Closer', 'Opener'];
+        this.autoBullpenEnabled = false;
+        this.autoBullpenThreshold = 0.35;
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -217,6 +222,7 @@ export class Game {
             draftPickIndex: this.draftPickIndex,
             draftOrder: this.draftOrder,
             teamSeasonStats: this.teamSeasonStats,
+            autoBullpenEnabled: this.autoBullpenEnabled,
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
@@ -243,6 +249,7 @@ export class Game {
         this.draftPickIndex = data.draftPickIndex || 0;
         this.draftOrder = data.draftOrder || [];
         this.teamSeasonStats = data.teamSeasonStats || {};
+        this.autoBullpenEnabled = !!data.autoBullpenEnabled;
 
         // Re-hydrate Player objects
         this.roster = data.roster.map(rehydrate);
@@ -259,6 +266,7 @@ export class Game {
         this.league.freeAgents = this.league.freeAgents.map(rehydrate);
         this.ensureRosterPerformance();
         this.ensureTeamSeasonStats();
+        this.ensureBullpenRoles();
 
 
         // Manually update the UI to show the league view correctly
@@ -330,6 +338,7 @@ export class Game {
         this.initMatchControls();
         this.initPlayerModal();
         this.initStatsSorting();
+        this.renderBullpen();
 
     }
 
@@ -344,6 +353,7 @@ export class Game {
         }
 
         this.renderScoutingList();
+        this.renderBullpen();
     }
 
     renderList(selector, players, isMarket) {
@@ -555,6 +565,41 @@ export class Game {
 
             container.appendChild(slot);
         }
+    }
+
+    renderBullpen() {
+        const container = document.getElementById('bullpen-list');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const bullpen = this.getBullpenPitchers();
+        if (bullpen.length === 0) {
+            container.innerHTML = '<div style="padding:6px; color:#777;">No bullpen pitchers</div>';
+            return;
+        }
+
+        bullpen.forEach(player => {
+            this.ensureBullpenRole(player);
+            const card = document.createElement('div');
+            card.className = 'bullpen-card';
+            const select = document.createElement('select');
+            this.bullpenRoles.forEach(role => {
+                const option = document.createElement('option');
+                option.value = role;
+                option.textContent = role;
+                if (player.bullpenRole === role) option.selected = true;
+                select.appendChild(option);
+            });
+            select.addEventListener('change', (e) => {
+                player.bullpenRole = e.target.value;
+                this.saveGame();
+            });
+            card.innerHTML = `<div class="bullpen-name">${player.name}</div>`;
+            card.appendChild(select);
+            container.appendChild(card);
+        });
+
+        this.updateBullpenSelect();
     }
 
     addToLineup(player) {
@@ -913,6 +958,11 @@ export class Game {
 
         this.incrementGamesForTeam(myMatch.home);
         this.incrementGamesForTeam(myMatch.away);
+        this.currentMatch = myMatch;
+        this.playerIsHomeInCurrentMatch = myMatch.home.id === this.playerTeamId;
+        this.resetPitcherStamina();
+        this.updatePitcherStaminaUI();
+        this.updateBullpenSelect();
 
         // 3. Update UI to "Simulating" state
         this.isSimulating = true;
@@ -987,6 +1037,8 @@ export class Game {
         document.getElementById('play-match-btn').disabled = false;
         this.isSimulating = false;
         this.updateSimControls();
+        this.currentMatch = null;
+        this.updatePitcherStaminaUI();
 
         this.saveGame();
     }
@@ -1134,6 +1186,8 @@ export class Game {
         document.getElementById('play-match-btn').disabled = false;
         this.isSimulating = false;
         this.updateSimControls();
+        this.currentMatch = null;
+        this.updatePitcherStaminaUI();
     }
 
     // --- UI Helpers called by Rules Strategy ---
@@ -1141,6 +1195,7 @@ export class Game {
     updateMatchupDisplay(batter, pitcher) {
         document.querySelector('.matchup-batter').innerText = `BATTER: ${batter.name}`;
         document.querySelector('.matchup-pitcher').innerText = `PITCHER: ${pitcher.name}`;
+        this.updatePitcherStaminaUI();
     }
 
     updateScoreboard(homeScore, awayScore) {
@@ -1209,6 +1264,9 @@ export class Game {
         const pitchBtn = document.getElementById('sim-pitch-btn');
         const batterBtn = document.getElementById('sim-batter-btn');
         const autoViewSelect = document.getElementById('auto-view-select');
+        const bullpenSelect = document.getElementById('bullpen-select');
+        const subBtn = document.getElementById('sub-pitcher-btn');
+        const autoBullpenToggle = document.getElementById('auto-bullpen-toggle');
 
         if (autoBtn) autoBtn.addEventListener('click', () => this.setSimulationMode('auto'));
         if (pitchBtn) pitchBtn.addEventListener('click', () => this.setSimulationMode('pitch'));
@@ -1217,6 +1275,22 @@ export class Game {
         if (autoViewSelect) {
             autoViewSelect.addEventListener('change', (e) => {
                 this.autoViewMode = e.target.value;
+            });
+        }
+
+        if (subBtn) {
+            subBtn.addEventListener('click', () => {
+                const selectedId = bullpenSelect ? bullpenSelect.value : null;
+                if (selectedId) {
+                    this.substitutePitcher(selectedId);
+                }
+            });
+        }
+
+        if (autoBullpenToggle) {
+            autoBullpenToggle.addEventListener('change', (e) => {
+                this.autoBullpenEnabled = e.target.checked;
+                this.saveGame();
             });
         }
 
@@ -1239,6 +1313,7 @@ export class Game {
         const pitchBtn = document.getElementById('sim-pitch-btn');
         const batterBtn = document.getElementById('sim-batter-btn');
         const autoViewSelect = document.getElementById('auto-view-select');
+        const autoBullpenToggle = document.getElementById('auto-bullpen-toggle');
 
         const enabled = this.isSimulating;
         if (autoBtn) {
@@ -1266,6 +1341,15 @@ export class Game {
         if (autoViewSelect) {
             autoViewSelect.disabled = !enabled;
         }
+        if (autoBullpenToggle) {
+            autoBullpenToggle.disabled = false;
+            autoBullpenToggle.checked = this.autoBullpenEnabled;
+        }
+
+        const bullpenSelect = document.getElementById('bullpen-select');
+        const subBtn = document.getElementById('sub-pitcher-btn');
+        if (bullpenSelect) bullpenSelect.disabled = !enabled;
+        if (subBtn) subBtn.disabled = !enabled;
     }
 
     resolvePendingSimStep(triggeredMode) {
@@ -1304,6 +1388,133 @@ export class Game {
             this.pendingSimResolve = resolve;
             this.pendingSimType = type;
         });
+    }
+
+    updatePitcherStaminaUI() {
+        const staminaEl = document.getElementById('pitcher-stamina');
+        if (!staminaEl) return;
+        const pitcher = this.getCurrentPlayerPitcher();
+        if (!pitcher) {
+            staminaEl.innerText = 'PITCHER STAMINA: --';
+            return;
+        }
+        const ratio = this.getPitcherStaminaRatio(pitcher);
+        staminaEl.innerText = `PITCHER STAMINA: ${Math.round(ratio * 100)}%`;
+        this.maybeAutoSubstitute(pitcher, ratio);
+    }
+
+    getBullpenPitchers() {
+        const starters = new Set(this.rotation.filter(Boolean).map(p => p.id));
+        return this.roster.filter(player => player.position === 'P' && !starters.has(player.id));
+    }
+
+    ensureBullpenRole(player) {
+        if (!player.bullpenRole) {
+            player.bullpenRole = 'Long Relief';
+        }
+    }
+
+    ensureBullpenRoles() {
+        this.roster.forEach(player => {
+            if (player.position === 'P') {
+                this.ensureBullpenRole(player);
+            }
+        });
+    }
+
+    getCurrentPlayerPitcher() {
+        if (!this.currentMatch) return null;
+        return this.playerIsHomeInCurrentMatch ? this.currentMatch.home.pitcher : this.currentMatch.away.pitcher;
+    }
+
+    resetPitcherStamina() {
+        this.pitcherStamina = new Map();
+        this.roster.forEach(player => {
+            if (player.position === 'P') {
+                const max = Math.max(50, player.stats.stamina || 80);
+                this.pitcherStamina.set(player.id, max);
+            }
+        });
+    }
+
+    consumePitcherStamina(pitcher, amount) {
+        if (!pitcher) return;
+        const current = this.pitcherStamina.get(pitcher.id);
+        if (typeof current !== 'number') return;
+        this.pitcherStamina.set(pitcher.id, Math.max(0, current - amount));
+    }
+
+    getPitcherStaminaRatio(pitcher) {
+        const current = this.pitcherStamina.get(pitcher.id);
+        const max = Math.max(1, pitcher.stats.stamina || 80);
+        if (typeof current !== 'number') return 1;
+        return Math.max(0, Math.min(1, current / max));
+    }
+
+    getPitcherFatigueMultiplier(pitcher) {
+        const ratio = this.getPitcherStaminaRatio(pitcher);
+        return (1 - ratio) * 0.18;
+    }
+
+    updateBullpenSelect() {
+        const select = document.getElementById('bullpen-select');
+        if (!select) return;
+        const bullpen = this.getBullpenPitchers();
+        select.innerHTML = '';
+        bullpen.forEach(player => {
+            const option = document.createElement('option');
+            option.value = player.id;
+            option.textContent = `${player.name} (${player.bullpenRole || 'Long Relief'})`;
+            select.appendChild(option);
+        });
+        if (bullpen.length === 0) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'No bullpen available';
+            select.appendChild(option);
+        }
+    }
+
+    maybeAutoSubstitute(pitcher, ratio) {
+        if (!this.autoBullpenEnabled || !this.isSimulating || !this.currentMatch) return;
+        if (!pitcher || typeof ratio !== 'number') return;
+        if (ratio > this.autoBullpenThreshold) return;
+
+        const bullpen = this.getBullpenPitchers().filter(player => player.id !== pitcher.id);
+        if (bullpen.length === 0) return;
+
+        const rolePriority = ['Closer', 'Setup', 'Middle Relief', 'Long Relief', 'Opener'];
+        const best = bullpen
+            .map(player => ({
+                player,
+                roleIndex: rolePriority.indexOf(player.bullpenRole || 'Long Relief'),
+                staminaRatio: this.getPitcherStaminaRatio(player)
+            }))
+            .sort((a, b) => {
+                if (a.roleIndex !== b.roleIndex) return a.roleIndex - b.roleIndex;
+                return b.staminaRatio - a.staminaRatio;
+            })[0];
+
+        if (best && best.player) {
+            this.substitutePitcher(best.player.id);
+        }
+    }
+
+    substitutePitcher(playerId) {
+        if (!this.currentMatch) return;
+        const pitcher = this.roster.find(player => player.id === playerId);
+        if (!pitcher) return;
+        if (this.playerIsHomeInCurrentMatch) {
+            this.currentMatch.home.pitcher = pitcher;
+        } else {
+            this.currentMatch.away.pitcher = pitcher;
+        }
+        if (!this.pitcherStamina.has(pitcher.id)) {
+            const max = Math.max(50, pitcher.stats.stamina || 80);
+            this.pitcherStamina.set(pitcher.id, max);
+        }
+        this.updatePitcherStaminaUI();
+        this.log(`Pitching change: ${pitcher.name} enters.`);
     }
 
     buildPlayerTooltip(player, options = {}) {
@@ -1376,6 +1587,7 @@ export class Game {
             <div class="stat-label">Speed</div><div class="stat-value">${stats.speed}</div>
             <div class="stat-label">Defense</div><div class="stat-value">${stats.defense}</div>
             <div class="stat-label">Pitching</div><div class="stat-value">${stats.pitching}</div>
+            <div class="stat-label">Stamina</div><div class="stat-value">${stats.stamina || 0}</div>
             <div class="stat-label">Salary</div><div class="stat-value">$${stats.salary.toLocaleString()}</div>
             <div class="stat-label">Signing Bonus</div><div class="stat-value">$${stats.signingBonus.toLocaleString()}</div>
             ${perfHtml}

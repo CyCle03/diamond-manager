@@ -19,6 +19,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **Scouting & Draft**: Spend budget to scout prospects during the season, then draft players in a 5-round offseason draft.
 *   **Team Stats**: Compare league-wide team rankings (AVG/OPS/ERA/WHIP, Runs, RA, RA/G, RA9) and run trends.
 *   **Player Rankings**: View your team's batter/pitcher leaderboards.
+*   **Bullpen Roles & Stamina**: Assign bullpen roles and manage pitcher stamina with in-game substitutions.
 *   **Save System**: Saves on key actions (sign/release, match results, season advance). Use the **Options** menu to switch save slots or delete data.
 *   **Match Simulation**: Watch play-by-play visual simulations of your games.
 
@@ -35,6 +36,8 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
     *   **PITCH**: Step through each pitch event.
     *   **BATTER**: Step through each batter outcome.
 *   **Stats**: Open **STATS** in the header to view team rankings.
+*   **Pitching Change**: Use the Bullpen dropdown in Match to swap pitchers.
+*   **Auto Bullpen**: Toggle **AUTO BP** to automatically swap pitchers when stamina dips.
 
 ## 🛠️ Tech Stack
 
@@ -72,6 +75,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **팀 스탯 순위**: AVG/OPS/ERA/WHIP, 득점/실점/RA/G/RA9 순위를 확인합니다.
 *   **팀 득점/실점 추세**: 경기별 득점/실점 흐름 그래프를 확인합니다.
 *   **개인 순위**: 팀 내 타자/투수 순위를 확인합니다.
+*   **불펜 역할/체력**: 불펜 역할을 지정하고 투수 체력을 관리하며 교체할 수 있습니다.
 
 ## 🕹️ 조작
 
@@ -83,6 +87,8 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
     *   **PITCH**: 공 하나씩 진행
     *   **BATTER**: 타자 단위로 진행
 *   **STATS**: 상단 **STATS** 탭에서 팀 성적 순위 확인
+*   **투수 교체**: 경기 화면의 Bullpen 선택으로 투수 교체
+*   **불펜 자동 교체**: **AUTO BP** 토글로 체력 낮을 때 자동 교체
 
 ## 🚀 How to Run Locally
 
