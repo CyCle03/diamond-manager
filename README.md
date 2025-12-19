@@ -16,6 +16,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
     *   **Flexible Lineup**: Drag & Drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
     *   **Pitching Rotation**: Manage a 4-6 man rotation with full Drag & Drop support for reordering starters.
     *   **Roster & Market**: Sign free agents from a dynamic market to manage your 25-man squad, keeping an eye on your budget.
+*   **Scouting & Draft**: Spend budget to scout prospects during the season, then draft players in a 5-round offseason draft.
 *   **Save System**: Saves on key actions (sign/release, match results, season advance). Use the **Options** menu to switch save slots or delete data.
 *   **Match Simulation**: Watch play-by-play visual simulations of your games.
 
@@ -25,6 +26,8 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **Position Change**: Click the green dropdown (e.g., "SS") next to a player in the lineup to change their defensive role.
 *   **Rotation**: Drag Pitchers from Roster/Lineup to Rotation slots. Drag within Rotation to swap order.
 *   **Options**: Click the **OPTIONS** button in the header to manage save data.
+*   **Scout**: Click **SCOUT** in the Roster/Market panel to find new prospects.
+*   **Draft**: Use the Draft Room in the League panel to make your picks.
 
 ## 🛠️ Tech Stack
 
@@ -45,6 +48,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   Pick a save slot or start a new team from the start screen.
 *   Set your lineup and rotation, then start the season.
 *   Enter a match to simulate play-by-play and advance the league.
+*   After the season ends, draft new prospects over 5 rounds.
 
 ## 🚀 How to Run Locally
 

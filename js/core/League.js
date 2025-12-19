@@ -94,4 +94,9 @@ export class League {
             })
             .sort((a, b) => b.w - a.w); // Sort by Wins
     }
+
+    getDraftOrder() {
+        const sorted = this.getSortedStandings();
+        return [...sorted].reverse();
+    }
 }

@@ -22,6 +22,15 @@ export class Game {
         this.teamName = "Cyber Nine";
         this.teamBudget = 5000000; // Starting budget
         this.playerIsHomeInCurrentMatch = true;
+        this.scoutCost = 75000;
+        this.scoutCount = 3;
+        this.maxDraftRounds = 5;
+        this.scoutingPool = [];
+        this.draftPool = [];
+        this.draftActive = false;
+        this.draftRound = 0;
+        this.draftPickIndex = 0;
+        this.draftOrder = [];
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -145,6 +154,12 @@ export class Game {
             this.teamName = teamName;
             this.teamBudget = 5000000;
             this.currentRotationIndex = 0; // Explicitly reset for new game
+            this.scoutingPool = [];
+            this.draftPool = [];
+            this.draftActive = false;
+            this.draftRound = 0;
+            this.draftPickIndex = 0;
+            this.draftOrder = [];
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 25); // Full 25-man roster now
             // Auto-fill roster/lineup
@@ -180,6 +195,12 @@ export class Game {
             playerTeamId: this.playerTeamId,
             currentRotationIndex: this.currentRotationIndex,
             rotationSize: this.rotationSize,
+            scoutingPool: this.scoutingPool,
+            draftPool: this.draftPool,
+            draftActive: this.draftActive,
+            draftRound: this.draftRound,
+            draftPickIndex: this.draftPickIndex,
+            draftOrder: this.draftOrder,
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
@@ -192,15 +213,21 @@ export class Game {
             return;
         }
 
+        const rehydrate = p => p ? new Player(p.id, p.name, p.position, p.age, p.stats) : null;
+
         this.teamName = data.teamName;
         this.teamBudget = data.teamBudget || 5000000;
         this.playerTeamId = data.playerTeamId;
         this.currentRotationIndex = data.currentRotationIndex;
         this.rotationSize = data.rotationSize;
+        this.scoutingPool = (data.scoutingPool || []).map(rehydrate);
+        this.draftPool = (data.draftPool || []).map(rehydrate);
+        this.draftActive = data.draftActive || false;
+        this.draftRound = data.draftRound || 0;
+        this.draftPickIndex = data.draftPickIndex || 0;
+        this.draftOrder = data.draftOrder || [];
 
         // Re-hydrate Player objects
-        const rehydrate = p => p ? new Player(p.id, p.name, p.position, p.age, p.stats) : null;
-
         this.roster = data.roster.map(rehydrate);
         this.lineup = data.lineup.map(slot => slot ? { ...slot, player: rehydrate(slot.player) } : null);
         this.rotation = data.rotation.map(rehydrate);
@@ -222,6 +249,7 @@ export class Game {
         if (calendarArea) calendarArea.style.display = 'block';
 
         this.updateLeagueView();
+        this.updateDraftUI();
 
         // Go to Dashboard
         this.switchView('league');
@@ -269,6 +297,15 @@ export class Game {
         const optionsBtn = document.getElementById('options-btn');
         if (optionsBtn) optionsBtn.addEventListener('click', () => this.openOptions());
 
+        const scoutBtn = document.getElementById('scout-btn');
+        if (scoutBtn) scoutBtn.addEventListener('click', () => this.scoutPlayers());
+
+        const draftAdvanceBtn = document.getElementById('draft-advance-btn');
+        if (draftAdvanceBtn) draftAdvanceBtn.addEventListener('click', () => this.advanceDraftPick());
+
+        const draftBestBtn = document.getElementById('draft-best-btn');
+        if (draftBestBtn) draftBestBtn.addEventListener('click', () => this.draftBestAvailable());
+
     }
 
     renderRosterAndMarket() {
@@ -280,6 +317,8 @@ export class Game {
             const mList = document.querySelector('#market-list');
             if (mList) mList.innerHTML = '<div style="padding:10px; color:#888;">Start Season first</div>';
         }
+
+        this.renderScoutingList();
     }
 
     renderList(selector, players, isMarket) {
@@ -339,6 +378,64 @@ export class Game {
                     ${statsHtml}
                 </div>
             `;
+
+            container.appendChild(card);
+        });
+    }
+
+    renderScoutingList() {
+        const container = document.querySelector('#scouting-list');
+        const statusEl = document.getElementById('scout-status');
+        const scoutBtn = document.getElementById('scout-btn');
+        if (!container) return;
+
+        if (!this.league) {
+            container.innerHTML = '<div style="padding:10px; color:#888;">Start Season first</div>';
+            if (statusEl) statusEl.innerText = 'Start a season to scout';
+            if (scoutBtn) scoutBtn.disabled = true;
+            return;
+        }
+
+        if (statusEl) {
+            statusEl.innerText = `Find ${this.scoutCount} prospects • $${this.scoutCost.toLocaleString()}`;
+        }
+        if (scoutBtn) {
+            scoutBtn.innerText = `SCOUT ($${this.scoutCost.toLocaleString()})`;
+            scoutBtn.disabled = this.teamBudget < this.scoutCost;
+        }
+
+        container.innerHTML = '';
+        if (this.scoutingPool.length === 0) {
+            container.innerHTML = '<div style="padding:10px; color:#888;">No scouting reports yet</div>';
+            return;
+        }
+
+        this.scoutingPool.forEach(player => {
+            const card = document.createElement('div');
+            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+
+            let statsHtml = '';
+            if (player.position === 'P') {
+                statsHtml = `PIT:${player.stats.pitching} SPD:${player.stats.speed}`;
+            } else {
+                statsHtml = `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            }
+
+            statsHtml += ` | COST: $${player.stats.signingBonus.toLocaleString()}`;
+
+            card.innerHTML = `
+                <div class="card-pos">${player.position} (${player.age})</div>
+                <div class="card-name">${player.name}</div>
+                <div class="card-stats">
+                    ${statsHtml}
+                </div>
+            `;
+
+            card.addEventListener('click', () => {
+                if (confirm(`Sign Scouted Player ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
+                    this.signScoutedPlayer(player);
+                }
+            });
 
             container.appendChild(card);
         });
@@ -666,6 +763,28 @@ export class Game {
         this.saveGame();
     }
 
+    signScoutedPlayer(player) {
+        if (this.roster.length >= 25) {
+            alert("Roster is full (Max 25)!");
+            return;
+        }
+
+        const cost = player.stats.signingBonus;
+        if (this.teamBudget < cost) {
+            alert("Not enough budget to sign this player!");
+            return;
+        }
+
+        this.teamBudget -= cost;
+        this.updateBudgetUI();
+
+        this.roster.push(player);
+        this.scoutingPool = this.scoutingPool.filter(p => p.id !== player.id);
+        alert(`Signed ${player.name}!`);
+        this.renderRosterAndMarket();
+        this.saveGame();
+    }
+
     releasePlayer(player) {
         // 1. Minimum roster size check
         if (this.roster.length <= 16) { // Let's set a minimum
@@ -837,21 +956,7 @@ export class Game {
             this.rules.updatePlayerStatsForAge(player);
         });
 
-        // Start a new season
-        this.league.season++;
-        this.league.currentRoundIndex = 0;
-        this.league.generateSchedule(); // Regenerate schedule
-        this.league.teams.forEach(t => { // Reset standings
-            this.league.standings[t.id] = { w: 0, l: 0 };
-        });
-
-
-        // Refresh UI
-        this.updateLeagueView();
-        this.renderRosterAndMarket();
-        this.saveGame();
-
-        alert(`Season ${this.league.season} is about to begin!`);
+        this.startDraft();
     }
 
     // --- VIEW UPDATES ---
@@ -890,6 +995,8 @@ export class Game {
             const display = document.getElementById('next-opponent-display');
             if (display) display.innerText = `NEXT: vs ${opponent.name}`;
         }
+
+        this.updateDraftUI();
     }
 
     resetMatchView() {
@@ -971,5 +1078,201 @@ export class Game {
 
     wait(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    scoutPlayers() {
+        if (!this.league) {
+            alert("Start the season before scouting.");
+            return;
+        }
+
+        if (this.teamBudget < this.scoutCost) {
+            alert("Not enough budget to scout right now.");
+            return;
+        }
+
+        this.teamBudget -= this.scoutCost;
+        this.updateBudgetUI();
+        const newProspects = PlayerGenerator.createScoutingPool(this.rules, this.scoutCount);
+        this.scoutingPool = [...this.scoutingPool, ...newProspects];
+        this.renderScoutingList();
+        this.saveGame();
+        this.log(`Scouted ${this.scoutCount} prospects.`);
+    }
+
+    startDraft() {
+        if (!this.league) return;
+
+        this.draftActive = true;
+        this.draftRound = 1;
+        this.draftPickIndex = 0;
+        const order = this.league.getDraftOrder();
+        this.draftOrder = order.map(team => team.id);
+        const totalPicks = this.draftOrder.length * this.maxDraftRounds;
+        this.draftPool = PlayerGenerator.createDraftPool(this.rules, totalPicks);
+
+        alert("Off-season draft has begun!");
+        this.switchView('league');
+        this.updateDraftUI();
+        this.saveGame();
+    }
+
+    updateDraftUI() {
+        const draftArea = document.getElementById('draft-area');
+        const statusEl = document.getElementById('draft-status');
+        const advanceBtn = document.getElementById('draft-advance-btn');
+        const bestBtn = document.getElementById('draft-best-btn');
+        const listEl = document.getElementById('draft-list');
+
+        if (!draftArea) return;
+
+        if (!this.draftActive) {
+            draftArea.style.display = 'none';
+            if (listEl) listEl.innerHTML = '';
+            return;
+        }
+
+        draftArea.style.display = 'block';
+        if (this.draftOrder.length === 0) {
+            if (statusEl) statusEl.innerText = 'Draft order unavailable.';
+            if (listEl) listEl.innerHTML = '';
+            return;
+        }
+        const currentTeamId = this.draftOrder[this.draftPickIndex];
+        const currentTeam = this.league.teams.find(t => t.id === currentTeamId);
+        const isPlayerTurn = currentTeamId === this.playerTeamId;
+
+        if (statusEl) {
+            const teamName = currentTeam ? currentTeam.name : 'Unknown';
+            statusEl.innerText = `ROUND ${this.draftRound} • PICK ${this.draftPickIndex + 1} • ${teamName}${isPlayerTurn ? ' (YOUR PICK)' : ''}`;
+        }
+
+        if (advanceBtn) advanceBtn.disabled = isPlayerTurn;
+        if (bestBtn) bestBtn.disabled = !isPlayerTurn;
+
+        if (listEl) {
+            listEl.innerHTML = '';
+            const sorted = [...this.draftPool].sort((a, b) => b.stats.overall - a.stats.overall);
+            const preview = sorted.slice(0, 12);
+            if (preview.length === 0) {
+                listEl.innerHTML = '<div style="padding:10px; color:#888;">No prospects left</div>';
+            } else {
+                preview.forEach(player => {
+                    const card = document.createElement('div');
+                    card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+                    const statsLine = player.position === 'P'
+                        ? `PIT:${player.stats.pitching} SPD:${player.stats.speed}`
+                        : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+
+                    const actionHtml = isPlayerTurn ? '<button class="draft-pick-btn">DRAFT</button>' : '';
+
+                    card.innerHTML = `
+                        <div class="card-pos">${player.position} (${player.age})</div>
+                        <div class="card-name">${player.name}</div>
+                        <div class="card-stats">
+                            OVR:${player.stats.overall} | ${statsLine}
+                            ${actionHtml}
+                        </div>
+                    `;
+
+                    if (isPlayerTurn) {
+                        const btn = card.querySelector('.draft-pick-btn');
+                        if (btn) {
+                            btn.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                this.draftPlayer(player.id);
+                            });
+                        }
+                    }
+
+                    listEl.appendChild(card);
+                });
+            }
+        }
+    }
+
+    draftBestAvailable() {
+        if (!this.draftActive) return;
+        const currentTeamId = this.draftOrder[this.draftPickIndex];
+        if (currentTeamId !== this.playerTeamId) return;
+        if (this.draftPool.length === 0) return;
+        const best = [...this.draftPool].sort((a, b) => b.stats.overall - a.stats.overall)[0];
+        this.draftPlayer(best.id);
+    }
+
+    advanceDraftPick() {
+        if (!this.draftActive) return;
+        const currentTeamId = this.draftOrder[this.draftPickIndex];
+        if (currentTeamId === this.playerTeamId) {
+            alert("It's your pick. Draft a player first.");
+            return;
+        }
+
+        const best = [...this.draftPool].sort((a, b) => b.stats.overall - a.stats.overall)[0];
+        if (best) {
+            this.draftPlayer(best.id, true);
+        }
+    }
+
+    draftPlayer(playerId, isAuto = false) {
+        const player = this.draftPool.find(p => p.id === playerId);
+        if (!player) return;
+
+        const currentTeamId = this.draftOrder[this.draftPickIndex];
+        const currentTeam = this.league.teams.find(t => t.id === currentTeamId);
+        if (!currentTeam) return;
+
+        if (currentTeamId === this.playerTeamId) {
+            if (this.roster.length >= 30) {
+                alert("Roster is full (Max 30). Release a player before drafting.");
+                return;
+            }
+            this.roster.push(player);
+            this.log(`Drafted ${player.name} (${player.position}).`);
+        } else {
+            currentTeam.roster.push(player);
+            if (!isAuto) {
+                this.log(`${currentTeam.name} drafted ${player.name}.`);
+            }
+        }
+
+        this.draftPool = this.draftPool.filter(p => p.id !== playerId);
+        this.advanceDraftState();
+    }
+
+    advanceDraftState() {
+        this.draftPickIndex += 1;
+        if (this.draftPickIndex >= this.draftOrder.length) {
+            this.draftPickIndex = 0;
+            this.draftRound += 1;
+        }
+
+        if (this.draftRound > this.maxDraftRounds || this.draftPool.length === 0) {
+            this.finishDraft();
+            return;
+        }
+
+        this.updateDraftUI();
+        this.saveGame();
+    }
+
+    finishDraft() {
+        this.draftActive = false;
+        this.draftRound = 0;
+        this.draftPickIndex = 0;
+        this.draftOrder = [];
+        this.draftPool = [];
+
+        this.league.season++;
+        this.league.currentRoundIndex = 0;
+        this.league.generateSchedule();
+        this.league.teams.forEach(t => {
+            this.league.standings[t.id] = { w: 0, l: 0 };
+        });
+
+        this.updateLeagueView();
+        this.renderRosterAndMarket();
+        this.saveGame();
+        alert(`Season ${this.league.season} is about to begin!`);
     }
 }

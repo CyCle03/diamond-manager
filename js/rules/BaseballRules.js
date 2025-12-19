@@ -142,7 +142,8 @@ export class BaseballRules extends GameRules {
         
         // Adjust hit chance based on fielding defense
         // A higher fieldingDefense reduces hit chance
-        hitChance -= (fieldingDefense - 50) * 0.001; // Adjust this factor as needed for balance
+        hitChance -= (fieldingDefense - 50) * 0.0012;
+        hitChance = Math.max(0.05, Math.min(0.6, hitChance));
         
         const roll = Math.random();
 

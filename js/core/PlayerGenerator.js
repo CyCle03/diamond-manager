@@ -28,6 +28,22 @@ export class PlayerGenerator {
         );
     }
 
+    static createProspect(rules, options = {}) {
+        const positions = rules.getPositions();
+        const chosenPos = options.position || positions[Math.floor(Math.random() * positions.length)];
+        const minAge = options.minAge ?? 18;
+        const maxAge = options.maxAge ?? 22;
+        const age = minAge + Math.floor(Math.random() * (maxAge - minAge + 1));
+
+        return new Player(
+            this.generateRandomId(),
+            this.generateName(),
+            chosenPos,
+            age,
+            rules.generatePlayerStats(chosenPos)
+        );
+    }
+
     static createTeamRoster(rules, size = 25) {
         const roster = [];
         const positions = rules.getPositions();
@@ -50,5 +66,21 @@ export class PlayerGenerator {
         }
 
         return roster;
+    }
+
+    static createDraftPool(rules, size) {
+        const pool = [];
+        for (let i = 0; i < size; i++) {
+            pool.push(this.createProspect(rules, { minAge: 18, maxAge: 22 }));
+        }
+        return pool;
+    }
+
+    static createScoutingPool(rules, size) {
+        const pool = [];
+        for (let i = 0; i < size; i++) {
+            pool.push(this.createProspect(rules, { minAge: 19, maxAge: 26 }));
+        }
+        return pool;
     }
 }

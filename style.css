@@ -516,6 +516,37 @@ h3 {
     font-weight: bold;
 }
 
+.stack-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.scouting-section {
+    border-top: 1px solid #333;
+}
+
+.scouting-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: #1f1f1f;
+    border-bottom: 1px solid #333;
+}
+
+.subtext {
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.draft-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 10px 0;
+}
+
 .card-list {
     padding: 10px;
     overflow-y: auto;
@@ -525,6 +556,11 @@ h3 {
     gap: 8px;
     min-height: 0;
     /* Allow Flexbox nested scrolling */
+}
+
+.card-list.compact {
+    flex: 0 0 180px;
+    max-height: 180px;
 }
 
 .player-card {
@@ -565,6 +601,25 @@ h3 {
 .card-stats {
     font-size: 0.8rem;
     color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.draft-pick-btn {
+    background: var(--accent-green);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    font-family: 'Teko', sans-serif;
+    font-size: 1rem;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.draft-pick-btn:hover {
+    background: #388e3c;
 }
 
 /* Lineup Slots */
@@ -641,6 +696,11 @@ h3 {
     font-size: 1.5rem;
     cursor: pointer;
     transition: all 0.2s;
+}
+
+.cyber-button.compact {
+    padding: 8px 14px;
+    font-size: 1.1rem;
 }
 
 .cyber-button:hover {

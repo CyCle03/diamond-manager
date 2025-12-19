@@ -186,6 +186,15 @@
                             <div id="next-opponent-display">NEXT: vs ---</div>
                             <button id="play-match-btn-league" class="cyber-button">ENTER MATCH</button>
                         </div>
+                        <div id="draft-area" style="display:none; margin-top: 20px;">
+                            <h2>DRAFT ROOM</h2>
+                            <div id="draft-status" class="menu-subtitle">Draft is starting...</div>
+                            <div class="draft-actions">
+                                <button id="draft-advance-btn" class="cyber-button compact">ADVANCE PICK</button>
+                                <button id="draft-best-btn" class="cyber-button compact">DRAFT BEST</button>
+                            </div>
+                            <div id="draft-list" class="card-list"></div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -200,8 +209,18 @@
                         <div id="roster-list" class="card-list"></div>
                     </div>
                     <div id="market-section" class="roster-half">
-                        <div class="section-header">FREE AGENTS</div>
-                        <div id="market-list" class="card-list"></div>
+                        <div class="stack-section">
+                            <div class="section-header">FREE AGENTS</div>
+                            <div id="market-list" class="card-list"></div>
+                        </div>
+                        <div class="stack-section scouting-section">
+                            <div class="section-header">SCOUTING</div>
+                            <div class="scouting-controls">
+                                <button id="scout-btn" class="cyber-button compact">SCOUT ($75,000)</button>
+                                <div id="scout-status" class="subtext">Find 3 prospects</div>
+                            </div>
+                            <div id="scouting-list" class="card-list compact"></div>
+                        </div>
                     </div>
                 </div>
             </section>
