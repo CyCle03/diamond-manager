@@ -213,27 +213,70 @@
                     </div>
                     <div id="team-stats-area" style="display:none; margin-top: 20px;">
                         <h2>TEAM STATS</h2>
+                        <div class="team-trend-card">
+                            <div class="team-trend-header">
+                                <span>RUNS TREND</span>
+                                <span id="team-trend-legend">R vs RA</span>
+                            </div>
+                            <div id="team-trend-chart" class="team-trend-chart"></div>
+                        </div>
                         <div class="standings-table-wrapper">
                             <table class="standings-table team-stats-table" id="team-stats-table">
                                 <thead>
                                     <tr>
                                         <th>RK</th>
-                                        <th>TEAM</th>
-                                        <th>AVG</th>
-                                        <th>OPS</th>
-                                        <th>ERA</th>
-                                        <th>WHIP</th>
-                                        <th>R</th>
-                                        <th>RA</th>
-                                        <th>RA9</th>
-                                        <th>OPS RK</th>
-                                        <th>ERA RK</th>
+                                        <th data-sort-key="team">TEAM</th>
+                                        <th data-sort-key="avg">AVG</th>
+                                        <th data-sort-key="ops">OPS</th>
+                                        <th data-sort-key="era">ERA</th>
+                                        <th data-sort-key="whip">WHIP</th>
+                                        <th data-sort-key="runsFor">R</th>
+                                        <th data-sort-key="runsAgainst">RA</th>
+                                        <th data-sort-key="raPerGame">RA/G</th>
+                                        <th data-sort-key="ra9">RA9</th>
+                                        <th data-sort-key="opsRank">OPS RK</th>
+                                        <th data-sort-key="eraRank">ERA RK</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <!-- Injected by JS -->
                                 </tbody>
                             </table>
+                        </div>
+                        <div class="standings-table-wrapper" style="margin-top: 20px;">
+                            <h2>PLAYER RANKINGS</h2>
+                            <div class="player-rank-section">
+                                <div class="section-header">BATTERS</div>
+                                <table class="standings-table player-rank-table" id="player-rank-batters">
+                                    <thead>
+                                        <tr>
+                                            <th>RK</th>
+                                            <th data-sort-key="name">PLAYER</th>
+                                            <th data-sort-key="avg">AVG</th>
+                                            <th data-sort-key="ops">OPS</th>
+                                            <th data-sort-key="hr">HR</th>
+                                            <th data-sort-key="games">G</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                            <div class="player-rank-section">
+                                <div class="section-header">PITCHERS</div>
+                                <table class="standings-table player-rank-table" id="player-rank-pitchers">
+                                    <thead>
+                                        <tr>
+                                            <th>RK</th>
+                                            <th data-sort-key="name">PLAYER</th>
+                                            <th data-sort-key="era">ERA</th>
+                                            <th data-sort-key="whip">WHIP</th>
+                                            <th data-sort-key="ip">IP</th>
+                                            <th data-sort-key="games">G</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

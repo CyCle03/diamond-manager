@@ -39,6 +39,12 @@ export class Game {
         this.simBatterDelayMs = 600;
         this.pendingSimResolve = null;
         this.pendingSimType = null;
+        this.teamStatsSortKey = 'ops';
+        this.teamStatsSortDir = 'desc';
+        this.batterRankSortKey = 'ops';
+        this.batterRankSortDir = 'desc';
+        this.pitcherRankSortKey = 'era';
+        this.pitcherRankSortDir = 'asc';
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -323,6 +329,7 @@ export class Game {
 
         this.initMatchControls();
         this.initPlayerModal();
+        this.initStatsSorting();
 
     }
 
@@ -945,6 +952,8 @@ export class Game {
             this.log(`> Your team won! You earned $${prizeMoney.toLocaleString()}!`);
         }
 
+        this.recordTeamGame(myMatch.home.id, myMatch.away.id, homeScore, awayScore);
+
         // 2. Simulate Rest of Round (AI vs AI)
         round.forEach(match => {
             if (match === myMatch) return; // Skip player match
@@ -955,6 +964,7 @@ export class Game {
             const win = hScore >= aScore ? match.home.id : match.away.id;
             const lose = hScore >= aScore ? match.away.id : match.home.id;
             this.league.updateStandings(win, lose);
+            this.recordTeamGame(match.home.id, match.away.id, hScore, aScore);
         });
 
         // 3. Advance Round
@@ -1051,7 +1061,7 @@ export class Game {
         if (!this.league) return;
         this.teamSeasonStats = {};
         this.league.teams.forEach(team => {
-            this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0 };
+            this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
         });
     }
 
@@ -1060,7 +1070,7 @@ export class Game {
         if (!this.teamSeasonStats) this.teamSeasonStats = {};
         this.league.teams.forEach(team => {
             if (!this.teamSeasonStats[team.id]) {
-                this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0 };
+                this.teamSeasonStats[team.id] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
             }
         });
     }
@@ -1068,13 +1078,30 @@ export class Game {
     recordTeamRuns(battingTeamId, fieldingTeamId, runs) {
         if (!this.teamSeasonStats) this.teamSeasonStats = {};
         if (!this.teamSeasonStats[battingTeamId]) {
-            this.teamSeasonStats[battingTeamId] = { runsFor: 0, runsAgainst: 0 };
+            this.teamSeasonStats[battingTeamId] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
         }
         if (!this.teamSeasonStats[fieldingTeamId]) {
-            this.teamSeasonStats[fieldingTeamId] = { runsFor: 0, runsAgainst: 0 };
+            this.teamSeasonStats[fieldingTeamId] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
         }
         this.teamSeasonStats[battingTeamId].runsFor += runs;
         this.teamSeasonStats[fieldingTeamId].runsAgainst += runs;
+    }
+
+    recordTeamGame(homeTeamId, awayTeamId, homeRuns, awayRuns) {
+        if (!this.teamSeasonStats) this.teamSeasonStats = {};
+        const ensure = (id) => {
+            if (!this.teamSeasonStats[id]) {
+                this.teamSeasonStats[id] = { runsFor: 0, runsAgainst: 0, games: 0, runsForByGame: [], runsAgainstByGame: [] };
+            }
+        };
+        ensure(homeTeamId);
+        ensure(awayTeamId);
+        this.teamSeasonStats[homeTeamId].runsForByGame.push(homeRuns);
+        this.teamSeasonStats[homeTeamId].runsAgainstByGame.push(awayRuns);
+        this.teamSeasonStats[awayTeamId].runsForByGame.push(awayRuns);
+        this.teamSeasonStats[awayTeamId].runsAgainstByGame.push(homeRuns);
+        this.teamSeasonStats[homeTeamId].games += 1;
+        this.teamSeasonStats[awayTeamId].games += 1;
     }
 
     resetMatchView() {
@@ -1570,7 +1597,7 @@ export class Game {
         const opsRankMap = new Map(opsRank.map((entry, index) => [entry.team.id, index + 1]));
         const eraRankMap = new Map(eraRank.map((entry, index) => [entry.team.id, index + 1]));
 
-        const display = [...teamStats].sort((a, b) => opsRankMap.get(a.team.id) - opsRankMap.get(b.team.id));
+        const display = this.sortTeamStats(teamStats, opsRankMap, eraRankMap);
 
         tableBody.innerHTML = '';
         display.forEach((entry, index) => {
@@ -1585,12 +1612,16 @@ export class Game {
                 <td>${entry.whip}</td>
                 <td>${entry.runsFor}</td>
                 <td>${entry.runsAgainst}</td>
+                <td>${entry.raPerGame}</td>
                 <td>${entry.ra9}</td>
                 <td>${opsRankMap.get(entry.team.id)}</td>
                 <td>${eraRankMap.get(entry.team.id)}</td>
             `;
             tableBody.appendChild(tr);
         });
+
+        this.renderTeamTrendChart();
+        this.renderPlayerRankings();
     }
 
     calculateTeamStats(team) {
@@ -1650,9 +1681,10 @@ export class Game {
         });
 
         const pitching = this.calculatePitchingStats(pitchingTotals);
-        const teamSeason = this.teamSeasonStats[team.id] || { runsFor: 0, runsAgainst: 0 };
+        const teamSeason = this.teamSeasonStats[team.id] || { runsFor: 0, runsAgainst: 0, games: 0 };
         const ip = pitchingTotals.pitcherOuts / 3;
         const ra9 = ip ? ((teamSeason.runsAgainst * 9) / ip).toFixed(2) : '0.00';
+        const raPerGame = teamSeason.games ? (teamSeason.runsAgainst / teamSeason.games).toFixed(2) : '0.00';
 
         return {
             avg: batting.avg,
@@ -1661,10 +1693,211 @@ export class Game {
             whip: pitching.whip,
             runsFor: teamSeason.runsFor,
             runsAgainst: teamSeason.runsAgainst,
+            raPerGame,
             ra9,
             opsValue: parseFloat(batting.ops),
             eraValue: parseFloat(pitching.era)
         };
+    }
+
+    sortTeamStats(teamStats, opsRankMap, eraRankMap) {
+        const key = this.teamStatsSortKey;
+        const dir = this.teamStatsSortDir === 'asc' ? 1 : -1;
+        const getValue = (entry) => {
+            switch (key) {
+                case 'team':
+                    return entry.team.name;
+                case 'avg':
+                    return parseFloat(entry.avg);
+                case 'ops':
+                    return parseFloat(entry.ops);
+                case 'era':
+                    return parseFloat(entry.era);
+                case 'whip':
+                    return parseFloat(entry.whip);
+                case 'runsFor':
+                    return entry.runsFor;
+                case 'runsAgainst':
+                    return entry.runsAgainst;
+                case 'raPerGame':
+                    return parseFloat(entry.raPerGame);
+                case 'ra9':
+                    return parseFloat(entry.ra9);
+                case 'opsRank':
+                    return opsRankMap.get(entry.team.id);
+                case 'eraRank':
+                    return eraRankMap.get(entry.team.id);
+                default:
+                    return parseFloat(entry.ops);
+            }
+        };
+
+        return [...teamStats].sort((a, b) => {
+            const aVal = getValue(a);
+            const bVal = getValue(b);
+            if (typeof aVal === 'string') {
+                return aVal.localeCompare(bVal) * dir;
+            }
+            return (aVal - bVal) * dir;
+        });
+    }
+
+    initStatsSorting() {
+        const headers = document.querySelectorAll('#team-stats-table thead th[data-sort-key]');
+        headers.forEach(header => {
+            header.addEventListener('click', () => {
+                const key = header.dataset.sortKey;
+                if (!key) return;
+                if (this.teamStatsSortKey === key) {
+                    this.teamStatsSortDir = this.teamStatsSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.teamStatsSortKey = key;
+                    this.teamStatsSortDir = key === 'era' || key === 'whip' || key === 'raPerGame' || key === 'ra9' ? 'asc' : 'desc';
+                }
+                this.updateTeamStatsView();
+            });
+        });
+
+        const batterHeaders = document.querySelectorAll('#player-rank-batters thead th[data-sort-key]');
+        batterHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const key = header.dataset.sortKey;
+                if (!key) return;
+                if (this.batterRankSortKey === key) {
+                    this.batterRankSortDir = this.batterRankSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.batterRankSortKey = key;
+                    this.batterRankSortDir = key === 'name' ? 'asc' : 'desc';
+                }
+                this.renderPlayerRankings();
+            });
+        });
+
+        const pitcherHeaders = document.querySelectorAll('#player-rank-pitchers thead th[data-sort-key]');
+        pitcherHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const key = header.dataset.sortKey;
+                if (!key) return;
+                if (this.pitcherRankSortKey === key) {
+                    this.pitcherRankSortDir = this.pitcherRankSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.pitcherRankSortKey = key;
+                    this.pitcherRankSortDir = key === 'era' || key === 'whip' ? 'asc' : (key === 'name' ? 'asc' : 'desc');
+                }
+                this.renderPlayerRankings();
+            });
+        });
+    }
+
+    renderPlayerRankings() {
+        const batterBody = document.querySelector('#player-rank-batters tbody');
+        const pitcherBody = document.querySelector('#player-rank-pitchers tbody');
+        if (!batterBody || !pitcherBody) return;
+
+        if (!this.roster || this.roster.length === 0) {
+            batterBody.innerHTML = '';
+            pitcherBody.innerHTML = '';
+            return;
+        }
+
+        const batters = this.roster.filter(player => player.position !== 'P').map(player => {
+            const perf = this.ensurePerformance(player).currentSeason;
+            const batting = this.calculateBattingStats(perf);
+            return {
+                player,
+                avg: batting.avg,
+                ops: batting.ops,
+                hr: perf.homeRuns,
+                games: perf.games
+            };
+        });
+
+        const pitchers = this.roster.filter(player => player.position === 'P').map(player => {
+            const perf = this.ensurePerformance(player).currentSeason;
+            const pitching = this.calculatePitchingStats(perf);
+            const ip = perf.pitcherOuts ? (perf.pitcherOuts / 3).toFixed(1) : '0.0';
+            return {
+                player,
+                era: pitching.era,
+                whip: pitching.whip,
+                ip,
+                games: perf.games
+            };
+        });
+
+        const sortedBatters = this.sortPlayerRanking(batters, this.batterRankSortKey, this.batterRankSortDir);
+        const sortedPitchers = this.sortPlayerRanking(pitchers, this.pitcherRankSortKey, this.pitcherRankSortDir);
+
+        batterBody.innerHTML = '';
+        sortedBatters.forEach((entry, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${entry.player.name}</td>
+                <td>${entry.avg}</td>
+                <td>${entry.ops}</td>
+                <td>${entry.hr}</td>
+                <td>${entry.games}</td>
+            `;
+            batterBody.appendChild(row);
+        });
+
+        pitcherBody.innerHTML = '';
+        sortedPitchers.forEach((entry, index) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${entry.player.name}</td>
+                <td>${entry.era}</td>
+                <td>${entry.whip}</td>
+                <td>${entry.ip}</td>
+                <td>${entry.games}</td>
+            `;
+            pitcherBody.appendChild(row);
+        });
+    }
+
+    sortPlayerRanking(entries, key, dir) {
+        const multiplier = dir === 'asc' ? 1 : -1;
+        return [...entries].sort((a, b) => {
+            const aVal = a[key];
+            const bVal = b[key];
+            if (typeof aVal === 'string') {
+                return aVal.localeCompare(bVal) * multiplier;
+            }
+            return (parseFloat(aVal) - parseFloat(bVal)) * multiplier;
+        });
+    }
+
+    renderTeamTrendChart() {
+        const chart = document.getElementById('team-trend-chart');
+        if (!chart) return;
+        const teamStats = this.teamSeasonStats[this.playerTeamId];
+        if (!teamStats || teamStats.games === 0) {
+            chart.innerText = 'No games played yet.';
+            return;
+        }
+
+        const runsFor = teamStats.runsForByGame;
+        const runsAgainst = teamStats.runsAgainstByGame;
+        const maxVal = Math.max(1, ...runsFor, ...runsAgainst);
+        const width = 520;
+        const height = 110;
+        const pad = 10;
+
+        const buildPath = (data) => data.map((val, idx) => {
+            const x = pad + (idx / Math.max(1, data.length - 1)) * (width - pad * 2);
+            const y = height - pad - (val / maxVal) * (height - pad * 2);
+            return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
+        }).join(' ');
+
+        const svg = `
+            <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+                <path d="${buildPath(runsFor)}" stroke="#4caf50" stroke-width="2" fill="none"/>
+                <path d="${buildPath(runsAgainst)}" stroke="#ff5252" stroke-width="2" fill="none"/>
+            </svg>
+        `;
+        chart.innerHTML = svg;
     }
 
     finalizeSeasonStats(seasonNumber) {

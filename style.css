@@ -789,6 +789,61 @@ h3 {
     text-align: left;
 }
 
+.team-stats-table th[data-sort-key],
+.player-rank-table th[data-sort-key] {
+    cursor: pointer;
+    position: relative;
+}
+
+.team-stats-table th[data-sort-key]:hover,
+.player-rank-table th[data-sort-key]:hover {
+    color: var(--accent-green);
+}
+
+.team-trend-card {
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 14px;
+    background: #1f1f1f;
+}
+
+.team-trend-header {
+    display: flex;
+    justify-content: space-between;
+    color: #888;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+}
+
+.team-trend-chart {
+    height: 120px;
+    background: #141414;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.player-rank-section {
+    margin-top: 10px;
+}
+
+.player-rank-table th,
+.player-rank-table td {
+    text-align: center;
+}
+
+.player-rank-table th:nth-child(2),
+.player-rank-table td:nth-child(2) {
+    text-align: left;
+}
+
 .modal-body .stat-label {
     color: #777;
     font-size: 0.8rem;
