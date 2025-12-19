@@ -24,14 +24,17 @@ export class Game {
         this.playerIsHomeInCurrentMatch = true;
         this.scoutCost = 75000;
         this.scoutCount = 3;
+        this.scoutingLeadTimeGames = 2;
         this.maxDraftRounds = 5;
         this.scoutingPool = [];
+        this.scoutingQueue = [];
         this.draftPool = [];
         this.draftActive = false;
         this.draftRound = 0;
         this.draftPickIndex = 0;
         this.draftOrder = [];
         this.teamSeasonStats = {};
+        this.scoutingQueue = [];
         this.simulationMode = 'auto';
         this.manualStepMode = 'batter';
         this.autoViewMode = 'batter';
@@ -231,6 +234,7 @@ export class Game {
             pitcherStamina: Array.from(this.pitcherStamina.entries()),
             pitcherRestDays: Array.from(this.pitcherRestDays.entries()),
             pitcherWorkloadHistory: Array.from(this.pitcherWorkloadHistory.entries()),
+            scoutingQueue: this.scoutingQueue,
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
@@ -261,6 +265,10 @@ export class Game {
         this.pitcherStamina = new Map(data.pitcherStamina || []);
         this.pitcherRestDays = new Map(data.pitcherRestDays || []);
         this.pitcherWorkloadHistory = new Map(data.pitcherWorkloadHistory || []);
+        this.scoutingQueue = (data.scoutingQueue || []).map(entry => ({
+            gamesRemaining: entry.gamesRemaining,
+            prospects: (entry.prospects || []).map(rehydrate)
+        }));
 
         // Re-hydrate Player objects
         this.roster = data.roster.map(rehydrate);
@@ -458,7 +466,13 @@ export class Game {
         }
 
         if (statusEl) {
-            statusEl.innerText = `Find ${this.scoutCount} prospects • $${this.scoutCost.toLocaleString()}`;
+            const pendingCount = (this.scoutingQueue || []).reduce((sum, entry) => sum + (entry.prospects ? entry.prospects.length : 0), 0);
+            if (pendingCount > 0) {
+                const nextReady = Math.min(...this.scoutingQueue.map(entry => entry.gamesRemaining));
+                statusEl.innerText = `Scouting in progress: ${pendingCount} prospects • ${nextReady} game(s) remaining`;
+            } else {
+                statusEl.innerText = `Find ${this.scoutCount} prospects • $${this.scoutCost.toLocaleString()}`;
+            }
         }
         if (scoutBtn) {
             scoutBtn.innerText = `SCOUT ($${this.scoutCost.toLocaleString()})`;
@@ -467,7 +481,12 @@ export class Game {
 
         container.innerHTML = '';
         if (this.scoutingPool.length === 0) {
-            container.innerHTML = '<div style="padding:10px; color:#888;">No scouting reports yet</div>';
+            if (this.scoutingQueue && this.scoutingQueue.length > 0) {
+                const nextReady = Math.min(...this.scoutingQueue.map(entry => entry.gamesRemaining));
+                container.innerHTML = `<div style="padding:10px; color:#888;">Scouting reports ready in ${nextReady} game(s)</div>`;
+            } else {
+                container.innerHTML = '<div style="padding:10px; color:#888;">No scouting reports yet</div>';
+            }
             return;
         }
 
@@ -1128,6 +1147,7 @@ export class Game {
         }
 
         this.recordTeamGame(myMatch.home.id, myMatch.away.id, homeScore, awayScore);
+        this.advanceScoutingProgress();
 
         // 2. Simulate Rest of Round (AI vs AI)
         round.forEach(match => {
@@ -1183,6 +1203,7 @@ export class Game {
         this.log(`Annual salaries of $${totalSalaries.toLocaleString()} deducted.`);
         this.updateBudgetUI();
 
+        this.applyPerformanceTraining();
         this.finalizeSeasonStats(this.league.season);
         
         alert("SEASON OVER! Proceeding to Off-Season for player development.");
@@ -1797,6 +1818,28 @@ export class Game {
                 this.pitcherRestDays.set(player.id, Math.min(5, current + 1));
             }
         });
+    }
+
+    advanceScoutingProgress() {
+        if (!this.scoutingQueue || this.scoutingQueue.length === 0) return;
+        const completed = [];
+        this.scoutingQueue = this.scoutingQueue.map(entry => ({
+            ...entry,
+            gamesRemaining: Math.max(0, entry.gamesRemaining - 1)
+        }));
+        this.scoutingQueue = this.scoutingQueue.filter(entry => {
+            if (entry.gamesRemaining <= 0) {
+                completed.push(...(entry.prospects || []));
+                return false;
+            }
+            return true;
+        });
+        if (completed.length > 0) {
+            this.scoutingPool = [...this.scoutingPool, ...completed];
+            this.log(`Scouting reports ready: ${completed.length} prospects added.`);
+        }
+        this.renderScoutingList();
+        this.saveGame();
     }
 
     updateBullpenSelect() {
@@ -2479,6 +2522,98 @@ export class Game {
         });
     }
 
+    applyPerformanceTraining() {
+        const players = this.getAllLeaguePlayers();
+        players.forEach(player => {
+            const perf = this.ensurePerformance(player).currentSeason;
+            if (player.position === 'P') {
+                this.applyPitcherPerformanceTraining(player, perf);
+            } else {
+                this.applyBatterPerformanceTraining(player, perf);
+            }
+            this.recalculatePlayerFinancials(player);
+        });
+    }
+
+    applyBatterPerformanceTraining(player, perf) {
+        const plateAppearances = perf.plateAppearances || 0;
+        const playingFactor = Math.min(1.1, plateAppearances / 450);
+        const batting = this.calculateBattingStats(perf);
+        const ops = parseFloat(batting.ops);
+        const avg = parseFloat(batting.avg);
+        const deltas = { contact: 0, power: 0, speed: 0, defense: 0 };
+
+        if (plateAppearances >= 120) {
+            if (ops >= 0.9) { deltas.power += 2; deltas.contact += 1; }
+            else if (ops >= 0.82) { deltas.power += 1; deltas.contact += 1; }
+            else if (ops <= 0.55) { deltas.power -= 1; deltas.contact -= 2; }
+            else if (ops <= 0.62) { deltas.power -= 1; deltas.contact -= 1; }
+
+            if (avg >= 0.3) deltas.contact += 1;
+            else if (avg <= 0.22) deltas.contact -= 1;
+        }
+
+        const trainingRoll = Math.random();
+        const trainingGain = Math.round((0.6 + Math.random() * 0.8) * playingFactor);
+        if (trainingGain > 0) {
+            if (trainingRoll < 0.4) deltas.contact += trainingGain;
+            else if (trainingRoll < 0.7) deltas.power += trainingGain;
+            else if (trainingRoll < 0.85) deltas.defense += trainingGain;
+            else deltas.speed += trainingGain;
+        }
+
+        this.applyStatDeltas(player, deltas);
+    }
+
+    applyPitcherPerformanceTraining(player, perf) {
+        const outs = perf.pitcherOuts || 0;
+        const innings = outs / 3;
+        const pitching = this.calculatePitchingStats(perf);
+        const era = parseFloat(pitching.era);
+        const whip = parseFloat(pitching.whip);
+        const deltas = { pitching: 0, stamina: 0 };
+        const maxStamina = Math.max(50, player.stats.stamina || 80);
+        const staminaBoost = 1 + Math.max(0, (maxStamina - 60) / 200);
+
+        if (innings >= 15) {
+            if (era <= 2.75) deltas.pitching += 2;
+            else if (era <= 3.5) deltas.pitching += 1;
+            else if (era >= 6) deltas.pitching -= 2;
+            else if (era >= 5) deltas.pitching -= 1;
+
+            if (whip <= 1.15) deltas.pitching += 1;
+            else if (whip >= 1.45) deltas.pitching -= 1;
+        }
+
+        const trainingGain = Math.round((0.5 + Math.random() * 0.9) * staminaBoost);
+        if (trainingGain > 0 && outs >= 9) {
+            if (Math.random() < 0.7) deltas.pitching += trainingGain;
+            else deltas.stamina += Math.max(1, Math.round(trainingGain * 0.7));
+        }
+
+        this.applyStatDeltas(player, deltas);
+    }
+
+    applyStatDeltas(player, deltas) {
+        const stats = player.stats;
+        Object.entries(deltas).forEach(([key, value]) => {
+            if (typeof value !== 'number' || value === 0) return;
+            if (key === 'pitching' && player.position !== 'P') return;
+            stats[key] = Math.floor(Math.max(0, Math.min(99, (stats[key] || 0) + value)));
+        });
+        player.stats = stats;
+    }
+
+    recalculatePlayerFinancials(player) {
+        const stats = player.stats;
+        const overall = player.position === 'P'
+            ? stats.pitching * 0.8 + stats.power * 0.1 + stats.contact * 0.1
+            : stats.contact * 0.3 + stats.power * 0.3 + stats.speed * 0.2 + stats.defense * 0.2;
+        stats.overall = Math.round(overall);
+        stats.salary = Math.round(overall * 15000);
+        stats.signingBonus = stats.salary * 10;
+        player.stats = stats;
+    }
     getAllLeaguePlayers() {
         const seen = new Map();
         const addPlayer = (player) => {
@@ -2582,10 +2717,13 @@ export class Game {
         this.teamBudget -= this.scoutCost;
         this.updateBudgetUI();
         const newProspects = PlayerGenerator.createScoutingPool(this.rules, this.scoutCount);
-        this.scoutingPool = [...this.scoutingPool, ...newProspects];
+        this.scoutingQueue.push({
+            gamesRemaining: this.scoutingLeadTimeGames,
+            prospects: newProspects
+        });
         this.renderScoutingList();
         this.saveGame();
-        this.log(`Scouted ${this.scoutCount} prospects.`);
+        this.log(`Scouting started. Reports ready in ${this.scoutingLeadTimeGames} games.`);
     }
 
     startDraft() {

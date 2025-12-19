@@ -17,9 +17,11 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
     *   **Pitching Rotation**: Manage a 4-6 man rotation with full Drag & Drop support for reordering starters.
     *   **Roster & Market**: Sign free agents from a dynamic market to manage your 25-man squad, keeping an eye on your budget.
 *   **Scouting & Draft**: Spend budget to scout prospects during the season, then draft players in a 5-round offseason draft.
+*   **Scouting Lead Time**: Scouting reports now arrive after a short delay (a few games), not instantly.
 *   **Team Stats**: Compare league-wide team rankings (AVG/OPS/ERA/WHIP, Runs, RA, RA/G, RA9) and run trends.
 *   **Player Rankings**: View your team's batter/pitcher leaderboards.
 *   **Bullpen Roles & Stamina**: Assign bullpen roles and manage pitcher stamina with in-game substitutions.
+*   **Performance-Based Training**: Player attributes adjust based on seasonal performance plus end-of-season training.
 *   **Save System**: Saves on key actions (sign/release, match results, season advance). Use the **Options** menu to switch save slots or delete data.
 *   **Match Simulation**: Watch play-by-play visual simulations of your games.
 
@@ -72,10 +74,12 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **선수 성장**: 시즌마다 나이에 따라 능력치가 성장/하락합니다.
 *   **팀 재정**: 예산으로 FA/스카우트 선수 영입을 관리합니다.
 *   **스카우트 & 드래프트**: 시즌 중 스카우트, 시즌 종료 후 5라운드 드래프트 진행.
+*   **스카우트 소요 시간**: 스카우트 결과는 즉시가 아니라 몇 경기 후 도착합니다.
 *   **팀 스탯 순위**: AVG/OPS/ERA/WHIP, 득점/실점/RA/G/RA9 순위를 확인합니다.
 *   **팀 득점/실점 추세**: 경기별 득점/실점 흐름 그래프를 확인합니다.
 *   **개인 순위**: 팀 내 타자/투수 순위를 확인합니다.
 *   **불펜 역할/체력**: 불펜 역할을 지정하고 투수 체력을 관리하며 교체할 수 있습니다.
+*   **성적 기반 성장**: 시즌 성적과 훈련에 따라 능력치가 변화합니다.
 
 ## 🕹️ 조작
 
