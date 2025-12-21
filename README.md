@@ -50,6 +50,12 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **Core**: Vanilla JavaScript (ES6+), Modular architecture using ES6 Modules (Core, Rules)
 *   **UI**: HTML5, CSS3 (Grid/Flexbox), Custom "Cyber/Sports" Theme.
 
+## 💾 Save Data
+
+*   Save files live in browser `localStorage` per slot.
+*   Use the in-game **Options** menu to switch slots or delete saves.
+*   Clearing site data in your browser will remove saves.
+
 ## 🧭 Project Structure
 
 *   **index.html**: UI shell and layout for league/team/match views.
@@ -122,3 +128,9 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 ## 📸 Screenshots
 
 *(Add screenshots here after uploading)*
+
+## 💾 데이터/세이브
+
+*   세이브 데이터는 브라우저 `localStorage`에 슬롯별로 저장됩니다.
+*   **Options** 메뉴에서 슬롯 전환/삭제가 가능합니다.
+*   브라우저 사이트 데이터를 삭제하면 세이브도 함께 삭제됩니다.
