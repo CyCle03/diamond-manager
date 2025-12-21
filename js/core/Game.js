@@ -1847,15 +1847,14 @@ export class Game {
             return;
         }
 
-        const value = (player) => (player.stats.overall || 50) * 100000;
-        const giveValue = value(givePlayer) + cash;
-        const getValue = value(getPlayer);
-        const diff = giveValue - getValue;
+        const aiValue = this.getTradeValue(team, givePlayer) + cash;
+        const askValue = this.getTradeValue(this.getPlayerTeam(), getPlayer);
+        const ratio = askValue > 0 ? aiValue / askValue : 0;
         let accepted = false;
-        if (diff >= 0) {
+        if (ratio >= 1.05) {
             accepted = true;
         } else {
-            const chance = Math.max(0.05, Math.min(0.65, 0.25 + diff / getValue));
+            const chance = Math.max(0.05, Math.min(0.6, (ratio - 0.8) / 0.25));
             accepted = Math.random() < chance;
         }
 
@@ -1872,6 +1871,54 @@ export class Game {
         this.renderLineup();
         this.renderRotation();
         this.saveGame();
+    }
+
+    getTradeValue(team, player) {
+        if (!team || !player) return 0;
+        const isPitcher = player.position === 'P';
+        const base = isPitcher
+            ? (player.stats.pitching || 50) * 110000
+            : (player.stats.overall || 50) * 100000;
+        const age = player.age || 27;
+        let ageFactor = 1;
+        if (age <= 25) ageFactor = 1.15;
+        else if (age <= 29) ageFactor = 1.05;
+        else if (age <= 32) ageFactor = 1.0;
+        else if (age <= 35) ageFactor = 0.9;
+        else ageFactor = 0.8;
+
+        const injuryDays = player.health?.injuryDays || 0;
+        const fatigue = player.health?.fatigue || 0;
+        let healthFactor = 1;
+        if (injuryDays > 0) healthFactor -= Math.min(0.3, injuryDays * 0.03);
+        if (fatigue >= 70) healthFactor -= 0.08;
+        healthFactor = Math.max(0.5, healthFactor);
+
+        const needFactor = this.getPositionNeedMultiplier(team, player.position);
+        return base * ageFactor * healthFactor * needFactor;
+    }
+
+    getPositionNeedMultiplier(team, position) {
+        const roster = team.roster || [];
+        let candidates = roster.filter(player => player.position === position);
+        if (position === 'DH') {
+            candidates = roster.filter(player => player.position !== 'P');
+        }
+        if (position === 'P') {
+            candidates = roster.filter(player => player.position === 'P');
+        }
+        const values = candidates
+            .map(player => position === 'P' ? (player.stats.pitching || 0) : (player.stats.overall || 0))
+            .sort((a, b) => b - a);
+        const top = values[0] || 0;
+        const second = values[1] || 0;
+
+        let mult = 1;
+        if (candidates.length < 2) mult += 0.1;
+        if (top < 65) mult += 0.12;
+        if (second < 60) mult += 0.08;
+        if (['C', 'SS', 'CF'].includes(position)) mult += 0.05;
+        return mult;
     }
 
     swapPlayersBetweenTeams(otherTeam, givePlayer, getPlayer) {
@@ -2297,26 +2344,26 @@ export class Game {
 
         batters.forEach(player => {
             this.ensurePlayerHealth(player);
-            const fatigueGain = 10 + Math.random() * 6;
+            const fatigueGain = 8 + Math.random() * 6;
             player.health.fatigue = Math.min(100, player.health.fatigue + fatigueGain);
-            this.applyInjuryCheck(player, 0.02);
+            this.applyInjuryCheck(player, 0.006);
         });
 
         if (pitcher) {
             this.ensurePlayerHealth(pitcher);
-            const fatigueGain = 6 + Math.random() * 6;
+            const fatigueGain = 12 + Math.random() * 8;
             pitcher.health.fatigue = Math.min(100, pitcher.health.fatigue + fatigueGain);
-            this.applyInjuryCheck(pitcher, 0.03);
+            this.applyInjuryCheck(pitcher, 0.01);
         }
     }
 
     applyInjuryCheck(player, baseChance) {
         if (!player || player.health.injuryDays > 0) return;
         const fatigue = player.health.fatigue || 0;
-        if (fatigue < 70) return;
-        const chance = baseChance + Math.max(0, (fatigue - 70) / 200);
+        if (fatigue < 75) return;
+        const chance = baseChance + Math.max(0, (fatigue - 75) / 250);
         if (Math.random() < chance) {
-            player.health.injuryDays = 2 + Math.floor(Math.random() * 10);
+            player.health.injuryDays = 3 + Math.floor(Math.random() * 12);
             this.log(`${player.name} is injured (${player.health.injuryDays} games).`, { highlight: true });
         }
     }

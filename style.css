@@ -253,7 +253,7 @@ h3 {
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
     background: #1f1f1f;
-    max-height: 220px;
+    max-height: 200px;
 }
 
 .section-title {
@@ -794,6 +794,12 @@ h3 {
     background: #1f1f1f;
 }
 
+.market-nav .nav-btn,
+.roster-nav .nav-btn {
+    font-size: 0.95rem;
+    padding: 6px 8px;
+}
+
 .market-section {
     display: none;
     flex-direction: column;
@@ -827,8 +833,8 @@ h3 {
 
 .position-rankings {
     padding: 10px;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     overflow-y: auto;
 }

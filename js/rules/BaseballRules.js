@@ -120,11 +120,11 @@ export class BaseballRules extends GameRules {
             }).filter(entry => entry.player.position !== 'P')
             : [];
         const weightedDefense = fielders.reduce((sum, entry) => {
-            const weight = entry.role === 'C' ? 1.6 : (entry.role === 'SS' || entry.role === 'CF' ? 1.2 : 1);
+            const weight = entry.role === 'C' ? 1.85 : (entry.role === 'SS' || entry.role === 'CF' ? 1.35 : 1);
             return sum + entry.player.stats.defense * weight;
         }, 0);
         const weightTotal = fielders.reduce((sum, entry) => {
-            const weight = entry.role === 'C' ? 1.6 : (entry.role === 'SS' || entry.role === 'CF' ? 1.2 : 1);
+            const weight = entry.role === 'C' ? 1.85 : (entry.role === 'SS' || entry.role === 'CF' ? 1.35 : 1);
             return sum + weight;
         }, 0);
         const averageDefense = weightTotal > 0 ? weightedDefense / weightTotal : 50; // Default to 50 if no fielders
