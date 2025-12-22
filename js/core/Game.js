@@ -371,6 +371,9 @@ export class Game {
         const draftBestBtn = document.getElementById('draft-best-btn');
         if (draftBestBtn) draftBestBtn.addEventListener('click', () => this.draftBestAvailable());
 
+        const draftNeedBtn = document.getElementById('draft-need-btn');
+        if (draftNeedBtn) draftNeedBtn.addEventListener('click', () => this.draftBestForNeed());
+
         this.initMatchControls();
         this.initPlayerModal();
         this.initStatsSorting();
@@ -3596,6 +3599,7 @@ export class Game {
         const statusEl = document.getElementById('draft-status');
         const advanceBtn = document.getElementById('draft-advance-btn');
         const bestBtn = document.getElementById('draft-best-btn');
+        const needBtn = document.getElementById('draft-need-btn');
         const listEl = document.getElementById('draft-list');
 
         if (!draftArea) return;
@@ -3623,6 +3627,7 @@ export class Game {
 
         if (advanceBtn) advanceBtn.disabled = isPlayerTurn;
         if (bestBtn) bestBtn.disabled = !isPlayerTurn;
+        if (needBtn) needBtn.disabled = !isPlayerTurn;
 
         if (listEl) {
             listEl.innerHTML = '';
@@ -3683,6 +3688,48 @@ export class Game {
         if (this.draftPool.length === 0) return;
         const best = [...this.draftPool].sort((a, b) => b.stats.overall - a.stats.overall)[0];
         this.draftPlayer(best.id);
+    }
+
+    draftBestForNeed() {
+        if (!this.draftActive) return;
+        const currentTeamId = this.draftOrder[this.draftPickIndex];
+        if (currentTeamId !== this.playerTeamId) return;
+        if (this.draftPool.length === 0) return;
+
+        const counts = this.getRosterCounts(this.roster);
+        const priorities = [];
+        if (counts.P < this.minPitchersActive) priorities.push(['P']);
+        if (counts.C < this.minCatchersActive) priorities.push(['C']);
+        Object.keys(this.minInfieldByPosition).forEach(pos => {
+            if ((counts[pos] || 0) < this.minInfieldByPosition[pos]) priorities.push([pos]);
+        });
+        if (counts.OF < this.minOutfieldActive) priorities.push(['LF', 'CF', 'RF']);
+
+        const byOverall = (a, b) => (b.stats.overall || 0) - (a.stats.overall || 0);
+        const pickByPositions = (positions) => {
+            const candidates = this.draftPool.filter(p => positions.includes(p.position));
+            if (candidates.length === 0) return null;
+            return candidates.sort(byOverall)[0];
+        };
+
+        for (const positions of priorities) {
+            const pick = pickByPositions(positions);
+            if (pick) {
+                this.draftPlayer(pick.id);
+                return;
+            }
+        }
+
+        const avoidPitchers = counts.P >= this.maxPitchersActive;
+        let fallbackPool = [...this.draftPool];
+        if (avoidPitchers) {
+            const nonPitchers = fallbackPool.filter(p => p.position !== 'P');
+            if (nonPitchers.length > 0) {
+                fallbackPool = nonPitchers;
+            }
+        }
+        const best = fallbackPool.sort(byOverall)[0];
+        if (best) this.draftPlayer(best.id);
     }
 
     advanceDraftPick() {
