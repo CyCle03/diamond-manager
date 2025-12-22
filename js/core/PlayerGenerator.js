@@ -51,16 +51,29 @@ export class PlayerGenerator {
         // 1. Ensure at least one of each position
         positions.forEach(pos => roster.push(this.createPlayer(rules, pos)));
 
-        // 2. Ensure Pitching Staff (Target ~12 Pitchers)
+        // 2. Ensure minimum MLB-style coverage
+        const ensureCount = (pos, count) => {
+            while (roster.filter(p => p.position === pos).length < count && roster.length < size) {
+                roster.push(this.createPlayer(rules, pos));
+            }
+        };
+        ensureCount('C', 2);
+        const ofPositions = ['LF', 'CF', 'RF'];
+        while (roster.filter(p => ofPositions.includes(p.position)).length < 4 && roster.length < size) {
+            const pos = ofPositions[Math.floor(Math.random() * ofPositions.length)];
+            roster.push(this.createPlayer(rules, pos));
+        }
+
+        // 3. Ensure Pitching Staff (Target ~13 Pitchers)
         let pitcherCount = roster.filter(p => p.position === 'P').length;
-        const targetPitchers = 12;
+        const targetPitchers = 13;
 
         while (pitcherCount < targetPitchers && roster.length < size) {
             roster.push(this.createPlayer(rules, 'P'));
             pitcherCount++;
         }
 
-        // 3. Fill the rest with random players
+        // 4. Fill the rest with random players
         while (roster.length < size) {
             roster.push(this.createPlayer(rules));
         }

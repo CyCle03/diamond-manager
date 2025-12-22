@@ -51,6 +51,14 @@ export class Game {
         this.pitcherRankSortDir = 'asc';
         this.benchSortKey = 'overall';
         this.benchSortDir = 'desc';
+        this.activeRosterLimit = 26;
+        this.rosterFloor = 20;
+        this.draftRosterLimit = 40;
+        this.maxPitchersActive = 13;
+        this.minPitchersActive = 9;
+        this.minCatchersActive = 2;
+        this.minInfieldByPosition = { '1B': 1, '2B': 1, '3B': 1, 'SS': 1 };
+        this.minOutfieldActive = 4;
         this.rosterView = 'roster';
         this.marketTab = 'fa';
         this.pitcherStamina = new Map();
@@ -192,7 +200,7 @@ export class Game {
             this.draftOrder = [];
             this.teamSeasonStats = {};
             // Generate initial roster
-            this.roster = PlayerGenerator.createTeamRoster(this.rules, 25); // Full 25-man roster now
+            this.roster = PlayerGenerator.createTeamRoster(this.rules, 26); // Full 26-man roster now
             this.ensureRosterHealth();
             // Auto-fill roster/lineup
             this.autoLineup();
@@ -934,6 +942,11 @@ export class Game {
     }
 
     validateLineup() {
+        const compliance = this.isRosterCompliant(this.roster);
+        if (!compliance.ok) {
+            alert(`Roster not MLB compliant: ${compliance.issues.join(' ')}`);
+            return false;
+        }
         const starter = this.rotation[this.currentRotationIndex];
         if (!starter) {
             alert(`No Starting Pitcher set for slot SP${this.currentRotationIndex + 1}!`);
@@ -1039,8 +1052,12 @@ export class Game {
     }
 
     signFreeAgent(player) {
-        if (this.roster.length >= 25) {
-            alert("Roster is full (Max 25)!");
+        if (this.roster.length >= this.activeRosterLimit) {
+            alert(`Roster is full (Max ${this.activeRosterLimit})!`);
+            return;
+        }
+        if (!this.canAddPlayerToRoster(player)) {
+            alert("Roster limit reached for this position (pitchers max 13).");
             return;
         }
 
@@ -1064,13 +1081,18 @@ export class Game {
         this.roster.push(player);
         this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
         alert(`Signed ${player.name}!`);
+        this.ensureRosterCompliance();
         this.renderRosterAndMarket();
         this.saveGame();
     }
 
     signScoutedPlayer(player) {
-        if (this.roster.length >= 25) {
-            alert("Roster is full (Max 25)!");
+        if (this.roster.length >= this.activeRosterLimit) {
+            alert(`Roster is full (Max ${this.activeRosterLimit})!`);
+            return;
+        }
+        if (!this.canAddPlayerToRoster(player)) {
+            alert("Roster limit reached for this position (pitchers max 13).");
             return;
         }
 
@@ -1087,6 +1109,7 @@ export class Game {
         this.roster.push(player);
         this.scoutingPool = this.scoutingPool.filter(p => p.id !== player.id);
         alert(`Signed ${player.name}!`);
+        this.ensureRosterCompliance();
         this.renderRosterAndMarket();
         this.saveGame();
     }
@@ -1109,8 +1132,8 @@ export class Game {
     releasePlayerFromTeam(team, player, options = {}) {
         if (!team || !player) return false;
         const enforceMinRoster = !!options.enforceMinRoster;
-        if (team.id === this.playerTeamId && enforceMinRoster && this.roster.length <= 16) {
-            alert("Cannot release player. Roster is at the minimum size of 16.");
+        if (team.id === this.playerTeamId && enforceMinRoster && this.roster.length <= this.rosterFloor) {
+            alert(`Cannot release player. Roster is at the minimum size of ${this.rosterFloor}.`);
             return false;
         }
 
@@ -1137,17 +1160,188 @@ export class Game {
         return true;
     }
 
-    pruneAiRosters(maxSize) {
-        if (!this.league || !this.league.teams) return;
+    getRosterCounts(roster) {
+        const counts = {
+            total: roster.length,
+            P: 0,
+            C: 0,
+            OF: 0,
+            '1B': 0,
+            '2B': 0,
+            '3B': 0,
+            'SS': 0
+        };
+        roster.forEach(player => {
+            if (!player) return;
+            if (player.position === 'P') counts.P += 1;
+            if (player.position === 'C') counts.C += 1;
+            if (['LF', 'CF', 'RF'].includes(player.position)) counts.OF += 1;
+            if (['1B', '2B', '3B', 'SS'].includes(player.position)) {
+                counts[player.position] += 1;
+            }
+        });
+        return counts;
+    }
+
+    getRosterComplianceIssues(roster) {
+        const issues = [];
+        const counts = this.getRosterCounts(roster);
+        if (counts.total > this.activeRosterLimit) {
+            issues.push(`Roster exceeds ${this.activeRosterLimit} players.`);
+        }
+        if (counts.total < this.activeRosterLimit) {
+            issues.push(`Roster below ${this.activeRosterLimit} players.`);
+        }
+        if (counts.P > this.maxPitchersActive) {
+            issues.push(`Pitchers exceed ${this.maxPitchersActive}.`);
+        }
+        if (counts.P < this.minPitchersActive) {
+            issues.push(`Pitchers below ${this.minPitchersActive}.`);
+        }
+        if (counts.C < this.minCatchersActive) {
+            issues.push(`Catchers below ${this.minCatchersActive}.`);
+        }
+        Object.keys(this.minInfieldByPosition).forEach(pos => {
+            if ((counts[pos] || 0) < this.minInfieldByPosition[pos]) {
+                issues.push(`${pos} below ${this.minInfieldByPosition[pos]}.`);
+            }
+        });
+        if (counts.OF < this.minOutfieldActive) {
+            issues.push(`Outfielders below ${this.minOutfieldActive}.`);
+        }
+        return issues;
+    }
+
+    isRosterCompliant(roster) {
+        const issues = this.getRosterComplianceIssues(roster);
+        return { ok: issues.length === 0, issues };
+    }
+
+    canAddPlayerToRoster(player) {
+        if (!player) return false;
+        const counts = this.getRosterCounts(this.roster);
+        if (counts.total >= this.activeRosterLimit) return false;
+        if (player.position === 'P' && counts.P >= this.maxPitchersActive) return false;
+        return true;
+    }
+
+    ensureRosterCompliance() {
+        const compliance = this.isRosterCompliant(this.roster);
+        if (compliance.ok) return;
+        const message = `Roster warning: ${compliance.issues.join(' ')}`;
+        this.log(message);
+    }
+
+    getRosterCutCandidate(team, roster, options = {}) {
+        const avoidPositions = new Set(options.avoidPositions || []);
+        const counts = this.getRosterCounts(roster);
+        const isEligible = (player) => {
+            if (avoidPositions.has(player.position)) return false;
+            if (player.position === 'P' && counts.P <= this.minPitchersActive) return false;
+            if (player.position === 'C' && counts.C <= this.minCatchersActive) return false;
+            if (['1B', '2B', '3B', 'SS'].includes(player.position)) {
+                if ((counts[player.position] || 0) <= this.minInfieldByPosition[player.position]) return false;
+            }
+            if (['LF', 'CF', 'RF'].includes(player.position) && counts.OF <= this.minOutfieldActive) return false;
+            return true;
+        };
+        const candidates = roster.filter(isEligible);
+        if (candidates.length === 0) return null;
+        const getScore = (player) => {
+            const perf = player.performance?.currentSeason;
+            const ops = perf ? this.calculateBattingStats(perf).ops : '0.000';
+            const pitching = perf ? this.calculatePitchingStats(perf) : { era: '99.99' };
+            const perfScore = player.position === 'P' ? -parseFloat(pitching.era) : parseFloat(ops);
+            const salary = player.stats.salary || 0;
+            return (player.stats.overall || 0) + (perfScore * 10) - (salary / 50000);
+        };
+        return candidates.sort((a, b) => getScore(a) - getScore(b))[0];
+    }
+
+    enforceRosterLimitsForTeam(team) {
+        if (!team || !team.roster) return;
+        let roster = team.roster;
+        const counts = this.getRosterCounts(roster);
+        if (counts.P > this.maxPitchersActive) {
+            const pitchers = roster.filter(p => p.position === 'P');
+            pitchers.sort((a, b) => (a.stats.pitching || 0) - (b.stats.pitching || 0));
+            while (this.getRosterCounts(roster).P > this.maxPitchersActive) {
+                const toCut = pitchers.shift();
+                if (!toCut) break;
+                if (!this.releasePlayerFromTeam(team, toCut, { enforceMinRoster: false })) break;
+                roster = team.roster;
+            }
+        }
+        while (team.roster.length > this.activeRosterLimit) {
+            const candidate = this.getRosterCutCandidate(team, team.roster);
+            if (!candidate) break;
+            this.releasePlayerFromTeam(team, candidate, { enforceMinRoster: false });
+        }
+    }
+
+    fillAiRosterFromFA(team) {
+        if (!this.league || !this.league.freeAgents || !team) return;
+        while (team.roster.length < this.activeRosterLimit && this.league.freeAgents.length > 0) {
+            const counts = this.getRosterCounts(team.roster);
+            const needs = [];
+            if (counts.P < this.minPitchersActive) needs.push('P');
+            if (counts.C < this.minCatchersActive) needs.push('C');
+            Object.keys(this.minInfieldByPosition).forEach(pos => {
+                if ((counts[pos] || 0) < this.minInfieldByPosition[pos]) needs.push(pos);
+            });
+            if (counts.OF < this.minOutfieldActive) needs.push('OF');
+            const pick = this.pickFreeAgentForNeed(needs);
+            if (!pick) break;
+            const budget = typeof team.budget === 'number' ? team.budget : 5000000;
+            const cost = pick.stats.signingBonus || 0;
+            if (budget < cost) break;
+            team.budget = budget - cost;
+            team.roster.push(pick);
+            this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== pick.id);
+        }
+        this.autoFillAiLineup(team);
+    }
+
+    pickFreeAgentForNeed(needs) {
+        if (!this.league || !this.league.freeAgents) return null;
+        const pool = this.league.freeAgents;
+        const filtered = needs.length
+            ? pool.filter(p => needs.includes(p.position) || (needs.includes('OF') && ['LF', 'CF', 'RF'].includes(p.position)))
+            : pool;
+        if (filtered.length === 0) return pool[0] || null;
+        return filtered.sort((a, b) => (b.stats.overall || 0) - (a.stats.overall || 0))[0];
+    }
+
+    applyAiPayrollForRound() {
+        if (!this.league || !this.league.schedule) return;
+        const totalRounds = this.league.schedule.length;
+        if (totalRounds <= 0) return;
+        const perRoundFactor = 1 / totalRounds;
         this.league.teams.forEach(team => {
             if (team.id === this.playerTeamId) return;
-            if (!team.roster || team.roster.length <= maxSize) return;
-            const sorted = [...team.roster].sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0));
-            const excess = sorted.slice(0, team.roster.length - maxSize);
-            excess.forEach(player => {
-                this.releasePlayerFromTeam(team, player, { enforceMinRoster: false });
-            });
-            this.autoFillAiLineup(team);
+            if (typeof team.budget !== 'number') team.budget = 5000000;
+            const payroll = (team.roster || []).reduce((sum, p) => sum + (p.stats.salary || 0), 0);
+            team.budget -= Math.round(payroll * perRoundFactor);
+        });
+    }
+
+    manageAiRosterAfterRound() {
+        if (!this.league || !this.league.teams) return;
+        this.applyAiPayrollForRound();
+        this.league.teams.forEach(team => {
+            if (team.id === this.playerTeamId) return;
+            this.enforceRosterLimitsForTeam(team);
+            const standings = this.league.standings[team.id] || { w: 0, l: 0 };
+            const games = standings.w + standings.l;
+            const pct = games > 0 ? standings.w / games : 0.5;
+            const budget = typeof team.budget === 'number' ? team.budget : 5000000;
+            if (pct < 0.4 || budget < 1000000) {
+                const candidate = this.getRosterCutCandidate(team, team.roster);
+                if (candidate) {
+                    this.releasePlayerFromTeam(team, candidate, { enforceMinRoster: false });
+                }
+            }
+            this.fillAiRosterFromFA(team);
         });
     }
 
@@ -1174,13 +1368,15 @@ export class Game {
             roster: this.roster,
             lineup: this.lineup,
             pitcher: this.pitcher,
-            isPlayer: true
+            isPlayer: true,
+            budget: this.teamBudget
         };
 
         this.league.initialize(myTeam);
         this.initTeamSeasonStats();
         this.initSeasonGoals();
         this.ensureAllPlayerHealth();
+        this.ensureRosterCompliance();
 
         // 3. Update League Panel UI
         document.getElementById('start-season-btn').style.display = 'none';
@@ -1281,6 +1477,8 @@ export class Game {
             this.applyMatchFatigue(match.home, match.away);
             this.applyMatchFatigue(match.away, match.home);
         });
+
+        this.manageAiRosterAfterRound();
 
         // 3. Advance Round
         this.league.currentRoundIndex++;
@@ -1981,6 +2179,8 @@ export class Game {
         this.removePlayerFromTeam(otherTeam, getPlayer);
         this.addPlayerToTeam(this.getPlayerTeam(), getPlayer);
         this.addPlayerToTeam(otherTeam, givePlayer);
+        this.enforceRosterLimitsForTeam(this.getPlayerTeam());
+        this.enforceRosterLimitsForTeam(otherTeam);
         this.autoFillAiLineup(otherTeam);
     }
 
@@ -3508,14 +3708,16 @@ export class Game {
         if (!currentTeam) return;
 
         if (currentTeamId === this.playerTeamId) {
-            if (this.roster.length >= 30) {
-                alert("Roster is full (Max 30). Release a player before drafting.");
+            if (this.roster.length >= this.draftRosterLimit) {
+                alert(`Roster is full (Max ${this.draftRosterLimit}). Release a player before drafting.`);
                 return;
             }
             this.roster.push(player);
             this.log(`Drafted ${player.name} (${player.position}).`);
         } else {
-            currentTeam.roster.push(player);
+            if (currentTeam.roster.length < this.draftRosterLimit) {
+                currentTeam.roster.push(player);
+            }
             if (!isAuto) {
                 this.log(`${currentTeam.name} drafted ${player.name}.`);
             }
@@ -3557,7 +3759,11 @@ export class Game {
 
         this.resetSeasonStatsForNewSeason();
         this.initTeamSeasonStats();
-        this.pruneAiRosters(25);
+        this.enforceRosterLimitsForTeam(this.getPlayerTeam());
+        this.league.teams.forEach(team => {
+            if (team.id === this.playerTeamId) return;
+            this.enforceRosterLimitsForTeam(team);
+        });
 
         this.updateLeagueView();
         this.renderRosterAndMarket();

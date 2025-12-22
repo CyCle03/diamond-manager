@@ -17,7 +17,7 @@ export class League {
         const teamNames = ["Red Dragons", "Blue Sharks", "Green Vipers", "Golden Eagles", "Silver Wolves", "Iron Titans", "Neon Phantoms"];
 
         teamNames.forEach(name => {
-            const roster = PlayerGenerator.createTeamRoster(this.rules, 15);
+            const roster = PlayerGenerator.createTeamRoster(this.rules, 26);
             // Auto lineup for AI
             const lineup = roster.slice(0, this.rules.getLineupSize());
             const pitcher = roster.find(p => p.position === 'P') || roster[0];
@@ -28,7 +28,8 @@ export class League {
                 roster: roster,
                 lineup: lineup,
                 pitcher: pitcher,
-                isPlayer: false
+                isPlayer: false,
+                budget: 5000000
             });
         });
 
