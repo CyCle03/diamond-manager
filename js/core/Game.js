@@ -67,6 +67,7 @@ export class Game {
         this.aaaAutoManagement = true;
         this.aaaAutoPromotions = false;
         this.battingOrderState = new Map();
+        this.isAutoSubstituting = false;
         this.rosterView = 'roster';
         this.marketTab = 'fa';
         this.pitcherStamina = new Map();
@@ -3140,6 +3141,7 @@ export class Game {
         if (!this.autoBullpenEnabled || !this.isSimulating || !this.currentMatch) return;
         if (!pitcher || typeof ratio !== 'number') return;
         if (ratio > this.autoBullpenThreshold) return;
+        if (this.isAutoSubstituting) return;
 
         const bullpen = this.getBullpenPitchers().filter(player => player.id !== pitcher.id);
         if (bullpen.length === 0) return;
@@ -3156,8 +3158,13 @@ export class Game {
                 return b.staminaRatio - a.staminaRatio;
             })[0];
 
-        if (best && best.player) {
-            this.substitutePitcher(best.player.id);
+        if (best && best.player && best.player.id !== pitcher.id) {
+            this.isAutoSubstituting = true;
+            try {
+                this.substitutePitcher(best.player.id);
+            } finally {
+                this.isAutoSubstituting = false;
+            }
         }
     }
 
