@@ -4,6 +4,9 @@ export class Player {
         this.name = name;
         this.position = position; // 'P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'
         this.age = age;
+        const stamina = typeof stats.stamina === 'number'
+            ? stats.stamina
+            : Player.deriveStamina(position, stats);
 
         // Stats 0-100
         this.stats = {
@@ -12,6 +15,7 @@ export class Player {
             speed: stats.speed || 50,     // Steal/Run chance
             defense: stats.defense || 50, // Error reduction
             pitching: stats.pitching || 0, // Pitcher only
+            stamina: stamina,
             overall: stats.overall || 50,
             salary: stats.salary || 0,
             signingBonus: stats.signingBonus || 0
@@ -22,6 +26,16 @@ export class Player {
 
     getOverview() {
         return `${this.name} (${this.position}) - CON:${this.stats.contact} POW:${this.stats.power}`;
+    }
+
+    static deriveStamina(position, stats) {
+        const pitching = typeof stats.pitching === 'number' ? stats.pitching : null;
+        const overall = typeof stats.overall === 'number' ? stats.overall : 50;
+        const base = position === 'P' && pitching !== null ? pitching : overall;
+        const scaled = position === 'P' ? 40 + base * 0.45 : 35 + base * 0.35;
+        const min = position === 'P' ? 45 : 40;
+        const max = position === 'P' ? 90 : 85;
+        return Math.round(Math.max(min, Math.min(max, scaled)));
     }
 
     static defaultPerformance() {

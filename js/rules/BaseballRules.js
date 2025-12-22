@@ -20,7 +20,7 @@ export class BaseballRules extends GameRules {
             speed: 30 + Math.random() * 60,
             defense: 40 + Math.random() * 50,
             pitching: 0,
-            stamina: 50 + Math.random() * 40
+            stamina: 45 + Math.random() * 35
         };
 
         // Position specific adjustments
@@ -28,7 +28,7 @@ export class BaseballRules extends GameRules {
             baseStats.pitching = 50 + Math.random() * 50;
             baseStats.contact = Math.random() * 30;
             baseStats.power = Math.random() * 20;
-            baseStats.stamina = 60 + Math.random() * 40;
+            baseStats.stamina = 55 + Math.random() * 30;
         } else if (position === '1B' || position === 'DH') {
             baseStats.power += 10;
             baseStats.speed -= 10;
