@@ -446,7 +446,13 @@ export class Game {
 
             let statsHtml = '';
             if (player.position === 'P') {
-                statsHtml = `PIT:${player.stats.pitching} SPD:${player.stats.speed}`;
+                const staminaDisplay = isMarket
+                    ? Math.round(player.stats.stamina || 0)
+                    : (() => {
+                        const { current, max } = this.getPitcherStaminaValues(player);
+                        return `${Math.round(current)}/${Math.round(max)}`;
+                    })();
+                statsHtml = `PIT:${player.stats.pitching} STA:${staminaDisplay} SPD:${player.stats.speed}`;
             } else {
                 statsHtml = `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
             }
@@ -722,7 +728,10 @@ export class Game {
         this.lineup.fill(null);
 
         // --- 1. Fill Rotation (Top 5 Pitchers) ---
-        const allPitchers = this.roster.filter(p => p.position === 'P').sort((a, b) => b.stats.pitching - a.stats.pitching);
+        const getStarterScore = (p) => (p.stats.pitching * 0.75) + ((p.stats.stamina || 0) * 0.25);
+        const allPitchers = this.roster
+            .filter(p => p.position === 'P')
+            .sort((a, b) => getStarterScore(b) - getStarterScore(a));
         const healthyPitchers = allPitchers.filter(p => (p.health?.injuryDays || 0) === 0);
         const pitcherPool = healthyPitchers.length >= this.rotationSize ? healthyPitchers : allPitchers;
         this.rotation = new Array(this.rotationSize).fill(null);
