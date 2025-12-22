@@ -245,6 +245,7 @@ export class Game {
             this.aaaAutoPromotions = false;
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 26); // Full 26-man roster now
+            this.ensureRosterMinimums();
             this.ensureRosterHealth();
             // Auto-fill roster/lineup
             this.autoLineup();
@@ -1403,6 +1404,78 @@ export class Game {
         if (compliance.ok) return;
         const message = `Roster warning: ${compliance.issues.join(' ')}`;
         this.log(message);
+    }
+
+    ensureRosterMinimums() {
+        if (!this.roster || !this.rules) return;
+        let counts = this.getRosterCounts(this.roster);
+        const required = [
+            { pos: 'C', min: this.minCatchersActive },
+            { pos: '1B', min: this.minInfieldByPosition['1B'] },
+            { pos: '2B', min: this.minInfieldByPosition['2B'] },
+            { pos: '3B', min: this.minInfieldByPosition['3B'] },
+            { pos: 'SS', min: this.minInfieldByPosition['SS'] }
+        ];
+        const outfieldMin = this.minOutfieldActive;
+        const needOutfield = () => counts.OF < outfieldMin;
+
+        const canRemove = (player, c) => {
+            if (player.position === 'P') return c.P > this.minPitchersActive;
+            if (player.position === 'C') return c.C > this.minCatchersActive;
+            if (['1B', '2B', '3B', 'SS'].includes(player.position)) {
+                return (c[player.position] || 0) > this.minInfieldByPosition[player.position];
+            }
+            if (['LF', 'CF', 'RF'].includes(player.position)) {
+                return c.OF > this.minOutfieldActive;
+            }
+            return true;
+        };
+
+        const removePlayer = (player) => {
+            this.roster = this.roster.filter(p => p.id !== player.id);
+            this.lineup = this.lineup.map(slot => (slot && slot.player.id === player.id) ? null : slot);
+            this.rotation = this.rotation.map(p => (p && p.id === player.id) ? null : p);
+            if (this.league && this.league.freeAgents) {
+                this.league.freeAgents.push(player);
+            }
+        };
+
+        const addPlayer = (pos) => {
+            const player = PlayerGenerator.createPlayer(this.rules, pos);
+            this.ensurePlayerHealth(player);
+            this.roster.push(player);
+        };
+
+        const findReplacement = () => {
+            const candidates = this.roster.filter(player => canRemove(player, counts));
+            if (candidates.length === 0) return null;
+            return candidates.sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0))[0];
+        };
+
+        const ensurePosition = (pos, min) => {
+            while ((counts[pos] || 0) < min) {
+                const replacement = findReplacement();
+                if (replacement) {
+                    removePlayer(replacement);
+                }
+                addPlayer(pos);
+                counts = this.getRosterCounts(this.roster);
+            }
+        };
+
+        required.forEach(entry => ensurePosition(entry.pos, entry.min));
+        while (needOutfield()) {
+            const replacement = findReplacement();
+            if (replacement) {
+                removePlayer(replacement);
+            }
+            const ofPos = ['LF', 'CF', 'RF'][Math.floor(Math.random() * 3)];
+            addPlayer(ofPos);
+            counts = this.getRosterCounts(this.roster);
+        }
+        if (counts.P < this.minPitchersActive) {
+            ensurePosition('P', this.minPitchersActive);
+        }
     }
 
     getRosterCutCandidate(team, roster, options = {}) {
