@@ -951,6 +951,14 @@ h3 {
     font-size: 0.85rem;
 }
 
+.options-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #ddd;
+    font-size: 0.9rem;
+}
+
 .draft-actions {
     display: flex;
     gap: 10px;

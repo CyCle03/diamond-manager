@@ -59,6 +59,13 @@ export class Game {
         this.minCatchersActive = 2;
         this.minInfieldByPosition = { '1B': 1, '2B': 1, '3B': 1, 'SS': 1 };
         this.minOutfieldActive = 4;
+        this.aaaEnabledSeason = 3;
+        this.aaaActive = false;
+        this.aaaRoster = [];
+        this.aaaRosterLimit = 26;
+        this.aaaSalaryMultiplier = 0.25;
+        this.aaaAutoManagement = true;
+        this.aaaAutoPromotions = false;
         this.rosterView = 'roster';
         this.marketTab = 'fa';
         this.pitcherStamina = new Map();
@@ -138,6 +145,21 @@ export class Game {
             });
         }
 
+        const aaaAutoManage = document.getElementById('aaa-auto-manage');
+        if (aaaAutoManage) {
+            aaaAutoManage.addEventListener('change', (e) => {
+                this.aaaAutoManagement = e.target.checked;
+                this.saveGame();
+            });
+        }
+        const aaaAutoPromote = document.getElementById('aaa-auto-promote');
+        if (aaaAutoPromote) {
+            aaaAutoPromote.addEventListener('change', (e) => {
+                this.aaaAutoPromotions = e.target.checked;
+                this.saveGame();
+            });
+        }
+
         this.updateStartScreenUI();
     }
 
@@ -161,6 +183,7 @@ export class Game {
                 if (deleteBtn) deleteBtn.style.display = 'none';
             }
         });
+        this.updateAaaOptionsUI();
     }
 
     updateBudgetUI() {
@@ -170,9 +193,26 @@ export class Game {
         }
     }
 
+    updateAaaOptionsUI() {
+        const autoManage = document.getElementById('aaa-auto-manage');
+        const autoPromote = document.getElementById('aaa-auto-promote');
+        const statusEl = document.getElementById('aaa-status');
+        if (!autoManage || !autoPromote || !statusEl) return;
+        const season = this.league ? this.league.season : 1;
+        const isActive = season >= this.aaaEnabledSeason;
+        autoManage.checked = !!this.aaaAutoManagement;
+        autoPromote.checked = !!this.aaaAutoPromotions;
+        autoManage.disabled = !isActive;
+        autoPromote.disabled = !isActive;
+        statusEl.innerText = isActive
+            ? `AAA ACTIVE (Season ${season})`
+            : `AAA unlocks in Season ${this.aaaEnabledSeason}`;
+    }
+
     openOptions() {
         document.getElementById('start-screen-overlay').style.display = 'flex';
         this.updateStartScreenUI();
+        this.updateAaaOptionsUI();
 
         // Show Close button only if we are inside a game (roster exists)
         const closeBtn = document.getElementById('close-options-btn');
@@ -199,6 +239,10 @@ export class Game {
             this.draftPickIndex = 0;
             this.draftOrder = [];
             this.teamSeasonStats = {};
+            this.aaaActive = false;
+            this.aaaRoster = [];
+            this.aaaAutoManagement = true;
+            this.aaaAutoPromotions = false;
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 26); // Full 26-man roster now
             this.ensureRosterHealth();
@@ -248,6 +292,11 @@ export class Game {
             pitcherRestDays: Array.from(this.pitcherRestDays.entries()),
             pitcherWorkloadHistory: Array.from(this.pitcherWorkloadHistory.entries()),
             scoutingQueue: this.scoutingQueue,
+            aaaActive: this.aaaActive,
+            aaaRoster: this.aaaRoster,
+            aaaRosterLimit: this.aaaRosterLimit,
+            aaaAutoManagement: this.aaaAutoManagement,
+            aaaAutoPromotions: this.aaaAutoPromotions,
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
@@ -283,6 +332,11 @@ export class Game {
             gamesRemaining: entry.gamesRemaining,
             prospects: (entry.prospects || []).map(rehydrate)
         }));
+        this.aaaActive = !!data.aaaActive;
+        this.aaaRoster = (data.aaaRoster || []).map(rehydrate);
+        this.aaaRosterLimit = data.aaaRosterLimit || this.aaaRosterLimit;
+        this.aaaAutoManagement = data.aaaAutoManagement !== undefined ? data.aaaAutoManagement : true;
+        this.aaaAutoPromotions = data.aaaAutoPromotions !== undefined ? data.aaaAutoPromotions : false;
 
         // Re-hydrate Player objects
         this.roster = data.roster.map(rehydrate);
@@ -303,6 +357,7 @@ export class Game {
         this.ensurePitcherRestDays();
         this.ensureAllPlayerHealth();
         this.ensureSeasonGoals();
+        this.ensureAAAInitialized();
 
 
         // Manually update the UI to show the league view correctly
@@ -387,6 +442,7 @@ export class Game {
     renderRosterAndMarket() {
         this.ensureRosterHealth();
         this.renderList('#roster-list', this.roster, false);
+        this.renderAaaList();
 
         if (this.league) {
             this.renderList('#market-list', this.league.freeAgents, true);
@@ -449,7 +505,9 @@ export class Game {
                             if (confirm(`Release ${player.name}?`)) {
                                 this.releasePlayer(player);
                             }
-                        }
+                        },
+                        secondaryActionLabel: this.aaaActive ? 'SEND TO AAA' : null,
+                        secondaryAction: this.aaaActive ? () => this.sendPlayerToAAA(player) : null
                     });
                 }
             });
@@ -485,6 +543,56 @@ export class Game {
                 </div>
             `;
 
+            container.appendChild(card);
+        });
+    }
+
+    renderAaaList() {
+        const container = document.getElementById('aaa-list');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!this.aaaActive) {
+            container.innerHTML = `<div style="padding:10px; color:#888;">AAA unlocks in Season ${this.aaaEnabledSeason}</div>`;
+            return;
+        }
+        if (!this.aaaRoster || this.aaaRoster.length === 0) {
+            container.innerHTML = '<div style="padding:10px; color:#888;">No AAA players</div>';
+            return;
+        }
+        this.aaaRoster.forEach(player => {
+            const card = document.createElement('div');
+            const injuryDays = player.health?.injuryDays || 0;
+            const fatigue = player.health?.fatigue || 0;
+            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''} ${injuryDays > 0 ? 'injured' : ''}`;
+            card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
+            const badges = [];
+            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
+            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
+            const statsHtml = player.position === 'P'
+                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
+                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+
+            card.innerHTML = `
+                <div class="card-pos">${player.position}</div>
+                <div class="card-age">(${player.age})</div>
+                <div class="card-name">${player.name}${badges.join('')}</div>
+                <div class="card-stats">
+                    ${statsHtml}
+                </div>
+            `;
+            card.addEventListener('click', () => {
+                this.openPlayerModal(player, {
+                    showPerformance: true,
+                    actionLabel: 'CALL UP',
+                    action: () => this.callUpPlayerFromAAA(player),
+                    secondaryActionLabel: 'RELEASE',
+                    secondaryAction: () => {
+                        if (confirm(`Release ${player.name} from AAA?`)) {
+                            this.releasePlayerFromAAA(player);
+                        }
+                    }
+                });
+            });
             container.appendChild(card);
         });
     }
@@ -1135,6 +1243,7 @@ export class Game {
     releasePlayerFromTeam(team, player, options = {}) {
         if (!team || !player) return false;
         const enforceMinRoster = !!options.enforceMinRoster;
+        const addToFreeAgents = options.addToFreeAgents !== false;
         if (team.id === this.playerTeamId && enforceMinRoster && this.roster.length <= this.rosterFloor) {
             alert(`Cannot release player. Roster is at the minimum size of ${this.rosterFloor}.`);
             return false;
@@ -1156,11 +1265,72 @@ export class Game {
             team.pitcher = team.roster.find(p => p.position === 'P') || team.roster[0] || null;
         }
 
-        if (this.league && this.league.freeAgents) {
+        if (addToFreeAgents && this.league && this.league.freeAgents) {
             const exists = this.league.freeAgents.some(p => p.id === player.id);
             if (!exists) this.league.freeAgents.push(player);
         }
         return true;
+    }
+
+    sendPlayerToAAA(player, options = {}) {
+        if (!this.aaaActive) {
+            alert("AAA is not active yet.");
+            return false;
+        }
+        if (this.aaaRoster.length >= this.aaaRosterLimit && !options.allowRelease) {
+            alert("AAA roster is full.");
+            return false;
+        }
+        if (this.roster.length <= this.rosterFloor && !options.silent) {
+            alert(`Cannot demote below ${this.rosterFloor} players.`);
+            return false;
+        }
+        const removed = this.releasePlayerFromTeam(this.getPlayerTeam(), player, { enforceMinRoster: false, addToFreeAgents: false });
+        if (!removed) return false;
+        if (this.aaaRoster.length >= this.aaaRosterLimit && options.allowRelease) {
+            this.league.freeAgents.push(player);
+        } else {
+            this.aaaRoster.push(player);
+        }
+        if (!options.silent) {
+            this.log(`${player.name} was sent to AAA.`);
+        }
+        this.renderRosterAndMarket();
+        this.renderLineup();
+        this.renderRotation();
+        this.saveGame();
+        return true;
+    }
+
+    callUpPlayerFromAAA(player, options = {}) {
+        if (this.roster.length >= this.activeRosterLimit) {
+            if (!options.silent) alert(`Roster is full (Max ${this.activeRosterLimit}).`);
+            return false;
+        }
+        if (!this.canAddPlayerToRoster(player)) {
+            if (!options.silent) alert("Roster limit reached for this position (pitchers max 13).");
+            return false;
+        }
+        this.aaaRoster = this.aaaRoster.filter(p => p.id !== player.id);
+        this.roster.push(player);
+        if (!options.silent) {
+            this.log(`${player.name} was called up from AAA.`);
+        }
+        this.renderRosterAndMarket();
+        this.saveGame();
+        return true;
+    }
+
+    releasePlayerFromAAA(player, options = {}) {
+        this.aaaRoster = this.aaaRoster.filter(p => p.id !== player.id);
+        if (this.league && this.league.freeAgents) {
+            this.league.freeAgents.push(player);
+        }
+        if (!options.silent) {
+            this.log(`${player.name} was released from AAA.`);
+        }
+        this.renderRosterAndMarket();
+        this.saveGame();
     }
 
     getRosterCounts(roster) {
@@ -1348,6 +1518,130 @@ export class Game {
         });
     }
 
+    ensureAAAInitialized() {
+        if (!this.league) return;
+        if (this.league.season < this.aaaEnabledSeason) return;
+        if (!this.aaaActive) {
+            this.aaaActive = true;
+        }
+        if (!this.aaaRoster) this.aaaRoster = [];
+        if (this.aaaRoster.length === 0) {
+            this.createAaaRoster();
+        }
+        if (this.aaaAutoManagement) {
+            this.balanceAaaRosters();
+        }
+    }
+
+    createAaaRoster() {
+        if (!this.league) return;
+        this.aaaRoster = this.aaaRoster || [];
+        const needed = Math.max(0, this.aaaRosterLimit - this.aaaRoster.length);
+        if (needed === 0) return;
+        const pool = [...this.league.freeAgents].sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0));
+        const fromFa = pool.slice(0, needed);
+        this.aaaRoster.push(...fromFa);
+        this.league.freeAgents = this.league.freeAgents.filter(p => !fromFa.some(fa => fa.id === p.id));
+        const remaining = this.aaaRosterLimit - this.aaaRoster.length;
+        if (remaining > 0) {
+            for (let i = 0; i < remaining; i++) {
+                this.aaaRoster.push(PlayerGenerator.createProspect(this.rules, { minAge: 19, maxAge: 26 }));
+            }
+        }
+    }
+
+    balanceAaaRosters() {
+        if (!this.aaaActive) return;
+        if (this.roster.length > this.activeRosterLimit) {
+            while (this.roster.length > this.activeRosterLimit) {
+                const candidate = this.getRosterCutCandidate(this.getPlayerTeam(), this.roster);
+                if (!candidate) break;
+                this.sendPlayerToAAA(candidate, { silent: true, allowRelease: true });
+            }
+        }
+        while (this.aaaRoster.length > this.aaaRosterLimit) {
+            const lowest = [...this.aaaRoster].sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0))[0];
+            if (!lowest) break;
+            this.releasePlayerFromAAA(lowest, { silent: true });
+        }
+        if (this.aaaRoster.length < this.aaaRosterLimit) {
+            this.fillAaaRosterFromFA();
+        }
+    }
+
+    fillAaaRosterFromFA() {
+        if (!this.league || !this.league.freeAgents) return;
+        const needed = this.aaaRosterLimit - this.aaaRoster.length;
+        if (needed <= 0) return;
+        const pool = [...this.league.freeAgents].sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0));
+        const picks = pool.slice(0, needed);
+        if (picks.length === 0) return;
+        this.aaaRoster.push(...picks);
+        this.league.freeAgents = this.league.freeAgents.filter(p => !picks.some(pick => pick.id === p.id));
+        const remaining = this.aaaRosterLimit - this.aaaRoster.length;
+        if (remaining > 0) {
+            for (let i = 0; i < remaining; i++) {
+                this.aaaRoster.push(PlayerGenerator.createProspect(this.rules, { minAge: 19, maxAge: 26 }));
+            }
+        }
+    }
+
+    manageAaaAfterRound() {
+        if (!this.aaaActive) return;
+        if (this.aaaAutoManagement) {
+            this.balanceAaaRosters();
+        }
+        if (this.aaaAutoPromotions) {
+            this.autoPromoteFromAAA();
+        }
+    }
+
+    autoPromoteFromAAA() {
+        if (!this.aaaActive) return;
+        while (this.roster.length < this.activeRosterLimit) {
+            const pick = this.getBestAaaCallup();
+            if (!pick) break;
+            this.callUpPlayerFromAAA(pick, { silent: true });
+        }
+    }
+
+    getBestAaaCallup() {
+        if (!this.aaaRoster || this.aaaRoster.length === 0) return null;
+        const counts = this.getRosterCounts(this.roster);
+        const rankMultipliers = this.getPositionRankMultipliers();
+        const baseWeights = {
+            P: 1.15,
+            C: 1.1,
+            SS: 1.08,
+            CF: 1.05,
+            '2B': 1.02,
+            '3B': 1.02,
+            LF: 1.0,
+            RF: 1.0,
+            '1B': 0.98,
+            DH: 0.95
+        };
+        const getNeedBoost = (pos) => {
+            if (pos === 'P' && counts.P < this.minPitchersActive) return 1.2;
+            if (pos === 'C' && counts.C < this.minCatchersActive) return 1.2;
+            if (['1B', '2B', '3B', 'SS'].includes(pos) && (counts[pos] || 0) < this.minInfieldByPosition[pos]) return 1.15;
+            if (['LF', 'CF', 'RF'].includes(pos) && counts.OF < this.minOutfieldActive) return 1.15;
+            return 1;
+        };
+        const avoidPitchers = counts.P >= this.maxPitchersActive;
+        const getValue = (player) => player.position === 'P'
+            ? (player.stats.pitching || 0)
+            : (player.stats.overall || 0);
+        const score = (player) => {
+            if (avoidPitchers && player.position === 'P') return -Infinity;
+            const base = baseWeights[player.position] || 1;
+            const rankMult = rankMultipliers[player.position] || 1;
+            const needBoost = getNeedBoost(player.position);
+            return getValue(player) * base * rankMult * needBoost;
+        };
+        return [...this.aaaRoster].sort((a, b) => score(b) - score(a))[0];
+    }
+
     getProratedSalaryCharge(salary) {
         if (!this.league || !this.league.schedule || this.league.schedule.length === 0) {
             return salary;
@@ -1380,6 +1674,7 @@ export class Game {
         this.initSeasonGoals();
         this.ensureAllPlayerHealth();
         this.ensureRosterCompliance();
+        this.ensureAAAInitialized();
 
         // 3. Update League Panel UI
         document.getElementById('start-season-btn').style.display = 'none';
@@ -1482,6 +1777,8 @@ export class Game {
         });
 
         this.manageAiRosterAfterRound();
+        this.ensureAAAInitialized();
+        this.manageAaaAfterRound();
 
         // 3. Advance Round
         this.league.currentRoundIndex++;
@@ -1520,6 +1817,10 @@ export class Game {
         this.roster.forEach(player => {
             totalSalaries += player.stats.salary;
         });
+        if (this.aaaActive && this.aaaRoster && this.aaaRoster.length > 0) {
+            const aaaSalaries = this.aaaRoster.reduce((sum, player) => sum + (player.stats.salary || 0), 0);
+            totalSalaries += Math.round(aaaSalaries * this.aaaSalaryMultiplier);
+        }
 
         this.teamBudget -= totalSalaries;
         this.log(`Annual salaries of $${totalSalaries.toLocaleString()} deducted.`);
@@ -1586,6 +1887,7 @@ export class Game {
         this.updateGoalProgress();
         this.updateGoalUI();
         this.renderPositionRankings();
+        this.updateAaaOptionsUI();
     }
 
     getTeamLastFive(teamId) {
@@ -1982,12 +2284,14 @@ export class Game {
 
     initRosterMarketNav() {
         const rosterTab = document.getElementById('roster-tab-btn');
+        const aaaTab = document.getElementById('aaa-tab-btn');
         const marketTab = document.getElementById('market-tab-btn');
         const faTab = document.getElementById('market-fa-tab');
         const tradeTab = document.getElementById('market-trade-tab');
         const scoutTab = document.getElementById('market-scout-tab');
 
         if (rosterTab) rosterTab.addEventListener('click', () => this.setRosterView('roster'));
+        if (aaaTab) aaaTab.addEventListener('click', () => this.setRosterView('aaa'));
         if (marketTab) marketTab.addEventListener('click', () => this.setRosterView('market'));
         if (faTab) faTab.addEventListener('click', () => this.setMarketTab('fa'));
         if (tradeTab) tradeTab.addEventListener('click', () => this.setMarketTab('trade'));
@@ -2008,14 +2312,26 @@ export class Game {
 
     updateRosterMarketUI() {
         const rosterView = document.getElementById('roster-view');
+        const aaaView = document.getElementById('aaa-view');
         const marketView = document.getElementById('market-view');
         const rosterTab = document.getElementById('roster-tab-btn');
+        const aaaTab = document.getElementById('aaa-tab-btn');
         const marketTab = document.getElementById('market-tab-btn');
 
+        if (!this.aaaActive && this.rosterView === 'aaa') {
+            this.rosterView = 'roster';
+        }
+
         if (rosterView) rosterView.classList.toggle('active', this.rosterView === 'roster');
+        if (aaaView) aaaView.classList.toggle('active', this.rosterView === 'aaa');
         if (marketView) marketView.classList.toggle('active', this.rosterView === 'market');
         if (rosterTab) rosterTab.classList.toggle('active', this.rosterView === 'roster');
+        if (aaaTab) aaaTab.classList.toggle('active', this.rosterView === 'aaa');
         if (marketTab) marketTab.classList.toggle('active', this.rosterView === 'market');
+
+        if (aaaTab) {
+            aaaTab.style.display = this.aaaActive ? 'inline-flex' : 'none';
+        }
 
         const faTab = document.getElementById('market-fa-tab');
         const tradeTab = document.getElementById('market-trade-tab');
@@ -2773,6 +3089,7 @@ export class Game {
         const titleEl = document.getElementById('player-modal-title');
         const bodyEl = document.getElementById('player-modal-body');
         const actionBtn = document.getElementById('player-modal-action');
+        const secondaryBtn = document.getElementById('player-modal-secondary');
         if (!overlay || !titleEl || !bodyEl || !actionBtn) return;
 
         titleEl.innerText = player.name;
@@ -2823,6 +3140,20 @@ export class Game {
         } else {
             actionBtn.style.display = 'none';
             actionBtn.onclick = null;
+        }
+
+        if (secondaryBtn) {
+            if (options.secondaryActionLabel && options.secondaryAction) {
+                secondaryBtn.innerText = options.secondaryActionLabel;
+                secondaryBtn.style.display = 'inline-flex';
+                secondaryBtn.onclick = () => {
+                    options.secondaryAction();
+                    overlay.classList.add('hidden');
+                };
+            } else {
+                secondaryBtn.style.display = 'none';
+                secondaryBtn.onclick = null;
+            }
         }
 
         overlay.classList.remove('hidden');
@@ -3830,6 +4161,7 @@ export class Game {
             if (team.id === this.playerTeamId) return;
             this.enforceRosterLimitsForTeam(team);
         });
+        this.ensureAAAInitialized();
 
         this.updateLeagueView();
         this.renderRosterAndMarket();

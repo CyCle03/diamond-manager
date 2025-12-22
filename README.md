@@ -26,6 +26,9 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **Injuries & Fatigue**: Players accumulate fatigue and can miss games when injured.
 *   **Goals & Rewards**: Complete season goals for budget bonuses.
 *   **Trades**: Propose player-for-player trades with AI teams (optional cash add-on).
+*   **MLB-Style Rosters**: 26-man active roster with pitcher limits and position minimums.
+*   **AAA System (Season 3)**: AAA roster unlocks with optional auto management and auto call-ups.
+*   **Draft Need Button**: Draft by team needs and weak league position ranks.
 *   **Save System**: Saves on key actions (sign/release, match results, season advance). Use the **Options** menu to switch save slots or delete data.
 *   **Match Simulation**: Watch play-by-play visual simulations of your games.
 
@@ -72,6 +75,18 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   Enter a match to simulate play-by-play and advance the league.
 *   After the season ends, draft new prospects over 5 rounds.
 
+## 🧾 Roster Rules
+
+*   26-man active roster.
+*   Pitchers: 9-13 on active roster.
+*   Minimums: C (2), 1B/2B/3B/SS (1 each), OF (4).
+
+## 🧑‍🌾 AAA (Season 3)
+
+*   AAA unlocks automatically in Season 3.
+*   Defaults to auto management; manual control is available in **Options**.
+*   Auto promotions/demotions can be toggled independently.
+
 ---
 
 ## ⚾ 다이아몬드 매니저 (웹 오토 배틀러)
@@ -94,6 +109,9 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   **부상 & 피로**: 선수 피로 누적과 부상으로 결장이 발생합니다.
 *   **목표 & 보상**: 시즌 목표 달성 시 예산 보상을 받습니다.
 *   **트레이드**: AI 팀과 선수 트레이드를 제안할 수 있습니다.
+*   **MLB 스타일 로스터**: 26인 액티브 로스터, 투수 제한 및 포지션 최소 인원 적용.
+*   **AAA 시스템 (시즌 3)**: AAA 로스터가 열리며 자동/수동 관리 옵션 제공.
+*   **DRAFT NEED 버튼**: 팀 필요와 리그 포지션 약점을 반영한 자동 픽.
 
 ## 🕹️ 조작
 
@@ -151,3 +169,15 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 *   세이브 데이터는 브라우저 `localStorage`에 슬롯별로 저장됩니다.
 *   **Options** 메뉴에서 슬롯 전환/삭제가 가능합니다.
 *   브라우저 사이트 데이터를 삭제하면 세이브도 함께 삭제됩니다.
+
+## 🧾 로스터 규정
+
+*   26인 액티브 로스터.
+*   투수 9~13명 제한.
+*   최소 인원: C 2명, 1B/2B/3B/SS 각 1명, 외야수 4명.
+
+## 🧑‍🌾 AAA (시즌 3)
+
+*   시즌 3에 AAA가 자동 활성화됩니다.
+*   기본은 자동 관리이며 **Options**에서 수동 전환 가능합니다.
+*   승격/강등 자동화는 별도로 켜고 끌 수 있습니다.

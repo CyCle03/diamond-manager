@@ -43,6 +43,14 @@
                     </div>
                 </div>
             </div>
+            <div class="input-group" id="aaa-options">
+                <label>AAA SETTINGS</label>
+                <div class="options-row">
+                    <label><input type="checkbox" id="aaa-auto-manage"> Auto AAA management</label>
+                    <label><input type="checkbox" id="aaa-auto-promote"> Auto promote/demote</label>
+                </div>
+                <div id="aaa-status" class="subtext">AAA unlocks in Season 3</div>
+            </div>
         </div>
     </div>
 
@@ -348,6 +356,7 @@
                     <h2>ROSTER / MARKET</h2>
                     <div class="roster-nav">
                         <button id="roster-tab-btn" class="nav-btn active">ROSTER</button>
+                        <button id="aaa-tab-btn" class="nav-btn">AAA</button>
                         <button id="market-tab-btn" class="nav-btn">MARKET</button>
                     </div>
                 </div>
@@ -355,6 +364,10 @@
                     <div id="roster-view" class="roster-view active">
                         <div class="section-header">MY ROSTER</div>
                         <div id="roster-list" class="card-list"></div>
+                    </div>
+                    <div id="aaa-view" class="roster-view">
+                        <div class="section-header">AAA ROSTER</div>
+                        <div id="aaa-list" class="card-list"></div>
                     </div>
                     <div id="market-view" class="roster-view">
                         <div class="market-nav">
@@ -405,6 +418,7 @@
             <div id="player-modal-body" class="modal-body"></div>
             <div class="modal-actions">
                 <button id="player-modal-action" class="cyber-button compact">ACTION</button>
+                <button id="player-modal-secondary" class="nav-btn">SECONDARY</button>
                 <button id="player-modal-cancel" class="nav-btn">CLOSE</button>
             </div>
         </div>
