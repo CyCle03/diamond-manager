@@ -3697,39 +3697,58 @@ export class Game {
         if (this.draftPool.length === 0) return;
 
         const counts = this.getRosterCounts(this.roster);
-        const priorities = [];
-        if (counts.P < this.minPitchersActive) priorities.push(['P']);
-        if (counts.C < this.minCatchersActive) priorities.push(['C']);
-        Object.keys(this.minInfieldByPosition).forEach(pos => {
-            if ((counts[pos] || 0) < this.minInfieldByPosition[pos]) priorities.push([pos]);
-        });
-        if (counts.OF < this.minOutfieldActive) priorities.push(['LF', 'CF', 'RF']);
-
-        const byOverall = (a, b) => (b.stats.overall || 0) - (a.stats.overall || 0);
-        const pickByPositions = (positions) => {
-            const candidates = this.draftPool.filter(p => positions.includes(p.position));
-            if (candidates.length === 0) return null;
-            return candidates.sort(byOverall)[0];
+        const rankMultipliers = this.getPositionRankMultipliers();
+        const baseWeights = {
+            P: 1.15,
+            C: 1.1,
+            SS: 1.08,
+            CF: 1.05,
+            '2B': 1.02,
+            '3B': 1.02,
+            LF: 1.0,
+            RF: 1.0,
+            '1B': 0.98,
+            DH: 0.95
         };
-
-        for (const positions of priorities) {
-            const pick = pickByPositions(positions);
-            if (pick) {
-                this.draftPlayer(pick.id);
-                return;
-            }
-        }
-
+        const getNeedBoost = (pos) => {
+            if (pos === 'P' && counts.P < this.minPitchersActive) return 1.2;
+            if (pos === 'C' && counts.C < this.minCatchersActive) return 1.2;
+            if (['1B', '2B', '3B', 'SS'].includes(pos) && (counts[pos] || 0) < this.minInfieldByPosition[pos]) return 1.15;
+            if (['LF', 'CF', 'RF'].includes(pos) && counts.OF < this.minOutfieldActive) return 1.15;
+            return 1;
+        };
+        const getValue = (player) => player.position === 'P'
+            ? (player.stats.pitching || 0)
+            : (player.stats.overall || 0);
         const avoidPitchers = counts.P >= this.maxPitchersActive;
-        let fallbackPool = [...this.draftPool];
-        if (avoidPitchers) {
-            const nonPitchers = fallbackPool.filter(p => p.position !== 'P');
-            if (nonPitchers.length > 0) {
-                fallbackPool = nonPitchers;
-            }
-        }
-        const best = fallbackPool.sort(byOverall)[0];
+        const scorePlayer = (player) => {
+            if (avoidPitchers && player.position === 'P') return -Infinity;
+            const base = baseWeights[player.position] || 1;
+            const rankMult = rankMultipliers[player.position] || 1;
+            const needBoost = getNeedBoost(player.position);
+            return getValue(player) * base * rankMult * needBoost;
+        };
+        const best = [...this.draftPool].sort((a, b) => scorePlayer(b) - scorePlayer(a))[0];
         if (best) this.draftPlayer(best.id);
+    }
+
+    getPositionRankMultipliers() {
+        if (!this.league) return {};
+        const positions = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'P'];
+        const teamStrengths = this.league.teams.map(team => ({
+            teamId: team.id,
+            map: this.calculatePositionStrength(team)
+        }));
+        const multipliers = {};
+        positions.forEach(pos => {
+            const ranked = [...teamStrengths]
+                .map(entry => ({ teamId: entry.teamId, value: entry.map[pos] || 0 }))
+                .sort((a, b) => b.value - a.value);
+            const rankIndex = ranked.findIndex(entry => entry.teamId === this.playerTeamId);
+            const rank = rankIndex >= 0 ? rankIndex + 1 : ranked.length;
+            multipliers[pos] = 1 + Math.max(0, rank - 1) * 0.03;
+        });
+        return multipliers;
     }
 
     advanceDraftPick() {
