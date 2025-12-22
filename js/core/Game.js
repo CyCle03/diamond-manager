@@ -1045,12 +1045,18 @@ export class Game {
         }
 
         const cost = player.stats.signingBonus;
-        if (this.teamBudget < cost) {
+        const salaryCharge = this.getProratedSalaryCharge(player.stats.salary || 0);
+        const totalCharge = cost + salaryCharge;
+        if (this.teamBudget < totalCharge) {
             alert("Not enough budget to sign this player!");
             return;
         }
 
         this.teamBudget -= cost;
+        if (salaryCharge > 0) {
+            this.teamBudget -= salaryCharge;
+            this.log(`Prorated salary of $${salaryCharge.toLocaleString()} charged for ${player.name}.`);
+        }
         this.updateBudgetUI();
 
         // Move from FA to Roster
@@ -1086,33 +1092,73 @@ export class Game {
     }
 
     releasePlayer(player) {
-        // 1. Minimum roster size check
-        if (this.roster.length <= 16) { // Let's set a minimum
-            alert("Cannot release player. Roster is at the minimum size of 16.");
+        if (!this.releasePlayerFromTeam(this.getPlayerTeam(), player, { enforceMinRoster: true })) {
             return;
         }
-
-        // 2. Remove from roster
-        this.roster = this.roster.filter(p => p.id !== player.id);
-
-        // 3. Add to free agents
-        if (this.league && this.league.freeAgents) {
-            this.league.freeAgents.push(player);
-        }
-
-        // 4. Remove from lineup and rotation
-        this.lineup = this.lineup.map(slot => (slot && slot.player.id === player.id) ? null : slot);
-        this.rotation = this.rotation.map(p => (p && p.id === player.id) ? null : p);
-
         alert(`Released ${player.name}.`);
 
-        // 5. Re-render UI
+        // Re-render UI
         this.renderRosterAndMarket();
         this.renderLineup();
         this.renderRotation();
 
-        // 6. Save game
+        // Save game
         this.saveGame();
+    }
+
+    releasePlayerFromTeam(team, player, options = {}) {
+        if (!team || !player) return false;
+        const enforceMinRoster = !!options.enforceMinRoster;
+        if (team.id === this.playerTeamId && enforceMinRoster && this.roster.length <= 16) {
+            alert("Cannot release player. Roster is at the minimum size of 16.");
+            return false;
+        }
+
+        team.roster = team.roster.filter(p => p.id !== player.id);
+        if (team.id === this.playerTeamId) {
+            this.roster = this.roster.filter(p => p.id !== player.id);
+            this.lineup = this.lineup.map(slot => (slot && slot.player.id === player.id) ? null : slot);
+            this.rotation = this.rotation.map(p => (p && p.id === player.id) ? null : p);
+        } else if (team.lineup) {
+            team.lineup = team.lineup.map(entry => {
+                const p = entry && entry.player ? entry.player : entry;
+                if (p && p.id === player.id) return null;
+                return entry;
+            }).filter(Boolean);
+        }
+        if (team.pitcher && team.pitcher.id === player.id) {
+            team.pitcher = team.roster.find(p => p.position === 'P') || team.roster[0] || null;
+        }
+
+        if (this.league && this.league.freeAgents) {
+            const exists = this.league.freeAgents.some(p => p.id === player.id);
+            if (!exists) this.league.freeAgents.push(player);
+        }
+        return true;
+    }
+
+    pruneAiRosters(maxSize) {
+        if (!this.league || !this.league.teams) return;
+        this.league.teams.forEach(team => {
+            if (team.id === this.playerTeamId) return;
+            if (!team.roster || team.roster.length <= maxSize) return;
+            const sorted = [...team.roster].sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0));
+            const excess = sorted.slice(0, team.roster.length - maxSize);
+            excess.forEach(player => {
+                this.releasePlayerFromTeam(team, player, { enforceMinRoster: false });
+            });
+            this.autoFillAiLineup(team);
+        });
+    }
+
+    getProratedSalaryCharge(salary) {
+        if (!this.league || !this.league.schedule || this.league.schedule.length === 0) {
+            return salary;
+        }
+        const totalRounds = this.league.schedule.length;
+        const remainingRounds = Math.max(0, totalRounds - (this.league.currentRoundIndex || 0));
+        const ratio = remainingRounds / totalRounds;
+        return Math.round(salary * ratio);
     }
 
     // --- GAME FLOW ---
@@ -3511,6 +3557,7 @@ export class Game {
 
         this.resetSeasonStatsForNewSeason();
         this.initTeamSeasonStats();
+        this.pruneAiRosters(25);
 
         this.updateLeagueView();
         this.renderRosterAndMarket();

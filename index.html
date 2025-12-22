@@ -74,66 +74,68 @@
                     <button id="auto-lineup-btn"
                         style="background:var(--accent-green); color:white; border:none; padding:5px 10px; cursor:pointer;">AUTO</button>
                 </div>
-                <div class="dugout-section batting-section">
-                    <div class="section-title">BATTERS</div>
-                    <div class="batting-order" id="batting-order-list">
-                        <!-- 1-9 Batters injected here -->
-                        <div class="empty-slot">1. Select Batter...</div>
-                        <div class="empty-slot">2. Select Batter...</div>
-                        <div class="empty-slot">3. Select Batter...</div>
-                        <div class="empty-slot">4. Select Batter...</div>
-                        <div class="empty-slot">5. Select Batter...</div>
-                        <div class="empty-slot">6. Select Batter...</div>
-                        <div class="empty-slot">7. Select Batter...</div>
-                        <div class="empty-slot">8. Select Batter...</div>
-                        <div class="empty-slot">9. Select Batter...</div>
-                    </div>
-                    <div class="bench-panel">
-                        <div class="bench-header">
-                            <div class="label">BENCH BATTERS</div>
-                            <div class="bench-controls">
-                                <label for="bench-sort-select">SORT</label>
-                                <select id="bench-sort-select">
-                                    <option value="overall">OVR</option>
-                                    <option value="ops">OPS</option>
-                                    <option value="avg">AVG</option>
-                                    <option value="hr">HR</option>
-                                    <option value="contact">CON</option>
-                                    <option value="power">POW</option>
-                                    <option value="speed">SPD</option>
-                                    <option value="age">AGE</option>
-                                    <option value="name">NAME</option>
+                <div class="dugout-columns">
+                    <div class="dugout-section pitching-section">
+                        <div class="section-title">PITCHERS</div>
+                        <div class="pitcher-selection" id="rotation-container">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                                <div class="label">PITCHING ROTATION</div>
+                                <select id="rotation-size-select"
+                                    style="background:#222; color:white; border:1px solid #444; padding:2px;">
+                                    <option value="4">4-Man</option>
+                                    <option value="5" selected>5-Man</option>
+                                    <option value="6">6-Man</option>
                                 </select>
-                                <button id="bench-sort-dir" class="nav-btn" type="button">DESC</button>
                             </div>
+                            <!-- Rotation Slots Injected Here -->
+                            <div id="rotation-slots"></div>
                         </div>
-                        <div id="bench-list"></div>
-                    </div>
-                </div>
-                <div class="dugout-section rankings-section">
-                    <div class="section-title">LEAGUE POSITION RANKS</div>
-                    <div id="position-rankings" class="position-rankings">
-                        <div class="empty-slot">Start Season to view rankings</div>
-                    </div>
-                </div>
-                <div class="dugout-section pitching-section">
-                    <div class="section-title">PITCHERS</div>
-                    <div class="pitcher-selection" id="rotation-container">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                            <div class="label">PITCHING ROTATION</div>
-                            <select id="rotation-size-select"
-                                style="background:#222; color:white; border:1px solid #444; padding:2px;">
-                                <option value="4">4-Man</option>
-                                <option value="5" selected>5-Man</option>
-                                <option value="6">6-Man</option>
-                            </select>
+                        <div class="pitcher-selection" id="bullpen-container">
+                            <div class="label">BULLPEN ROLES</div>
+                            <div id="bullpen-list"></div>
                         </div>
-                        <!-- Rotation Slots Injected Here -->
-                        <div id="rotation-slots"></div>
                     </div>
-                    <div class="pitcher-selection" id="bullpen-container">
-                        <div class="label">BULLPEN ROLES</div>
-                        <div id="bullpen-list"></div>
+                    <div class="dugout-section batting-section">
+                        <div class="section-title">BATTERS</div>
+                        <div class="batting-order" id="batting-order-list">
+                            <!-- 1-9 Batters injected here -->
+                            <div class="empty-slot">1. Select Batter...</div>
+                            <div class="empty-slot">2. Select Batter...</div>
+                            <div class="empty-slot">3. Select Batter...</div>
+                            <div class="empty-slot">4. Select Batter...</div>
+                            <div class="empty-slot">5. Select Batter...</div>
+                            <div class="empty-slot">6. Select Batter...</div>
+                            <div class="empty-slot">7. Select Batter...</div>
+                            <div class="empty-slot">8. Select Batter...</div>
+                            <div class="empty-slot">9. Select Batter...</div>
+                        </div>
+                        <div class="bench-panel">
+                            <div class="bench-header">
+                                <div class="label">BENCH BATTERS</div>
+                                <div class="bench-controls">
+                                    <label for="bench-sort-select">SORT</label>
+                                    <select id="bench-sort-select">
+                                        <option value="overall">OVR</option>
+                                        <option value="ops">OPS</option>
+                                        <option value="avg">AVG</option>
+                                        <option value="hr">HR</option>
+                                        <option value="contact">CON</option>
+                                        <option value="power">POW</option>
+                                        <option value="speed">SPD</option>
+                                        <option value="age">AGE</option>
+                                        <option value="name">NAME</option>
+                                    </select>
+                                    <button id="bench-sort-dir" class="nav-btn" type="button">DESC</button>
+                                </div>
+                            </div>
+                            <div id="bench-list"></div>
+                        </div>
+                    </div>
+                    <div class="dugout-section rankings-section">
+                        <div class="section-title">LEAGUE POSITION RANKS</div>
+                        <div id="position-rankings" class="position-rankings">
+                            <div class="empty-slot">Start Season to view rankings</div>
+                        </div>
                     </div>
                 </div>
             </section>

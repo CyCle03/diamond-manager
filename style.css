@@ -121,7 +121,7 @@ h3 {
 
 /* TEAM MODE: Dugout + Roster */
 .main-content.team-mode {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .main-content.team-mode .dugout-panel,
@@ -132,6 +132,36 @@ h3 {
 .main-content.team-mode .stadium-panel,
 .main-content.team-mode .league-panel {
     display: none;
+}
+
+.main-content.team-mode .dugout-panel {
+    grid-column: 1 / span 3;
+}
+
+.main-content.team-mode .roster-panel {
+    grid-column: 4 / span 1;
+}
+
+.main-content.team-mode .dugout-columns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 10px;
+    min-height: 0;
+}
+
+.main-content.team-mode .dugout-section {
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--panel-bg);
+    overflow: hidden;
+}
+
+.main-content.team-mode .pitching-section,
+.main-content.team-mode .rankings-section {
+    border-top: none;
+    border-bottom: none;
+    max-height: none;
 }
 
 
@@ -232,6 +262,13 @@ h3 {
     /* Manage internal scrolling */
 }
 
+.dugout-columns {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
 .dugout-section {
     display: flex;
     flex-direction: column;
@@ -274,11 +311,14 @@ h3 {
 }
 
 .bench-panel {
+    display: flex;
+    flex-direction: column;
     padding: 10px 12px;
     background: #262626;
     border-top: 1px solid #333;
     max-height: 170px;
     overflow-y: auto;
+    min-height: 0;
 }
 
 .bench-header {
@@ -319,6 +359,8 @@ h3 {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .bench-card {
