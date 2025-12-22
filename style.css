@@ -535,6 +535,46 @@ h3 {
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
+.line-score {
+    display: flex;
+    flex-direction: column;
+    background: #0a0a0a;
+    border-bottom: 1px solid #222;
+    padding: 6px 12px;
+    font-family: 'Teko', sans-serif;
+    color: #ddd;
+}
+
+.line-score-row {
+    display: grid;
+    grid-template-columns: 140px repeat(9, 1fr) 40px;
+    gap: 6px;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.line-score-header {
+    color: #9a9a9a;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+.line-score-cell {
+    text-align: center;
+    padding: 2px 0;
+}
+
+.line-score-cell.team-cell {
+    text-align: left;
+    padding-left: 4px;
+    color: #fff;
+}
+
+.line-score-cell.total-cell {
+    color: #f5c542;
+    font-weight: bold;
+}
+
 .sb-team {
     display: flex;
     align-items: center;

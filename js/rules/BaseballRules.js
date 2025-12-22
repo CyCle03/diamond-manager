@@ -81,6 +81,9 @@ export class BaseballRules extends GameRules {
             }
             const awayRuns = await this.simulateHalfInning(game, awayTeam, homeTeam);
             scores.away += awayRuns;
+            if (game.updateLineScore) {
+                game.updateLineScore('away', inning, awayRuns);
+            }
             if (game.recordTeamRuns) {
                 game.recordTeamRuns(awayTeam.id, homeTeam.id, awayRuns);
             }
@@ -92,6 +95,9 @@ export class BaseballRules extends GameRules {
             }
             const homeRuns = await this.simulateHalfInning(game, homeTeam, awayTeam);
             scores.home += homeRuns;
+            if (game.updateLineScore) {
+                game.updateLineScore('home', inning, homeRuns);
+            }
             if (game.recordTeamRuns) {
                 game.recordTeamRuns(homeTeam.id, awayTeam.id, homeRuns);
             }

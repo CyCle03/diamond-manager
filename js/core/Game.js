@@ -68,6 +68,7 @@ export class Game {
         this.aaaAutoPromotions = false;
         this.battingOrderState = new Map();
         this.isAutoSubstituting = false;
+        this.currentLineScore = null;
         this.rosterView = 'roster';
         this.marketTab = 'fa';
         this.pitcherStamina = new Map();
@@ -1788,6 +1789,7 @@ export class Game {
         this.currentMatch = myMatch;
         this.playerIsHomeInCurrentMatch = myMatch.home.id === this.playerTeamId;
         this.initMatchBattingOrder(myMatch);
+        this.initLineScore();
         this.ensurePitcherStamina();
         this.ensurePitcherRestDays();
         this.pitcherWorkload = new Map();
@@ -2195,12 +2197,17 @@ export class Game {
         // Set team names
         document.getElementById('score-home-name').innerText = myMatch.home.name;
         document.getElementById('score-away-name').innerText = myMatch.away.name;
+        const lineHome = document.getElementById('line-score-home-name');
+        const lineAway = document.getElementById('line-score-away-name');
+        if (lineHome) lineHome.innerText = myMatch.home.name;
+        if (lineAway) lineAway.innerText = myMatch.away.name;
 
         // Reset scores and inning
         document.getElementById('score-home-val').innerText = '0';
         document.getElementById('score-away-val').innerText = '0';
         document.getElementById('sb-inning').innerText = 'TOP 1';
         this.updateOutsDisplay(0);
+        this.initLineScore();
 
         // Reset game status text and log
         document.getElementById('game-status-text').innerText = 'WAITING FOR MATCH...';
@@ -2235,6 +2242,44 @@ export class Game {
         const awayScoreEl = document.getElementById('score-away-val');
         if (homeScoreEl) homeScoreEl.innerText = homeScore;
         if (awayScoreEl) awayScoreEl.innerText = awayScore;
+    }
+
+    initLineScore() {
+        this.currentLineScore = {
+            home: new Array(9).fill(0),
+            away: new Array(9).fill(0)
+        };
+        const homeName = document.getElementById('score-home-name')?.innerText || 'HOME';
+        const awayName = document.getElementById('score-away-name')?.innerText || 'AWAY';
+        const homeNameEl = document.getElementById('line-score-home-name');
+        const awayNameEl = document.getElementById('line-score-away-name');
+        if (homeNameEl) homeNameEl.innerText = homeName;
+        if (awayNameEl) awayNameEl.innerText = awayName;
+        for (let inning = 1; inning <= 9; inning++) {
+            this.setLineScoreCell('home', inning, 0);
+            this.setLineScoreCell('away', inning, 0);
+        }
+        this.setLineScoreTotal('home');
+        this.setLineScoreTotal('away');
+    }
+
+    setLineScoreCell(team, inning, value) {
+        const cell = document.querySelector(`[data-line-score="${team}-${inning}"]`);
+        if (cell) cell.innerText = value;
+    }
+
+    setLineScoreTotal(team) {
+        const total = (this.currentLineScore?.[team] || []).reduce((sum, val) => sum + val, 0);
+        const cell = document.querySelector(`[data-line-score="${team}-r"]`);
+        if (cell) cell.innerText = total;
+    }
+
+    updateLineScore(team, inning, runs) {
+        if (!this.currentLineScore) this.initLineScore();
+        if (inning < 1 || inning > 9) return;
+        this.currentLineScore[team][inning - 1] = runs;
+        this.setLineScoreCell(team, inning, runs);
+        this.setLineScoreTotal(team);
     }
 
     updateInningDisplay(half, inning) {
