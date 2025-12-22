@@ -603,7 +603,7 @@ export class Game {
                 });
                 slot.addEventListener('dragend', () => slot.classList.remove('dragging'));
                 slot.dataset.pitcherId = p.id;
-                const staminaPct = Math.round(this.getPitcherStaminaRatio(p) * 100);
+                const { current, max } = this.getPitcherStaminaValues(p);
                 const injuryDays = p.health?.injuryDays || 0;
                 if (injuryDays > 0) slot.classList.add('injured');
                 const injuryBadge = injuryDays > 0 ? `<span class="status-badge injury">INJ ${injuryDays}</span>` : '';
@@ -612,7 +612,7 @@ export class Game {
                     <span class="order-num">SP${i + 1}</span>
                     <span class="player-name">${p.name}${injuryBadge}</span>
                     <span class="player-pos">P</span>
-                    <span class="player-stamina" data-stamina-for="${p.id}">STA ${staminaPct}%</span>
+                    <span class="player-stamina" data-stamina-for="${p.id}">STA ${Math.round(current)}/${Math.round(max)}</span>
                     <button class="remove-btn">x</button>
                 `;
                 slot.querySelector('.remove-btn').addEventListener('click', (e) => {
@@ -662,11 +662,11 @@ export class Game {
                 player.bullpenRole = e.target.value;
                 this.saveGame();
             });
-            const staminaPct = Math.round(this.getPitcherStaminaRatio(player) * 100);
+            const { current, max } = this.getPitcherStaminaValues(player);
             card.innerHTML = `
                 <div class="bullpen-meta">
                     <div class="bullpen-name">${player.name}</div>
-                    <div class="bullpen-stamina" data-stamina-for="${player.id}">STA ${staminaPct}%</div>
+                    <div class="bullpen-stamina" data-stamina-for="${player.id}">STA ${Math.round(current)}/${Math.round(max)}</div>
                 </div>
             `;
             card.appendChild(select);
@@ -2082,8 +2082,8 @@ export class Game {
             staminaEl.innerText = 'PITCHER STAMINA: --';
             return;
         }
-        const ratio = this.getPitcherStaminaRatio(pitcher);
-        staminaEl.innerText = `PITCHER STAMINA: ${Math.round(ratio * 100)}%`;
+        const { current, max, ratio } = this.getPitcherStaminaValues(pitcher);
+        staminaEl.innerText = `PITCHER STAMINA: ${Math.round(current)}/${Math.round(max)} (${Math.round(ratio * 100)}%)`;
         this.maybeAutoSubstitute(pitcher, ratio);
         this.updatePitcherStaminaBadges();
     }
@@ -2096,8 +2096,8 @@ export class Game {
             const id = node.dataset.staminaFor;
             const pitcher = pitchers.get(id);
             if (!pitcher) return;
-            const staminaPct = Math.round(this.getPitcherStaminaRatio(pitcher) * 100);
-            node.textContent = `STA ${staminaPct}%`;
+            const { current, max } = this.getPitcherStaminaValues(pitcher);
+            node.textContent = `STA ${Math.round(current)}/${Math.round(max)}`;
         });
     }
 
@@ -2256,10 +2256,16 @@ export class Game {
     }
 
     getPitcherStaminaRatio(pitcher) {
-        const current = this.pitcherStamina.get(pitcher.id);
-        const max = Math.max(1, pitcher.stats.stamina || 80);
-        if (typeof current !== 'number') return 1;
-        return Math.max(0, Math.min(1, current / max));
+        return this.getPitcherStaminaValues(pitcher).ratio;
+    }
+
+    getPitcherStaminaValues(pitcher) {
+        if (!pitcher) return { current: 0, max: 0, ratio: 0 };
+        const max = Math.max(50, pitcher.stats.stamina || 80);
+        const stored = this.pitcherStamina.get(pitcher.id);
+        const current = typeof stored === 'number' ? stored : max;
+        const ratio = Math.max(0, Math.min(1, current / Math.max(1, max)));
+        return { current, max, ratio };
     }
 
     getPitcherFatigueMultiplier(pitcher) {
@@ -2515,6 +2521,10 @@ export class Game {
         const stats = player.stats;
         const performance = this.ensurePerformance(player);
         const current = performance.currentSeason;
+        const staminaValues = player.position === 'P' ? this.getPitcherStaminaValues(player) : null;
+        const staminaDisplay = player.position === 'P'
+            ? `${Math.round(staminaValues.current)}/${Math.round(staminaValues.max)}`
+            : Math.round(stats.stamina || 0);
         const perfHtml = options.showPerformance
             ? `
             <div class="modal-section">
@@ -2537,7 +2547,7 @@ export class Game {
             <div class="stat-label">Speed</div><div class="stat-value">${stats.speed}</div>
             <div class="stat-label">Defense</div><div class="stat-value">${stats.defense}</div>
             <div class="stat-label">Pitching</div><div class="stat-value">${stats.pitching}</div>
-            <div class="stat-label">Stamina</div><div class="stat-value">${stats.stamina || 0}</div>
+            <div class="stat-label">Stamina</div><div class="stat-value">${staminaDisplay}</div>
             <div class="stat-label">Fatigue</div><div class="stat-value">${Math.round(player.health?.fatigue || 0)}</div>
             <div class="stat-label">Injury</div><div class="stat-value">${player.health?.injuryDays || 0} days</div>
             <div class="stat-label">Salary</div><div class="stat-value">$${stats.salary.toLocaleString()}</div>
