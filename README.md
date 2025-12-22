@@ -125,6 +125,23 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
     ```
 4.  Open `http://localhost:8000` in your browser.
 
+## 🚀 로컬 실행 방법
+
+1.  저장소 클론:
+    ```bash
+    git clone https://github.com/CyCle03/diamond-manager.git
+    ```
+2.  디렉토리 이동:
+    ```bash
+    cd diamond-manager
+    ```
+3.  로컬 서버 실행 (Modules/CORS 때문에 필요):
+    ```bash
+    # Python 3
+    python3 -m http.server 8000
+    ```
+4.  브라우저에서 `http://localhost:8000` 접속.
+
 ## 📸 Screenshots
 
 *(Add screenshots here after uploading)*
