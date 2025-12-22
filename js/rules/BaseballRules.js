@@ -76,6 +76,9 @@ export class BaseballRules extends GameRules {
 
             // Top (Away Bats)
             game.log(`TOP ${inning}: Away Team batting.`);
+            if (game.updateInningDisplay) {
+                game.updateInningDisplay('TOP', inning);
+            }
             const awayRuns = await this.simulateHalfInning(game, awayTeam, homeTeam);
             scores.away += awayRuns;
             if (game.recordTeamRuns) {
@@ -84,6 +87,9 @@ export class BaseballRules extends GameRules {
 
             // Bot (Home Bats)
             game.log(`BOT ${inning}: Home Team batting.`);
+            if (game.updateInningDisplay) {
+                game.updateInningDisplay('BOT', inning);
+            }
             const homeRuns = await this.simulateHalfInning(game, homeTeam, awayTeam);
             scores.home += homeRuns;
             if (game.recordTeamRuns) {
@@ -113,11 +119,13 @@ export class BaseballRules extends GameRules {
 
         // Calculate average defense for the fielding team
         const fielders = battingTeam && fieldingTeam && fieldingTeam.lineup
-            ? fieldingTeam.lineup.map(entry => {
-                const player = getPlayer(entry);
-                const role = entry && entry.role ? entry.role : player.position;
-                return { player, role };
-            }).filter(entry => entry.player.position !== 'P')
+            ? fieldingTeam.lineup
+                .filter(entry => entry && (entry.player || entry))
+                .map(entry => {
+                    const player = getPlayer(entry);
+                    const role = entry && entry.role ? entry.role : player.position;
+                    return { player, role };
+                }).filter(entry => entry.player && entry.player.position !== 'P')
             : [];
         const weightedDefense = fielders.reduce((sum, entry) => {
             const weight = entry.role === 'C' ? 1.85 : (entry.role === 'SS' || entry.role === 'CF' ? 1.35 : 1);
@@ -131,10 +139,13 @@ export class BaseballRules extends GameRules {
 
         while (outs < 3) {
             // Get a random batter from the batting lineup
-            const batter = getPlayer(battingTeam.lineup[Math.floor(Math.random() * battingTeam.lineup.length)]);
+            const matchup = game.getNextBatterInfo ? game.getNextBatterInfo(battingTeam) : null;
+            const batter = matchup ? matchup.batter : getPlayer(battingTeam.lineup[Math.floor(Math.random() * battingTeam.lineup.length)]);
+            const nextBatter = matchup ? matchup.nextBatter : null;
             const opponentPitcher = fieldingTeam.pitcher;
 
-            game.updateMatchupDisplay(batter, opponentPitcher);
+            if (!batter) return runs;
+            game.updateMatchupDisplay(batter, opponentPitcher, nextBatter);
             for (let pitchIndex = 0; pitchIndex < 3; pitchIndex++) {
                 if (game.waitForSimulationEvent) {
                     await game.waitForSimulationEvent('pitch');
@@ -171,6 +182,9 @@ export class BaseballRules extends GameRules {
 
             if (recordedOutcome.type === 'sac_fly') {
                 outs++;
+                if (game.updateOutsDisplay) {
+                    game.updateOutsDisplay(outs);
+                }
                 runs++;
                 game.log(`${batter.name}: Sac Fly (${outs} Out)`, { highlight: true });
                 if (game.recordPitcherRun) {
@@ -178,6 +192,9 @@ export class BaseballRules extends GameRules {
                 }
             } else if (outcome.type === 'out') {
                 outs++;
+                if (game.updateOutsDisplay) {
+                    game.updateOutsDisplay(outs);
+                }
                 game.log(`${batter.name}: ${outcome.desc} (${outs} Out)`);
             } else {
                 game.log(`${batter.name}: ${outcome.desc}!`);
@@ -198,6 +215,9 @@ export class BaseballRules extends GameRules {
                         }
                     }
                 }
+            }
+            if (game.advanceBatter) {
+                game.advanceBatter(battingTeam);
             }
         }
         return runs;

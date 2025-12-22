@@ -66,6 +66,7 @@ export class Game {
         this.aaaSalaryMultiplier = 0.25;
         this.aaaAutoManagement = true;
         this.aaaAutoPromotions = false;
+        this.battingOrderState = new Map();
         this.rosterView = 'roster';
         this.marketTab = 'fa';
         this.pitcherStamina = new Map();
@@ -1785,6 +1786,7 @@ export class Game {
         this.incrementGamesForTeam(myMatch.away);
         this.currentMatch = myMatch;
         this.playerIsHomeInCurrentMatch = myMatch.home.id === this.playerTeamId;
+        this.initMatchBattingOrder(myMatch);
         this.ensurePitcherStamina();
         this.ensurePitcherRestDays();
         this.pitcherWorkload = new Map();
@@ -2197,13 +2199,14 @@ export class Game {
         document.getElementById('score-home-val').innerText = '0';
         document.getElementById('score-away-val').innerText = '0';
         document.getElementById('sb-inning').innerText = 'TOP 1';
+        this.updateOutsDisplay(0);
 
         // Reset game status text and log
         document.getElementById('game-status-text').innerText = 'WAITING FOR MATCH...';
         document.getElementById('game-log').innerHTML = '<div class="log-entry">> Set your lineup and click "PLAY BALL" to start.</div>';
 
         // Reset matchup display
-        this.updateMatchupDisplay({ name: '---' }, { name: '---' });
+        this.updateMatchupDisplay({ name: '---' }, { name: '---' }, { name: '---' });
         
         // Ensure play button is enabled
         document.getElementById('play-match-btn').disabled = false;
@@ -2215,9 +2218,14 @@ export class Game {
 
     // --- UI Helpers called by Rules Strategy ---
 
-    updateMatchupDisplay(batter, pitcher) {
+    updateMatchupDisplay(batter, pitcher, nextBatter = null) {
         document.querySelector('.matchup-batter').innerText = `BATTER: ${batter.name}`;
         document.querySelector('.matchup-pitcher').innerText = `PITCHER: ${pitcher.name}`;
+        const nextEl = document.querySelector('.matchup-next');
+        if (nextEl) {
+            const nextName = nextBatter && nextBatter.name ? nextBatter.name : '---';
+            nextEl.innerText = `NEXT: ${nextName}`;
+        }
         this.updatePitcherStaminaUI();
     }
 
@@ -2226,6 +2234,21 @@ export class Game {
         const awayScoreEl = document.getElementById('score-away-val');
         if (homeScoreEl) homeScoreEl.innerText = homeScore;
         if (awayScoreEl) awayScoreEl.innerText = awayScore;
+    }
+
+    updateInningDisplay(half, inning) {
+        const inningEl = document.getElementById('sb-inning');
+        if (!inningEl) return;
+        inningEl.innerText = `${half} ${inning}`;
+        this.updateOutsDisplay(0);
+    }
+
+    updateOutsDisplay(outs) {
+        const dots = document.querySelectorAll('.sb-outs .dot');
+        if (!dots || dots.length === 0) return;
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index < outs);
+        });
     }
 
     log(msg, options = {}) {
@@ -2982,6 +3005,44 @@ export class Game {
         return team.lineup
             .map(entry => entry && entry.player ? entry.player : entry)
             .filter(player => player && player.position !== 'P');
+    }
+
+    initMatchBattingOrder(match) {
+        this.battingOrderState = new Map();
+        if (!match) return;
+        [match.home, match.away].forEach(team => {
+            const order = this.getTeamLineupPlayers(team);
+            this.battingOrderState.set(team.id, { order, index: 0 });
+        });
+    }
+
+    ensureBattingOrderState(team) {
+        if (!team) return null;
+        const existing = this.battingOrderState.get(team.id);
+        const order = this.getTeamLineupPlayers(team);
+        if (!existing || existing.order.length !== order.length) {
+            const state = { order, index: 0 };
+            this.battingOrderState.set(team.id, state);
+            return state;
+        }
+        return existing;
+    }
+
+    getNextBatterInfo(team) {
+        const state = this.ensureBattingOrderState(team);
+        if (!state || state.order.length === 0) {
+            return { batter: null, nextBatter: null };
+        }
+        const batter = state.order[state.index % state.order.length];
+        const nextIndex = (state.index + 1) % state.order.length;
+        const nextBatter = state.order[nextIndex];
+        return { batter, nextBatter };
+    }
+
+    advanceBatter(team) {
+        const state = this.ensureBattingOrderState(team);
+        if (!state || state.order.length === 0) return;
+        state.index = (state.index + 1) % state.order.length;
     }
 
     getTeamActivePitcher(team) {

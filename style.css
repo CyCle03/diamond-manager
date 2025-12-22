@@ -513,6 +513,15 @@ h3 {
     min-width: 0; /* Critical for flex children */
 }
 
+.stadium-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: #111;
+    border-left: 1px solid #333;
+}
+
 .scoreboard {
     height: 100px;
     background: #000;
@@ -593,6 +602,12 @@ h3 {
     display: inline-block;
 }
 
+.sb-outs .dot.active {
+    background: #f5c542;
+    box-shadow: 0 0 6px rgba(245, 197, 66, 0.8);
+    border-color: #f5c542;
+}
+
 /* FIELD CONTAINER */
 .field-container {
     flex: 1;
@@ -633,6 +648,7 @@ h3 {
     border-radius: 50%;
     border: 2px dashed rgba(255, 255, 255, 0.2);
     box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+    z-index: 1;
 }
 
 /* Bases Container - Rotated 45deg for Diamond */
@@ -646,15 +662,21 @@ h3 {
     /* Box is rotated, so corners are bases */
     /* border: 1px dashed rgba(255,255,255,0.1); */
     /* Debug alignment */
+    background: #9a7b65;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.35);
+    z-index: 2;
 }
 
 .base {
-    width: 25px;
-    height: 25px;
-    background: white;
+    width: 28px;
+    height: 28px;
+    background: #f2f2f2;
     position: absolute;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.6);
     transition: background 0.3s;
+    border: 2px solid rgba(0, 0, 0, 0.15);
+    z-index: 3;
 }
 
 .base.active {
@@ -698,7 +720,7 @@ h3 {
     padding: 10px;
     text-align: center;
     background: #111;
-    border-top: 1px solid #444;
+    border-bottom: 1px solid #333;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -751,15 +773,20 @@ h3 {
     margin-bottom: 6px;
 }
 
+.matchup-next {
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: #9a9a9a;
+}
+
 .game-log {
-    flex: 1 1 340px; /* Give it a base width but allow flex grow/shrink */
+    flex: 1;
     background: #000;
     color: #0f0;
     font-family: monospace;
     padding: 10px;
     overflow-y: auto;
     font-size: 0.9rem;
-    border-left: 1px solid #444;
 }
 
 .log-entry {
