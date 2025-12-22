@@ -1,8 +1,8 @@
-# ⚾ Diamond Manager (Web Auto-Battler)
+# ⚾ Diamond Manager (Web Baseball Manager)
 
 [![Play Game](https://img.shields.io/badge/Play-Diamond%20Manager-2ea44f?style=for-the-badge&logo=github)](https://cycle03.github.io/diamond-manager/)
 
-A web-based Baseball Manager Auto-Battler game where you build your roster, manage your lineup and pitching rotation, and compete in a simulated league.
+A web-based Baseball Manager game where you build your roster, manage your lineup and pitching rotation, and compete in a simulated league.
 
 ## 🎮 Features
 
@@ -89,7 +89,7 @@ A web-based Baseball Manager Auto-Battler game where you build your roster, mana
 
 ---
 
-## ⚾ 다이아몬드 매니저 (웹 오토 배틀러)
+## ⚾ 다이아몬드 매니저 (웹 야구 매니저)
 
 라인업과 로테이션을 구성하고, 리그를 시뮬레이션하며 시즌을 운영하는 웹 야구 매니저 게임입니다.
 
