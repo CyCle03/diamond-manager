@@ -1,8 +1,28 @@
 import { GameRules } from '../core/GameRules.js';
 
 export class BaseballRules extends GameRules {
-    constructor() {
+    constructor(options = {}) {
         super("Baseball");
+        const level = options.leagueLevel || 'mlb';
+        this.setLeagueLevel(level);
+    }
+
+    getLeagueLevelConfig(level) {
+        const levels = {
+            mlb: { baserunnerAggression: 1.0, throwOutFactor: 1.0 },
+            aaa: { baserunnerAggression: 0.97, throwOutFactor: 0.93 },
+            aa: { baserunnerAggression: 0.93, throwOutFactor: 0.88 },
+            college: { baserunnerAggression: 0.9, throwOutFactor: 0.82 },
+            highschool: { baserunnerAggression: 0.86, throwOutFactor: 0.75 }
+        };
+        return levels[level] || levels.mlb;
+    }
+
+    setLeagueLevel(level) {
+        const config = this.getLeagueLevelConfig(level);
+        this.leagueLevel = level;
+        this.baserunnerAggression = config.baserunnerAggression;
+        this.throwOutFactor = config.throwOutFactor;
     }
 
     getPositions() {
@@ -71,7 +91,8 @@ export class BaseballRules extends GameRules {
 
         const scores = { home: 0, away: 0 };
 
-        for (let inning = 1; inning <= 9; inning++) {
+        let inning = 1;
+        while (true) {
             game.log(`--- INNING ${inning} START ---`);
 
             // Top (Away Bats)
@@ -79,7 +100,12 @@ export class BaseballRules extends GameRules {
             if (game.updateInningDisplay) {
                 game.updateInningDisplay('TOP', inning);
             }
-            const awayRuns = await this.simulateHalfInning(game, awayTeam, homeTeam);
+            const awayRuns = await this.simulateHalfInning(game, awayTeam, homeTeam, {
+                canWalkOff: false,
+                isHomeBatting: false,
+                homeScore: scores.home,
+                awayScore: scores.away
+            });
             scores.away += awayRuns;
             if (game.updateLineScore) {
                 game.updateLineScore('away', inning, awayRuns);
@@ -88,12 +114,21 @@ export class BaseballRules extends GameRules {
                 game.recordTeamRuns(awayTeam.id, homeTeam.id, awayRuns);
             }
 
+            if (inning >= 9 && scores.home > scores.away) {
+                break;
+            }
+
             // Bot (Home Bats)
             game.log(`BOT ${inning}: Home Team batting.`);
             if (game.updateInningDisplay) {
                 game.updateInningDisplay('BOT', inning);
             }
-            const homeRuns = await this.simulateHalfInning(game, homeTeam, awayTeam);
+            const homeRuns = await this.simulateHalfInning(game, homeTeam, awayTeam, {
+                canWalkOff: inning >= 9,
+                isHomeBatting: true,
+                homeScore: scores.home,
+                awayScore: scores.away
+            });
             scores.home += homeRuns;
             if (game.updateLineScore) {
                 game.updateLineScore('home', inning, homeRuns);
@@ -103,6 +138,10 @@ export class BaseballRules extends GameRules {
             }
 
             game.updateScoreboard(scores.home, scores.away);
+            if (inning >= 9 && scores.home !== scores.away) {
+                break;
+            }
+            inning++;
         }
 
         game.log(`GAME OVER! Final: Home: ${scores.home} - Away: ${scores.away}`);
@@ -116,12 +155,165 @@ export class BaseballRules extends GameRules {
         return scores;
     }
 
-    async simulateHalfInning(game, battingTeam, fieldingTeam) {
+    async simulateHalfInning(game, battingTeam, fieldingTeam, options = {}) {
         let outs = 0;
         let runs = 0;
+        const bases = { first: null, second: null, third: null };
+        const canWalkOff = options.canWalkOff;
+        const isHomeBatting = options.isHomeBatting;
+        const homeScore = options.homeScore || 0;
+        const awayScore = options.awayScore || 0;
+        let walkOffReached = false;
 
         // Helper to get a player object whether the lineup item is a raw Player or an {player, role} entry.
         const getPlayer = (entry) => entry.player || entry;
+        const baserunnerAggression = this.baserunnerAggression || 1;
+        const throwOutFactor = this.throwOutFactor || 1;
+        const scoreRunner = (runner, earned = true) => {
+            if (!runner) return;
+            runs++;
+            if (game.recordPitcherRun) {
+                game.recordPitcherRun(fieldingTeam.pitcher, 1, earned);
+            }
+            if (canWalkOff && isHomeBatting && (homeScore + runs) > awayScore) {
+                walkOffReached = true;
+            }
+        };
+        const recordRunnerOut = (runner, desc) => {
+            outs++;
+            if (game.updateOutsDisplay) {
+                game.updateOutsDisplay(outs);
+            }
+            const name = runner?.name || 'Runner';
+            game.log(`${name} out at ${desc} (${outs} Out)`, { highlight: true });
+        };
+        const forceAdvance = (batter) => {
+            if (bases.first) {
+                if (bases.second) {
+                    if (bases.third) {
+                        scoreRunner(bases.third);
+                    }
+                    bases.third = bases.second;
+                }
+                bases.second = bases.first;
+            }
+            bases.first = batter;
+        };
+        const maybeTakeExtraBase = (runner, baseChance) => {
+            const speed = runner?.stats?.speed || 50;
+            const twoOutBoost = outs >= 2 ? 0.08 : 0;
+            const adjusted = (baseChance + twoOutBoost) * baserunnerAggression;
+            const chance = Math.max(0.15, Math.min(0.9, adjusted + (speed - 50) * 0.006));
+            return Math.random() < chance;
+        };
+        const outfieldArmWeights = { LF: 1.0, CF: 1.1, RF: 1.35 };
+        const getDefenseByRole = (roles, weights = {}) => {
+            if (!fielders.length) return averageDefense;
+            const roleSet = new Set(roles);
+            const defenders = fielders.filter(entry => roleSet.has(entry.role));
+            if (defenders.length === 0) return averageDefense;
+            const total = defenders.reduce((sum, entry) => {
+                const weight = weights[entry.role] ?? 1;
+                return sum + (entry.player.stats.defense || 50) * weight;
+            }, 0);
+            const weightTotal = defenders.reduce((sum, entry) => sum + (weights[entry.role] ?? 1), 0);
+            return weightTotal > 0 ? total / weightTotal : averageDefense;
+        };
+        const attemptScoreWithThrow = (runner, baseOutChance, armDefense) => {
+            const speed = runner?.stats?.speed || 50;
+            const speedFactor = Math.max(0.55, Math.min(1.4, 1 - (speed - 50) * 0.007));
+            const defenseFactor = Math.max(0.6, Math.min(1.5, (armDefense || 50) / 60));
+            const outChance = Math.min(0.6, baseOutChance * throwOutFactor * speedFactor * defenseFactor);
+            if (Math.random() < outChance) {
+                recordRunnerOut(runner, 'home');
+                return false;
+            }
+            return true;
+        };
+        const advanceOnSingle = (batter) => {
+            if (bases.third) {
+                scoreRunner(bases.third);
+                bases.third = null;
+            }
+            if (bases.second) {
+                if (maybeTakeExtraBase(bases.second, 0.62)) {
+                    const armDefense = getDefenseByRole(['LF', 'CF', 'RF'], outfieldArmWeights);
+                    if (attemptScoreWithThrow(bases.second, 0.08, armDefense)) {
+                        scoreRunner(bases.second);
+                    }
+                    bases.second = null;
+                } else {
+                    bases.third = bases.second;
+                    bases.second = null;
+                }
+            }
+            if (bases.first) {
+                const tryHome = outs >= 2 && !bases.third && maybeTakeExtraBase(bases.first, 0.12);
+                if (tryHome) {
+                    const armDefense = getDefenseByRole(['LF', 'CF', 'RF'], outfieldArmWeights);
+                    if (attemptScoreWithThrow(bases.first, 0.28, armDefense)) {
+                        scoreRunner(bases.first);
+                    }
+                    bases.first = null;
+                } else {
+                    if (!bases.third && maybeTakeExtraBase(bases.first, 0.28)) {
+                        bases.third = bases.first;
+                    } else {
+                        bases.second = bases.first;
+                    }
+                    bases.first = null;
+                }
+            }
+            bases.first = batter;
+        };
+        const advanceOnDouble = (batter) => {
+            if (bases.third) {
+                scoreRunner(bases.third);
+                bases.third = null;
+            }
+            if (bases.second) {
+                scoreRunner(bases.second);
+                bases.second = null;
+            }
+            if (bases.first) {
+                if (maybeTakeExtraBase(bases.first, 0.62)) {
+                    const armDefense = getDefenseByRole(['LF', 'CF', 'RF'], outfieldArmWeights);
+                    if (attemptScoreWithThrow(bases.first, 0.18, armDefense)) {
+                        scoreRunner(bases.first);
+                    }
+                    bases.first = null;
+                } else {
+                    bases.third = bases.first;
+                    bases.first = null;
+                }
+            }
+            bases.second = batter;
+        };
+        const advanceOnTriple = (batter) => {
+            if (bases.third) scoreRunner(bases.third);
+            if (bases.second) scoreRunner(bases.second);
+            if (bases.first) scoreRunner(bases.first);
+            bases.first = null;
+            bases.second = null;
+            bases.third = batter;
+        };
+        const advanceOnHomer = (batter) => {
+            if (bases.third) scoreRunner(bases.third);
+            if (bases.second) scoreRunner(bases.second);
+            if (bases.first) scoreRunner(bases.first);
+            bases.first = null;
+            bases.second = null;
+            bases.third = null;
+            scoreRunner(batter);
+        };
+        const getPitchCountEstimate = (batter, pitcher) => {
+            const contact = batter?.stats?.contact || 50;
+            const pitching = pitcher?.stats?.pitching || 50;
+            const base = 3 + Math.floor(Math.random() * 3);
+            const variance = Math.round((contact - pitching) / 40);
+            const bonus = Math.random() < 0.35 ? 1 : 0;
+            return Math.max(3, Math.min(8, base + variance + bonus));
+        };
 
         // Calculate average defense for the fielding team
         const fielders = battingTeam && fieldingTeam && fieldingTeam.lineup
@@ -152,7 +344,8 @@ export class BaseballRules extends GameRules {
 
             if (!batter) return runs;
             game.updateMatchupDisplay(batter, opponentPitcher, nextBatter);
-            for (let pitchIndex = 0; pitchIndex < 3; pitchIndex++) {
+            const pitchCount = getPitchCountEstimate(batter, opponentPitcher);
+            for (let pitchIndex = 0; pitchIndex < pitchCount; pitchIndex++) {
                 if (game.waitForSimulationEvent) {
                     await game.waitForSimulationEvent('pitch');
                 } else {
@@ -173,9 +366,7 @@ export class BaseballRules extends GameRules {
             const outcome = this.calculateOutcome(batter, opponentPitcher, averageDefense, fatigue);
 
             let recordedOutcome = outcome;
-            let sacFlyTriggered = false;
-            if (outcome.type === 'out' && outcome.desc.includes('Flyout') && Math.random() < 0.35) {
-                sacFlyTriggered = true;
+            if (outcome.type === 'out' && outcome.desc.includes('Flyout') && bases.third && outs < 2 && Math.random() < 0.35) {
                 recordedOutcome = { type: 'sac_fly', desc: 'Sac Fly' };
             }
 
@@ -191,36 +382,42 @@ export class BaseballRules extends GameRules {
                 if (game.updateOutsDisplay) {
                     game.updateOutsDisplay(outs);
                 }
-                runs++;
                 game.log(`${batter.name}: Sac Fly (${outs} Out)`, { highlight: true });
-                if (game.recordPitcherRun) {
-                    game.recordPitcherRun(opponentPitcher, 1, true);
-                }
+                scoreRunner(bases.third);
+                bases.third = null;
             } else if (outcome.type === 'out') {
-                outs++;
+                const isGrounder = outcome.desc.includes('Groundout');
+                if (isGrounder && bases.first && outs < 2 && Math.random() < 0.22) {
+                    outs += 2;
+                    bases.first = null;
+                    game.log(`${batter.name}: Groundout DP (${outs} Out)`, { highlight: true });
+                } else {
+                    outs++;
+                    game.log(`${batter.name}: ${outcome.desc} (${outs} Out)`);
+                }
                 if (game.updateOutsDisplay) {
                     game.updateOutsDisplay(outs);
                 }
-                game.log(`${batter.name}: ${outcome.desc} (${outs} Out)`);
             } else {
                 game.log(`${batter.name}: ${outcome.desc}!`);
                 if (outcome.type === 'hit') {
                     if (outcome.desc.includes('Home Run')) {
-                        runs++;
                         game.log(`>>> HOME RUN! <<<<`, { highlight: true });
-                        if (game.recordPitcherRun) {
-                            game.recordPitcherRun(opponentPitcher, 1, true);
-                        }
+                        advanceOnHomer(batter);
+                    } else if (outcome.desc.includes('Triple')) {
+                        advanceOnTriple(batter);
+                    } else if (outcome.desc.includes('Double')) {
+                        advanceOnDouble(batter);
                     } else {
-                        if (Math.random() > 0.7) {
-                            runs++;
-                            game.log(`> Runner scores!`, { highlight: true });
-                            if (game.recordPitcherRun) {
-                                game.recordPitcherRun(opponentPitcher, 1, Math.random() > 0.15);
-                            }
-                        }
+                        advanceOnSingle(batter);
                     }
+                } else if (outcome.type === 'walk' || outcome.type === 'hbp') {
+                    forceAdvance(batter);
                 }
+            }
+            if (walkOffReached) {
+                game.log(`WALK-OFF!`, { highlight: true });
+                return runs;
             }
             if (game.advanceBatter) {
                 game.advanceBatter(battingTeam);

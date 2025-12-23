@@ -73,8 +73,15 @@ export class PlayerGenerator {
             pitcherCount++;
         }
 
-        // 4. Fill the rest with random players
+        // 4. Fill the rest with random players (avoid exceeding pitcher cap)
         while (roster.length < size) {
+            pitcherCount = roster.filter(p => p.position === 'P').length;
+            if (pitcherCount >= targetPitchers) {
+                const nonPitchers = positions.filter(pos => pos !== 'P');
+                const pos = nonPitchers[Math.floor(Math.random() * nonPitchers.length)];
+                roster.push(this.createPlayer(rules, pos));
+                continue;
+            }
             roster.push(this.createPlayer(rules));
         }
 

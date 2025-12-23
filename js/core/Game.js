@@ -3292,8 +3292,8 @@ export class Game {
                 <div class="modal-section-title">Current Season</div>
                 <div class="season-line">BAT ${this.formatBattingLine(current)}</div>
                 <div class="season-line">PIT ${this.formatPitchingLine(current)}</div>
-                <div class="season-line">G ${current.games} • PA ${current.plateAppearances} • HR ${current.homeRuns} • BB ${current.walks} • HBP ${current.hitByPitch}</div>
-                <div class="season-line">R ${current.pitcherRunsAllowed} • ER ${current.pitcherEarnedRunsAllowed} • UER ${current.pitcherUnearnedRunsAllowed}</div>
+                <div class="season-line">G ${current.games} • PA ${current.plateAppearances} • HR ${current.homeRuns} • BB ${current.walks} • HBP ${current.hitByPitch} • K ${current.strikeouts || 0}</div>
+                <div class="season-line">R ${current.pitcherRunsAllowed} • ER ${current.pitcherEarnedRunsAllowed} • UER ${current.pitcherUnearnedRunsAllowed} • K ${current.pitcherStrikeouts || 0} • HR ${current.pitcherHomeRunsAllowed || 0}</div>
             </div>
             ${this.renderSeasonHistory(performance)}
             `
@@ -3366,6 +3366,7 @@ export class Game {
                 walks: legacy.walks || 0,
                 hitByPitch: legacy.hitByPitch || 0,
                 sacFlies: legacy.sacFlies || 0,
+                strikeouts: legacy.strikeouts || 0,
                 outs: legacy.outs || 0,
                 pitcherBattersFaced: legacy.pitcherBattersFaced || 0,
                 pitcherHitsAllowed: legacy.pitcherHitsAllowed || 0,
@@ -3374,7 +3375,9 @@ export class Game {
                 pitcherHitByPitchAllowed: legacy.pitcherHitByPitchAllowed || 0,
                 pitcherRunsAllowed: legacy.pitcherRunsAllowed || 0,
                 pitcherEarnedRunsAllowed: legacy.pitcherEarnedRunsAllowed || 0,
-                pitcherUnearnedRunsAllowed: legacy.pitcherUnearnedRunsAllowed || 0
+                pitcherUnearnedRunsAllowed: legacy.pitcherUnearnedRunsAllowed || 0,
+                pitcherStrikeouts: legacy.pitcherStrikeouts || 0,
+                pitcherHomeRunsAllowed: legacy.pitcherHomeRunsAllowed || 0
             };
             player.performance.seasons = legacy.seasons || [];
         }
@@ -3388,10 +3391,13 @@ export class Game {
             current.walks = current.walks || 0;
             current.hitByPitch = current.hitByPitch || 0;
             current.sacFlies = current.sacFlies || 0;
+            current.strikeouts = current.strikeouts || 0;
             current.pitcherWalksAllowed = current.pitcherWalksAllowed || 0;
             current.pitcherHitByPitchAllowed = current.pitcherHitByPitchAllowed || 0;
             current.pitcherEarnedRunsAllowed = current.pitcherEarnedRunsAllowed || 0;
             current.pitcherUnearnedRunsAllowed = current.pitcherUnearnedRunsAllowed || 0;
+            current.pitcherStrikeouts = current.pitcherStrikeouts || 0;
+            current.pitcherHomeRunsAllowed = current.pitcherHomeRunsAllowed || 0;
         }
 
         return player.performance;
@@ -4041,6 +4047,9 @@ export class Game {
         } else if (outcome.type === 'out') {
             current.atBats += 1;
             current.outs += 1;
+            if (outcome.desc && outcome.desc.includes('Strikeout')) {
+                current.strikeouts = (current.strikeouts || 0) + 1;
+            }
         }
     }
 
@@ -4050,6 +4059,9 @@ export class Game {
         current.pitcherBattersFaced += 1;
         if (outcome.type === 'hit') {
             current.pitcherHitsAllowed += 1;
+            if (outcome.desc && outcome.desc.includes('Home Run')) {
+                current.pitcherHomeRunsAllowed = (current.pitcherHomeRunsAllowed || 0) + 1;
+            }
         } else if (outcome.type === 'walk') {
             current.pitcherWalksAllowed += 1;
         } else if (outcome.type === 'hbp') {
@@ -4058,6 +4070,9 @@ export class Game {
             current.pitcherOuts += 1;
         } else if (outcome.type === 'out') {
             current.pitcherOuts += 1;
+            if (outcome.desc && outcome.desc.includes('Strikeout')) {
+                current.pitcherStrikeouts = (current.pitcherStrikeouts || 0) + 1;
+            }
         }
     }
 

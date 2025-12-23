@@ -52,6 +52,7 @@ export class Player {
                 walks: 0,
                 hitByPitch: 0,
                 sacFlies: 0,
+                strikeouts: 0,
                 outs: 0,
                 pitcherBattersFaced: 0,
                 pitcherHitsAllowed: 0,
@@ -60,7 +61,9 @@ export class Player {
                 pitcherHitByPitchAllowed: 0,
                 pitcherRunsAllowed: 0,
                 pitcherEarnedRunsAllowed: 0,
-                pitcherUnearnedRunsAllowed: 0
+                pitcherUnearnedRunsAllowed: 0,
+                pitcherStrikeouts: 0,
+                pitcherHomeRunsAllowed: 0
             },
             seasons: []
         };
