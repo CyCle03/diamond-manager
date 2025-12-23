@@ -76,6 +76,7 @@ export class Game {
         this.pitcherRestDays = new Map();
         this.pitcherWorkload = new Map();
         this.pitcherWorkloadHistory = new Map();
+        this.pitcherPitchCount = new Map();
         this.currentMatch = null;
         this.bullpenRoles = ['Long Relief', 'Middle Relief', 'Setup', 'Closer', 'Opener'];
         this.autoBullpenEnabled = false;
@@ -1824,8 +1825,11 @@ export class Game {
         this.ensurePitcherStamina();
         this.ensurePitcherRestDays();
         this.pitcherWorkload = new Map();
+        this.pitcherPitchCount = new Map();
         this.updatePitcherStaminaUI();
         this.updateBullpenSelect();
+        this.ensurePitcherStaminaForTeam(myMatch.home);
+        this.ensurePitcherStaminaForTeam(myMatch.away);
 
         // 3. Update UI to "Simulating" state
         this.isSimulating = true;
@@ -2280,6 +2284,7 @@ export class Game {
         document.getElementById('sb-inning').innerText = 'TOP 1';
         this.updateOutsDisplay(0);
         this.initLineScore();
+        this.updateBasesDisplay({ first: null, second: null, third: null });
 
         // Reset game status text and log
         document.getElementById('game-status-text').innerText = 'WAITING FOR MATCH...';
@@ -2296,6 +2301,7 @@ export class Game {
         this.matchCompleted = false;
         this.matchSummary = null;
         this.setMatchSummaryVisible(false);
+        this.pitcherPitchCount = new Map();
         this.updatePitcherStaminaUI();
     }
 
@@ -2317,6 +2323,17 @@ export class Game {
         const awayScoreEl = document.getElementById('score-away-val');
         if (homeScoreEl) homeScoreEl.innerText = homeScore;
         if (awayScoreEl) awayScoreEl.innerText = awayScore;
+    }
+
+    updateBasesDisplay(bases) {
+        const first = document.getElementById('base-1');
+        const second = document.getElementById('base-2');
+        const third = document.getElementById('base-3');
+        if (!first || !second || !third) return;
+        const occupied = bases || {};
+        first.classList.toggle('active', !!occupied.first);
+        second.classList.toggle('active', !!occupied.second);
+        third.classList.toggle('active', !!occupied.third);
     }
 
     initLineScore() {
@@ -2428,7 +2445,7 @@ export class Game {
 
     updateMatchSummary(homeScore, awayScore) {
         if (!this.matchSummary) return;
-        const summary = document.getElementById('match-summary');
+        const summary = document.getElementById('match-summary-overlay');
         if (!summary) return;
         const home = this.matchSummary.home;
         const away = this.matchSummary.away;
@@ -2456,9 +2473,10 @@ export class Game {
     }
 
     setMatchSummaryVisible(visible) {
-        const summary = document.getElementById('match-summary');
+        const summary = document.getElementById('match-summary-overlay');
         if (!summary) return;
         summary.classList.toggle('hidden', !visible);
+        summary.style.display = visible ? 'flex' : 'none';
     }
 
     switchView(mode) {
@@ -2518,6 +2536,7 @@ export class Game {
         const nextMatchBtn = document.getElementById('next-match-btn');
         const summaryNextBtn = document.getElementById('summary-next-match-btn');
         const summaryLeagueBtn = document.getElementById('summary-league-btn');
+        const summaryConfirmBtn = document.getElementById('summary-confirm-btn');
 
         if (autoBtn) autoBtn.addEventListener('click', () => this.setSimulationMode('auto'));
         if (pitchBtn) pitchBtn.addEventListener('click', () => this.setSimulationMode('pitch'));
@@ -2566,6 +2585,11 @@ export class Game {
                 if (!this.league) return;
                 this.updateLeagueView();
                 this.switchView('league');
+            });
+        }
+        if (summaryConfirmBtn) {
+            summaryConfirmBtn.addEventListener('click', () => {
+                this.setMatchSummaryVisible(false);
             });
         }
 
@@ -2996,7 +3020,8 @@ export class Game {
             return;
         }
         const { current, max, ratio } = this.getPitcherStaminaValues(pitcher);
-        staminaEl.innerText = `PITCHER STAMINA: ${Math.round(current)}/${Math.round(max)} (${Math.round(ratio * 100)}%)`;
+        const pitches = this.pitcherPitchCount.get(pitcher.id) || 0;
+        staminaEl.innerText = `PITCHER STAMINA: ${Math.round(current)}/${Math.round(max)} (${Math.round(ratio * 100)}%) • PITCHES ${pitches}`;
         this.maybeAutoSubstitute(pitcher, ratio);
         this.updatePitcherStaminaBadges();
     }
@@ -3142,6 +3167,17 @@ export class Game {
         });
     }
 
+    ensurePitcherStaminaForTeam(team) {
+        if (!team || !team.roster) return;
+        team.roster.forEach(player => {
+            if (player.position !== 'P') return;
+            if (!this.pitcherStamina.has(player.id)) {
+                const max = Math.max(50, player.stats.stamina || 80);
+                this.pitcherStamina.set(player.id, max);
+            }
+        });
+    }
+
     ensurePitcherRestDays() {
         this.roster.forEach(player => {
             if (player.position !== 'P') return;
@@ -3166,6 +3202,8 @@ export class Game {
         this.pitcherStamina.set(pitcher.id, Math.max(0, current - drain));
         const workload = this.pitcherWorkload.get(pitcher.id) || 0;
         this.pitcherWorkload.set(pitcher.id, workload + drain);
+        const pitchCount = this.pitcherPitchCount.get(pitcher.id) || 0;
+        this.pitcherPitchCount.set(pitcher.id, pitchCount + Math.max(1, Math.round(amount)));
     }
 
     getPitcherStaminaRatio(pitcher) {
@@ -3410,6 +3448,39 @@ export class Game {
         }
     }
 
+    maybeAutoSubstituteForTeam(team, pitcher) {
+        if (!this.autoBullpenEnabled || !this.isSimulating || !team) return;
+        if (!pitcher) return;
+        const ratio = this.getPitcherStaminaRatio(pitcher);
+        if (ratio > this.autoBullpenThreshold) return;
+        if (this.isAutoSubstituting) return;
+
+        const bullpen = (team.roster || []).filter(player => player.position === 'P' && player.id !== pitcher.id);
+        if (bullpen.length === 0) return;
+        bullpen.forEach(player => this.ensureBullpenRole(player));
+
+        const rolePriority = ['Middle Relief', 'Long Relief', 'Setup', 'Closer', 'Opener'];
+        const best = bullpen
+            .map(player => ({
+                player,
+                roleIndex: rolePriority.indexOf(player.bullpenRole || 'Long Relief'),
+                staminaRatio: this.getPitcherStaminaRatio(player)
+            }))
+            .sort((a, b) => {
+                if (a.roleIndex !== b.roleIndex) return a.roleIndex - b.roleIndex;
+                return b.staminaRatio - a.staminaRatio;
+            })[0];
+
+        if (best && best.player && best.player.id !== pitcher.id) {
+            this.isAutoSubstituting = true;
+            try {
+                this.substitutePitcherForTeam(team, best.player);
+            } finally {
+                this.isAutoSubstituting = false;
+            }
+        }
+    }
+
     substitutePitcher(playerId) {
         if (!this.currentMatch) return;
         const pitcher = this.roster.find(player => player.id === playerId);
@@ -3424,6 +3495,19 @@ export class Game {
             this.pitcherStamina.set(pitcher.id, max);
         }
         this.updatePitcherStaminaUI();
+        this.log(`Pitching change: ${pitcher.name} enters.`);
+    }
+
+    substitutePitcherForTeam(team, pitcher) {
+        if (!team || !pitcher) return;
+        team.pitcher = pitcher;
+        if (!this.pitcherStamina.has(pitcher.id)) {
+            const max = Math.max(50, pitcher.stats.stamina || 80);
+            this.pitcherStamina.set(pitcher.id, max);
+        }
+        if (this.currentMatch && (team.id === this.playerTeamId)) {
+            this.updatePitcherStaminaUI();
+        }
         this.log(`Pitching change: ${pitcher.name} enters.`);
     }
 

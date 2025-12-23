@@ -267,43 +267,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="match-summary" class="match-summary hidden">
-                            <div class="match-summary-title">GAME SUMMARY</div>
-                            <div class="match-summary-score" id="match-summary-score">FINAL</div>
-                            <div class="match-summary-grid">
-                                <div class="match-summary-row header">
-                                    <span>TEAM</span>
-                                    <span>R</span>
-                                    <span>H</span>
-                                    <span>HR</span>
-                                    <span>BB</span>
-                                    <span>SO</span>
-                                    <span>HBP</span>
-                                </div>
-                                <div class="match-summary-row">
-                                    <span id="match-summary-away-name">AWAY</span>
-                                    <span id="match-summary-away-r">0</span>
-                                    <span id="match-summary-away-h">0</span>
-                                    <span id="match-summary-away-hr">0</span>
-                                    <span id="match-summary-away-bb">0</span>
-                                    <span id="match-summary-away-so">0</span>
-                                    <span id="match-summary-away-hbp">0</span>
-                                </div>
-                                <div class="match-summary-row">
-                                    <span id="match-summary-home-name">HOME</span>
-                                    <span id="match-summary-home-r">0</span>
-                                    <span id="match-summary-home-h">0</span>
-                                    <span id="match-summary-home-hr">0</span>
-                                    <span id="match-summary-home-bb">0</span>
-                                    <span id="match-summary-home-so">0</span>
-                                    <span id="match-summary-home-hbp">0</span>
-                                </div>
-                            </div>
-                            <div class="match-summary-actions">
-                                <button id="summary-next-match-btn" class="nav-btn">NEXT MATCH</button>
-                                <button id="summary-league-btn" class="nav-btn">LEAGUE</button>
-                            </div>
-                        </div>
                         <div class="game-log" id="game-log">
                             <div class="log-entry">> Welcome to Diamond Manager.</div>
                             <div class="log-entry">> Set your lineup and perform roster moves.</div>
@@ -531,6 +494,47 @@
                 <button id="player-modal-action" class="cyber-button compact">ACTION</button>
                 <button id="player-modal-secondary" class="nav-btn">SECONDARY</button>
                 <button id="player-modal-cancel" class="nav-btn">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="match-summary-overlay" class="modal-overlay hidden">
+        <div class="modal-card match-summary-card">
+            <div class="match-summary-title">GAME SUMMARY</div>
+            <div class="match-summary-score" id="match-summary-score">FINAL</div>
+            <div class="match-summary-grid">
+                <div class="match-summary-row header">
+                    <span>TEAM</span>
+                    <span>R</span>
+                    <span>H</span>
+                    <span>HR</span>
+                    <span>BB</span>
+                    <span>SO</span>
+                    <span>HBP</span>
+                </div>
+                <div class="match-summary-row">
+                    <span id="match-summary-away-name">AWAY</span>
+                    <span id="match-summary-away-r">0</span>
+                    <span id="match-summary-away-h">0</span>
+                    <span id="match-summary-away-hr">0</span>
+                    <span id="match-summary-away-bb">0</span>
+                    <span id="match-summary-away-so">0</span>
+                    <span id="match-summary-away-hbp">0</span>
+                </div>
+                <div class="match-summary-row">
+                    <span id="match-summary-home-name">HOME</span>
+                    <span id="match-summary-home-r">0</span>
+                    <span id="match-summary-home-h">0</span>
+                    <span id="match-summary-home-hr">0</span>
+                    <span id="match-summary-home-bb">0</span>
+                    <span id="match-summary-home-so">0</span>
+                    <span id="match-summary-home-hbp">0</span>
+                </div>
+            </div>
+            <div class="match-summary-actions">
+                <button id="summary-next-match-btn" class="nav-btn">NEXT MATCH</button>
+                <button id="summary-league-btn" class="nav-btn">LEAGUE</button>
+                <button id="summary-confirm-btn" class="nav-btn">OK</button>
             </div>
         </div>
     </div>

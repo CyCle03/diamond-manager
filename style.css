@@ -835,18 +835,6 @@ h3 {
     color: #9a9a9a;
 }
 
-.match-summary {
-    width: 100%;
-    background: #141414;
-    border-bottom: 1px solid #2b2b2b;
-    padding: 10px 12px 12px;
-    text-align: left;
-}
-
-.match-summary.hidden {
-    display: none;
-}
-
 .match-summary-title {
     font-size: 0.9rem;
     letter-spacing: 0.08em;
@@ -890,6 +878,15 @@ h3 {
 .match-summary-actions .nav-btn {
     padding: 6px 12px;
     font-size: 0.85rem;
+}
+
+.match-summary-card {
+    width: min(720px, 92vw);
+    background: #161616;
+}
+
+.match-summary-card .match-summary-grid {
+    margin-top: 12px;
 }
 
 .game-log {

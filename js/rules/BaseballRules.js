@@ -167,6 +167,11 @@ export class BaseballRules extends GameRules {
 
         // Helper to get a player object whether the lineup item is a raw Player or an {player, role} entry.
         const getPlayer = (entry) => entry.player || entry;
+        const updateBases = () => {
+            if (game.updateBasesDisplay) {
+                game.updateBasesDisplay(bases);
+            }
+        };
         const baserunnerAggression = this.baserunnerAggression || 1;
         const throwOutFactor = this.throwOutFactor || 1;
         const scoreRunner = (runner, earned = true) => {
@@ -335,6 +340,7 @@ export class BaseballRules extends GameRules {
         }, 0);
         const averageDefense = weightTotal > 0 ? weightedDefense / weightTotal : 50; // Default to 50 if no fielders
 
+        updateBases();
         while (outs < 3) {
             // Get a random batter from the batting lineup
             const matchup = game.getNextBatterInfo ? game.getNextBatterInfo(battingTeam) : null;
@@ -418,9 +424,13 @@ export class BaseballRules extends GameRules {
                     forceAdvance(batter);
                 }
             }
+            updateBases();
             if (walkOffReached) {
                 game.log(`WALK-OFF!`, { highlight: true });
                 return runs;
+            }
+            if (game.maybeAutoSubstituteForTeam) {
+                game.maybeAutoSubstituteForTeam(fieldingTeam, opponentPitcher);
             }
             if (game.advanceBatter) {
                 game.advanceBatter(battingTeam);
