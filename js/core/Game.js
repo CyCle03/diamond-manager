@@ -2787,7 +2787,7 @@ export class Game {
             };
         }
         if (autoViewSelect) {
-            autoViewSelect.disabled = !enabled;
+            autoViewSelect.disabled = false;
         }
         if (autoBullpenToggle) {
             autoBullpenToggle.disabled = false;
@@ -2797,7 +2797,7 @@ export class Game {
         const bullpenSelect = document.getElementById('bullpen-select');
         const subBtn = document.getElementById('sub-pitcher-btn');
         const nextMatchBtn = document.getElementById('next-match-btn');
-        if (bullpenSelect) bullpenSelect.disabled = !enabled;
+        if (bullpenSelect) bullpenSelect.disabled = false;
         if (subBtn) subBtn.disabled = !enabled;
         if (nextMatchBtn) {
             nextMatchBtn.disabled = this.isSimulating || !this.matchCompleted;
