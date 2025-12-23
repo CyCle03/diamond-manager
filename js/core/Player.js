@@ -53,6 +53,8 @@ export class Player {
                 hitByPitch: 0,
                 sacFlies: 0,
                 strikeouts: 0,
+                stolenBases: 0,
+                caughtStealing: 0,
                 outs: 0,
                 pitcherBattersFaced: 0,
                 pitcherHitsAllowed: 0,

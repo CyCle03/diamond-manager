@@ -198,11 +198,14 @@ h3 {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    padding-right: 6px;
 }
 
 .stats-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 16px;
 }
 
@@ -213,8 +216,8 @@ h3 {
 }
 
 .player-rank-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 14px;
 }
 
@@ -1324,6 +1327,9 @@ h3 {
 .team-stats-table th,
 .team-stats-table td {
     text-align: center;
+    white-space: nowrap;
+    font-size: 0.75rem;
+    padding: 4px 6px;
 }
 
 .team-stats-table th:nth-child(2),
@@ -1375,16 +1381,57 @@ h3 {
 
 .player-rank-section {
     margin-top: 10px;
+    overflow-x: auto;
 }
 
 .player-rank-table th,
 .player-rank-table td {
     text-align: center;
+    white-space: nowrap;
+    font-size: 0.72rem;
+    padding: 4px 6px;
 }
 
 .player-rank-table th:nth-child(2),
 .player-rank-table td:nth-child(2) {
     text-align: left;
+}
+
+.team-stats-table,
+.player-rank-table {
+    table-layout: fixed;
+    min-width: 860px;
+}
+
+.standings-table-wrapper {
+    overflow-x: auto;
+}
+
+.recent-games-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.recent-game-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #181818;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 0.82rem;
+    color: #cfcfcf;
+}
+
+.recent-game-row .result {
+    font-weight: 600;
+    color: #9fd0a8;
+}
+
+.recent-game-row .result.loss {
+    color: #d08f8f;
 }
 
 .modal-body .stat-label {

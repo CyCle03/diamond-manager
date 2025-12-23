@@ -2023,6 +2023,12 @@ export class Game {
         return `${last}${count}`;
     }
 
+    getTeamNameById(teamId) {
+        if (!this.league || !this.league.teams) return null;
+        const team = this.league.teams.find(entry => entry.id === teamId);
+        return team ? team.name : null;
+    }
+
     renderPositionRankings() {
         const container = document.getElementById('position-rankings');
         if (!container) return;
@@ -2155,7 +2161,8 @@ export class Game {
                 games: 0,
                 runsForByGame: [],
                 runsAgainstByGame: [],
-                results: []
+                results: [],
+                gameLog: []
             };
         });
     }
@@ -2171,11 +2178,15 @@ export class Game {
                     games: 0,
                     runsForByGame: [],
                     runsAgainstByGame: [],
-                    results: []
+                    results: [],
+                    gameLog: []
                 };
             }
             if (!this.teamSeasonStats[team.id].results) {
                 this.teamSeasonStats[team.id].results = [];
+            }
+            if (!this.teamSeasonStats[team.id].gameLog) {
+                this.teamSeasonStats[team.id].gameLog = [];
             }
         });
     }
@@ -2202,10 +2213,12 @@ export class Game {
                     games: 0,
                     runsForByGame: [],
                     runsAgainstByGame: [],
-                    results: []
+                    results: [],
+                    gameLog: []
                 };
             }
             if (!this.teamSeasonStats[id].results) this.teamSeasonStats[id].results = [];
+            if (!this.teamSeasonStats[id].gameLog) this.teamSeasonStats[id].gameLog = [];
         };
         ensure(homeTeamId);
         ensure(awayTeamId);
@@ -2219,6 +2232,28 @@ export class Game {
         const awayResult = homeRuns >= awayRuns ? 'L' : 'W';
         this.teamSeasonStats[homeTeamId].results.push(homeResult);
         this.teamSeasonStats[awayTeamId].results.push(awayResult);
+
+        const round = this.league ? (this.league.currentRoundIndex + 1) : 0;
+        const homeName = this.getTeamNameById(homeTeamId) || 'HOME';
+        const awayName = this.getTeamNameById(awayTeamId) || 'AWAY';
+        this.teamSeasonStats[homeTeamId].gameLog.push({
+            round,
+            opponentId: awayTeamId,
+            opponentName: awayName,
+            isHome: true,
+            runsFor: homeRuns,
+            runsAgainst: awayRuns,
+            result: homeResult
+        });
+        this.teamSeasonStats[awayTeamId].gameLog.push({
+            round,
+            opponentId: homeTeamId,
+            opponentName: homeName,
+            isHome: false,
+            runsFor: awayRuns,
+            runsAgainst: homeRuns,
+            result: awayResult
+        });
     }
 
     resetMatchView() {
@@ -3529,6 +3564,8 @@ export class Game {
                 hitByPitch: legacy.hitByPitch || 0,
                 sacFlies: legacy.sacFlies || 0,
                 strikeouts: legacy.strikeouts || 0,
+                stolenBases: legacy.stolenBases || 0,
+                caughtStealing: legacy.caughtStealing || 0,
                 outs: legacy.outs || 0,
                 pitcherBattersFaced: legacy.pitcherBattersFaced || 0,
                 pitcherHitsAllowed: legacy.pitcherHitsAllowed || 0,
@@ -3554,6 +3591,8 @@ export class Game {
             current.hitByPitch = current.hitByPitch || 0;
             current.sacFlies = current.sacFlies || 0;
             current.strikeouts = current.strikeouts || 0;
+            current.stolenBases = current.stolenBases || 0;
+            current.caughtStealing = current.caughtStealing || 0;
             current.pitcherWalksAllowed = current.pitcherWalksAllowed || 0;
             current.pitcherHitByPitchAllowed = current.pitcherHitByPitchAllowed || 0;
             current.pitcherEarnedRunsAllowed = current.pitcherEarnedRunsAllowed || 0;
@@ -3612,11 +3651,16 @@ export class Game {
         const totalBases = singles + 2 * doubles + 3 * triples + 4 * homeRuns;
         const slg = atBats ? totalBases / atBats : 0;
         const ops = obp + slg;
+        const wobaDenominator = obpDenominator;
+        const woba = wobaDenominator
+            ? (0.69 * walks + 0.72 * hbp + 0.88 * singles + 1.247 * doubles + 1.578 * triples + 2.031 * homeRuns) / wobaDenominator
+            : 0;
         return {
             avg: this.formatAverage(hits, atBats),
             obp: this.formatRate(obp),
             slg: this.formatRate(slg),
             ops: this.formatRate(ops),
+            woba: this.formatRate(woba),
             totalBases
         };
     }
@@ -3742,9 +3786,17 @@ export class Game {
                 <td>${entry.team.name}</td>
                 <td>${entry.avg}</td>
                 <td>${entry.ops}</td>
+                <td>${entry.runsFor}</td>
+                <td>${entry.hits}</td>
+                <td>${entry.homeRuns}</td>
+                <td>${entry.walks}</td>
+                <td>${entry.strikeouts}</td>
+                <td>${entry.hitByPitch}</td>
+                <td>${entry.stolenBases}</td>
+                <td>${entry.caughtStealing}</td>
+                <td>${entry.der}</td>
                 <td>${entry.era}</td>
                 <td>${entry.whip}</td>
-                <td>${entry.runsFor}</td>
                 <td>${entry.runsAgainst}</td>
                 <td>${entry.raPerGame}</td>
                 <td>${entry.ra9}</td>
@@ -3756,6 +3808,7 @@ export class Game {
 
         this.renderTeamTrendChart();
         this.renderPlayerRankings();
+        this.renderRecentGames();
     }
 
     calculateTeamStats(team) {
@@ -3777,6 +3830,9 @@ export class Game {
             acc.walks += perf.walks || 0;
             acc.hitByPitch += perf.hitByPitch || 0;
             acc.sacFlies += perf.sacFlies || 0;
+            acc.strikeouts += perf.strikeouts || 0;
+            acc.stolenBases += perf.stolenBases || 0;
+            acc.caughtStealing += perf.caughtStealing || 0;
             return acc;
         }, {
             plateAppearances: 0,
@@ -3788,7 +3844,10 @@ export class Game {
             homeRuns: 0,
             walks: 0,
             hitByPitch: 0,
-            sacFlies: 0
+            sacFlies: 0,
+            strikeouts: 0,
+            stolenBases: 0,
+            caughtStealing: 0
         });
 
         const batting = this.calculateBattingStats(battingTotals);
@@ -3803,6 +3862,8 @@ export class Game {
             acc.pitcherHitsAllowed += perf.pitcherHitsAllowed || 0;
             acc.pitcherWalksAllowed += perf.pitcherWalksAllowed || 0;
             acc.pitcherHitByPitchAllowed += perf.pitcherHitByPitchAllowed || 0;
+            acc.pitcherStrikeouts += perf.pitcherStrikeouts || 0;
+            acc.pitcherHomeRunsAllowed += perf.pitcherHomeRunsAllowed || 0;
             return acc;
         }, {
             pitcherOuts: 0,
@@ -3811,7 +3872,9 @@ export class Game {
             pitcherUnearnedRunsAllowed: 0,
             pitcherHitsAllowed: 0,
             pitcherWalksAllowed: 0,
-            pitcherHitByPitchAllowed: 0
+            pitcherHitByPitchAllowed: 0,
+            pitcherStrikeouts: 0,
+            pitcherHomeRunsAllowed: 0
         });
 
         const pitching = this.calculatePitchingStats(pitchingTotals);
@@ -3819,10 +3882,22 @@ export class Game {
         const ip = pitchingTotals.pitcherOuts / 3;
         const ra9 = ip ? ((teamSeason.runsAgainst * 9) / ip).toFixed(2) : '0.00';
         const raPerGame = teamSeason.games ? (teamSeason.runsAgainst / teamSeason.games).toFixed(2) : '0.00';
+        const outsInPlay = Math.max(0, pitchingTotals.pitcherOuts - pitchingTotals.pitcherStrikeouts);
+        const hitsInPlay = Math.max(0, pitchingTotals.pitcherHitsAllowed - pitchingTotals.pitcherHomeRunsAllowed);
+        const bipTotal = outsInPlay + hitsInPlay;
+        const derValue = bipTotal ? (outsInPlay / bipTotal) : 0;
 
         return {
             avg: batting.avg,
             ops: batting.ops,
+            hits: battingTotals.hits,
+            homeRuns: battingTotals.homeRuns,
+            walks: battingTotals.walks,
+            strikeouts: battingTotals.strikeouts,
+            hitByPitch: battingTotals.hitByPitch,
+            stolenBases: battingTotals.stolenBases,
+            caughtStealing: battingTotals.caughtStealing,
+            der: this.formatRate(derValue),
             era: pitching.era,
             whip: pitching.whip,
             runsFor: teamSeason.runsFor,
@@ -3851,6 +3926,22 @@ export class Game {
                     return parseFloat(entry.whip);
                 case 'runsFor':
                     return entry.runsFor;
+                case 'hits':
+                    return entry.hits;
+                case 'homeRuns':
+                    return entry.homeRuns;
+                case 'walks':
+                    return entry.walks;
+                case 'strikeouts':
+                    return entry.strikeouts;
+                case 'hitByPitch':
+                    return entry.hitByPitch;
+                case 'stolenBases':
+                    return entry.stolenBases;
+                case 'caughtStealing':
+                    return entry.caughtStealing;
+                case 'der':
+                    return parseFloat(entry.der);
                 case 'runsAgainst':
                     return entry.runsAgainst;
                 case 'raPerGame':
@@ -3940,9 +4031,17 @@ export class Game {
             return {
                 player,
                 avg: batting.avg,
+                obp: batting.obp,
+                slg: batting.slg,
                 ops: batting.ops,
-                hr: perf.homeRuns,
-                games: perf.games
+                woba: batting.woba,
+                ab: perf.atBats || 0,
+                hits: perf.hits || 0,
+                doubles: perf.doubles || 0,
+                triples: perf.triples || 0,
+                hr: perf.homeRuns || 0,
+                bb: perf.walks || 0,
+                so: perf.strikeouts || 0
             };
         });
 
@@ -3955,6 +4054,10 @@ export class Game {
                 era: pitching.era,
                 whip: pitching.whip,
                 ip,
+                k: perf.pitcherStrikeouts || 0,
+                bb: perf.pitcherWalksAllowed || 0,
+                hr: perf.pitcherHomeRunsAllowed || 0,
+                h: perf.pitcherHitsAllowed || 0,
                 games: perf.games
             };
         });
@@ -3969,9 +4072,17 @@ export class Game {
                 <td>${index + 1}</td>
                 <td>${entry.player.name}</td>
                 <td>${entry.avg}</td>
+                <td>${entry.obp}</td>
+                <td>${entry.slg}</td>
                 <td>${entry.ops}</td>
+                <td>${entry.woba}</td>
+                <td>${entry.ab}</td>
+                <td>${entry.hits}</td>
+                <td>${entry.doubles}</td>
+                <td>${entry.triples}</td>
                 <td>${entry.hr}</td>
-                <td>${entry.games}</td>
+                <td>${entry.bb}</td>
+                <td>${entry.so}</td>
             `;
             batterBody.appendChild(row);
         });
@@ -3985,6 +4096,10 @@ export class Game {
                 <td>${entry.era}</td>
                 <td>${entry.whip}</td>
                 <td>${entry.ip}</td>
+                <td>${entry.k}</td>
+                <td>${entry.bb}</td>
+                <td>${entry.hr}</td>
+                <td>${entry.h}</td>
                 <td>${entry.games}</td>
             `;
             pitcherBody.appendChild(row);
@@ -4032,6 +4147,30 @@ export class Game {
             </svg>
         `;
         chart.innerHTML = svg;
+    }
+
+    renderRecentGames() {
+        const list = document.getElementById('recent-games-list');
+        if (!list) return;
+        const teamStats = this.teamSeasonStats[this.playerTeamId];
+        if (!teamStats || !teamStats.gameLog || teamStats.gameLog.length === 0) {
+            list.innerHTML = '<div class="recent-game-row">No games played yet.</div>';
+            return;
+        }
+        const recent = [...teamStats.gameLog].slice(-8).reverse();
+        list.innerHTML = '';
+        recent.forEach(entry => {
+            const row = document.createElement('div');
+            row.className = 'recent-game-row';
+            const resultClass = entry.result === 'W' ? 'result' : 'result loss';
+            const homeAway = entry.isHome ? 'vs' : '@';
+            row.innerHTML = `
+                <span>R${entry.round} ${homeAway} ${entry.opponentName}</span>
+                <span>${entry.runsFor}-${entry.runsAgainst}</span>
+                <span class="${resultClass}">${entry.result}</span>
+            `;
+            list.appendChild(row);
+        });
     }
 
     finalizeSeasonStats(seasonNumber) {
