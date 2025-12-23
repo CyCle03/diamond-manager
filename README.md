@@ -44,9 +44,11 @@ A web-based Baseball Manager game where you build your roster, manage your lineu
     *   **AUTO**: Simulates automatically (choose Pitch-by-Pitch or Batter-by-Batter).
     *   **PITCH**: Step through each pitch event.
     *   **BATTER**: Step through each batter outcome.
+*   **Next Game**: Click **NEXT GAME** in Match to start the next scheduled game immediately.
 *   **Stats**: Open **STATS** in the header to view team rankings.
 *   **Pitching Change**: Use the Bullpen dropdown in Match to swap pitchers.
 *   **Auto Bullpen**: Toggle **AUTO BP** to automatically swap pitchers when stamina dips.
+*   **Match Log**: Toggle **Auto clear match log after game** in **Options** to reset the log at game end.
 
 ## 🛠️ Tech Stack
 
@@ -122,9 +124,11 @@ A web-based Baseball Manager game where you build your roster, manage your lineu
     *   **AUTO**: 자동 진행 (Pitch-by-Pitch / Batter-by-Batter 선택)
     *   **PITCH**: 공 하나씩 진행
     *   **BATTER**: 타자 단위로 진행
+*   **다음 경기**: 경기 화면에서 **NEXT GAME** 버튼으로 다음 경기를 바로 시작합니다.
 *   **STATS**: 상단 **STATS** 탭에서 팀 성적 순위 확인
 *   **투수 교체**: 경기 화면의 Bullpen 선택으로 투수 교체
 *   **불펜 자동 교체**: **AUTO BP** 토글로 체력 낮을 때 자동 교체
+*   **경기 로그**: **Options**에서 **Auto clear match log after game** 옵션으로 종료 시 로그를 초기화합니다.
 
 ## 🚀 How to Run Locally
 

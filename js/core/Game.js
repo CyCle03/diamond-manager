@@ -2427,9 +2427,11 @@ export class Game {
 
         if (nextMatchBtn) {
             nextMatchBtn.addEventListener('click', () => {
-                if (!this.league) return;
-                this.updateLeagueView();
-                this.switchView('league');
+                if (!this.league || this.isSimulating || !this.matchCompleted) return;
+                if (this.validateLineup()) {
+                    this.resetMatchView();
+                    this.startMatch();
+                }
             });
         }
 
