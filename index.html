@@ -240,7 +240,7 @@
                                 <div class="matchup-next">NEXT: ---</div>
                             </div>
                             <button id="play-match-btn" class="action-btn" style="margin-top: 10px;">PLAY BALL</button>
-                            <button id="next-match-btn" class="action-btn secondary">NEXT GAME</button>
+                            <button id="next-match-btn" class="action-btn secondary">LEAGUE</button>
                             <div class="match-controls">
                                 <div class="match-control-row">
                                     <button id="sim-auto-btn" class="nav-btn">AUTO</button>
@@ -252,6 +252,8 @@
                                     <select id="auto-view-select">
                                         <option value="batter" selected>Batter-by-Batter</option>
                                         <option value="pitch">Pitch-by-Pitch</option>
+                                        <option value="inning">Inning-by-Inning</option>
+                                        <option value="game">Full Game</option>
                                     </select>
                                 </div>
                                 <div class="match-control-row">
@@ -263,6 +265,43 @@
                                     <label for="auto-bullpen-toggle">AUTO BP</label>
                                     <input type="checkbox" id="auto-bullpen-toggle" />
                                 </div>
+                            </div>
+                        </div>
+                        <div id="match-summary" class="match-summary hidden">
+                            <div class="match-summary-title">GAME SUMMARY</div>
+                            <div class="match-summary-score" id="match-summary-score">FINAL</div>
+                            <div class="match-summary-grid">
+                                <div class="match-summary-row header">
+                                    <span>TEAM</span>
+                                    <span>R</span>
+                                    <span>H</span>
+                                    <span>HR</span>
+                                    <span>BB</span>
+                                    <span>SO</span>
+                                    <span>HBP</span>
+                                </div>
+                                <div class="match-summary-row">
+                                    <span id="match-summary-away-name">AWAY</span>
+                                    <span id="match-summary-away-r">0</span>
+                                    <span id="match-summary-away-h">0</span>
+                                    <span id="match-summary-away-hr">0</span>
+                                    <span id="match-summary-away-bb">0</span>
+                                    <span id="match-summary-away-so">0</span>
+                                    <span id="match-summary-away-hbp">0</span>
+                                </div>
+                                <div class="match-summary-row">
+                                    <span id="match-summary-home-name">HOME</span>
+                                    <span id="match-summary-home-r">0</span>
+                                    <span id="match-summary-home-h">0</span>
+                                    <span id="match-summary-home-hr">0</span>
+                                    <span id="match-summary-home-bb">0</span>
+                                    <span id="match-summary-home-so">0</span>
+                                    <span id="match-summary-home-hbp">0</span>
+                                </div>
+                            </div>
+                            <div class="match-summary-actions">
+                                <button id="summary-next-match-btn" class="nav-btn">NEXT MATCH</button>
+                                <button id="summary-league-btn" class="nav-btn">LEAGUE</button>
                             </div>
                         </div>
                         <div class="game-log" id="game-log">

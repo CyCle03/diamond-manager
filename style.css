@@ -832,6 +832,63 @@ h3 {
     color: #9a9a9a;
 }
 
+.match-summary {
+    width: 100%;
+    background: #141414;
+    border-bottom: 1px solid #2b2b2b;
+    padding: 10px 12px 12px;
+    text-align: left;
+}
+
+.match-summary.hidden {
+    display: none;
+}
+
+.match-summary-title {
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    color: #9fd0a8;
+}
+
+.match-summary-score {
+    font-size: 1.1rem;
+    margin-top: 4px;
+    color: #f2f2f2;
+}
+
+.match-summary-grid {
+    margin-top: 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.match-summary-row {
+    display: grid;
+    grid-template-columns: 2.2fr repeat(6, 1fr);
+    gap: 6px;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #cfcfcf;
+}
+
+.match-summary-row.header {
+    font-size: 0.7rem;
+    color: #7d7d7d;
+    letter-spacing: 0.06em;
+}
+
+.match-summary-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.match-summary-actions .nav-btn {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
 .game-log {
     flex: 1;
     background: #000;

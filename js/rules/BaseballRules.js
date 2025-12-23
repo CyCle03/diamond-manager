@@ -376,6 +376,9 @@ export class BaseballRules extends GameRules {
             if (game.recordPitcherOutcome) {
                 game.recordPitcherOutcome(opponentPitcher, recordedOutcome);
             }
+            if (game.recordMatchEvent) {
+                game.recordMatchEvent(battingTeam, recordedOutcome);
+            }
 
             if (recordedOutcome.type === 'sac_fly') {
                 outs++;

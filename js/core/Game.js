@@ -39,6 +39,7 @@ export class Game {
         this.simulationMode = 'auto';
         this.manualStepMode = 'batter';
         this.autoViewMode = 'batter';
+        this.halfInningPausePending = false;
         this.simPitchDelayMs = 250;
         this.simBatterDelayMs = 600;
         this.pendingSimResolve = null;
@@ -81,6 +82,7 @@ export class Game {
         this.autoBullpenThreshold = 0.4;
         this.autoClearMatchLog = false;
         this.matchCompleted = false;
+        this.matchSummary = null;
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -437,6 +439,9 @@ export class Game {
         const playMatchBtn = document.getElementById('play-match-btn');
         if (playMatchBtn) playMatchBtn.addEventListener('click', () => {
             if (this.validateLineup()) {
+                if (this.matchCompleted) {
+                    this.resetMatchView();
+                }
                 this.startMatch();
             }
         });
@@ -1815,6 +1820,7 @@ export class Game {
         this.playerIsHomeInCurrentMatch = myMatch.home.id === this.playerTeamId;
         this.initMatchBattingOrder(myMatch);
         this.initLineScore();
+        this.initMatchSummary(myMatch);
         this.ensurePitcherStamina();
         this.ensurePitcherRestDays();
         this.pitcherWorkload = new Map();
@@ -1914,6 +1920,7 @@ export class Game {
             this.setMatchLogMessage('Match complete. Ready for next game.');
         }
         this.matchCompleted = true;
+        this.updateMatchSummary(homeScore, awayScore);
         this.updateSimControls();
 
         this.saveGame();
@@ -2251,6 +2258,9 @@ export class Game {
         this.isSimulating = false;
         this.updateSimControls();
         this.currentMatch = null;
+        this.matchCompleted = false;
+        this.matchSummary = null;
+        this.setMatchSummaryVisible(false);
         this.updatePitcherStaminaUI();
     }
 
@@ -2317,6 +2327,7 @@ export class Game {
         if (!inningEl) return;
         inningEl.innerText = `${half} ${inning}`;
         this.updateOutsDisplay(0);
+        this.halfInningPausePending = this.simulationMode === 'auto' && this.autoViewMode === 'inning';
     }
 
     updateOutsDisplay(outs) {
@@ -2341,6 +2352,78 @@ export class Game {
         if (log) {
             log.innerHTML = `<div class="log-entry">> ${message}</div>`;
         }
+    }
+
+    initMatchSummary(match) {
+        if (!match) return;
+        this.matchSummary = {
+            homeId: match.home.id,
+            awayId: match.away.id,
+            homeName: match.home.name,
+            awayName: match.away.name,
+            home: { hits: 0, homeRuns: 0, walks: 0, strikeouts: 0, hitByPitch: 0 },
+            away: { hits: 0, homeRuns: 0, walks: 0, strikeouts: 0, hitByPitch: 0 }
+        };
+        const homeNameEl = document.getElementById('match-summary-home-name');
+        const awayNameEl = document.getElementById('match-summary-away-name');
+        if (homeNameEl) homeNameEl.innerText = match.home.name;
+        if (awayNameEl) awayNameEl.innerText = match.away.name;
+        this.setMatchSummaryVisible(false);
+    }
+
+    recordMatchEvent(team, outcome) {
+        if (!this.matchSummary || !team || !outcome) return;
+        const side = team.id === this.matchSummary.homeId
+            ? this.matchSummary.home
+            : (team.id === this.matchSummary.awayId ? this.matchSummary.away : null);
+        if (!side) return;
+        if (outcome.type === 'hit') {
+            side.hits += 1;
+            if (outcome.desc && outcome.desc.includes('Home Run')) {
+                side.homeRuns += 1;
+            }
+        } else if (outcome.type === 'walk') {
+            side.walks += 1;
+        } else if (outcome.type === 'hbp') {
+            side.hitByPitch += 1;
+        } else if (outcome.type === 'out' && outcome.desc && outcome.desc.includes('Strikeout')) {
+            side.strikeouts += 1;
+        }
+    }
+
+    updateMatchSummary(homeScore, awayScore) {
+        if (!this.matchSummary) return;
+        const summary = document.getElementById('match-summary');
+        if (!summary) return;
+        const home = this.matchSummary.home;
+        const away = this.matchSummary.away;
+        const homeScoreEl = document.getElementById('match-summary-home-r');
+        const awayScoreEl = document.getElementById('match-summary-away-r');
+        if (homeScoreEl) homeScoreEl.innerText = homeScore;
+        if (awayScoreEl) awayScoreEl.innerText = awayScore;
+        const scoreEl = document.getElementById('match-summary-score');
+        if (scoreEl) scoreEl.innerText = `FINAL: ${this.matchSummary.awayName} ${awayScore} - ${this.matchSummary.homeName} ${homeScore}`;
+        const updateStat = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = value;
+        };
+        updateStat('match-summary-home-h', home.hits);
+        updateStat('match-summary-home-hr', home.homeRuns);
+        updateStat('match-summary-home-bb', home.walks);
+        updateStat('match-summary-home-so', home.strikeouts);
+        updateStat('match-summary-home-hbp', home.hitByPitch);
+        updateStat('match-summary-away-h', away.hits);
+        updateStat('match-summary-away-hr', away.homeRuns);
+        updateStat('match-summary-away-bb', away.walks);
+        updateStat('match-summary-away-so', away.strikeouts);
+        updateStat('match-summary-away-hbp', away.hitByPitch);
+        this.setMatchSummaryVisible(true);
+    }
+
+    setMatchSummaryVisible(visible) {
+        const summary = document.getElementById('match-summary');
+        if (!summary) return;
+        summary.classList.toggle('hidden', !visible);
     }
 
     switchView(mode) {
@@ -2398,6 +2481,8 @@ export class Game {
         const subBtn = document.getElementById('sub-pitcher-btn');
         const autoBullpenToggle = document.getElementById('auto-bullpen-toggle');
         const nextMatchBtn = document.getElementById('next-match-btn');
+        const summaryNextBtn = document.getElementById('summary-next-match-btn');
+        const summaryLeagueBtn = document.getElementById('summary-league-btn');
 
         if (autoBtn) autoBtn.addEventListener('click', () => this.setSimulationMode('auto'));
         if (pitchBtn) pitchBtn.addEventListener('click', () => this.setSimulationMode('pitch'));
@@ -2427,11 +2512,25 @@ export class Game {
 
         if (nextMatchBtn) {
             nextMatchBtn.addEventListener('click', () => {
-                if (!this.league || this.isSimulating || !this.matchCompleted) return;
+                if (!this.league || this.isSimulating) return;
+                this.updateLeagueView();
+                this.switchView('league');
+            });
+        }
+        if (summaryNextBtn) {
+            summaryNextBtn.addEventListener('click', () => {
+                if (this.isSimulating || !this.matchCompleted) return;
                 if (this.validateLineup()) {
                     this.resetMatchView();
                     this.startMatch();
                 }
+            });
+        }
+        if (summaryLeagueBtn) {
+            summaryLeagueBtn.addEventListener('click', () => {
+                if (!this.league) return;
+                this.updateLeagueView();
+                this.switchView('league');
             });
         }
 
@@ -2800,8 +2899,8 @@ export class Game {
         if (bullpenSelect) bullpenSelect.disabled = false;
         if (subBtn) subBtn.disabled = !enabled;
         if (nextMatchBtn) {
-            nextMatchBtn.disabled = this.isSimulating || !this.matchCompleted;
-            nextMatchBtn.style.display = this.matchCompleted ? 'block' : 'none';
+            nextMatchBtn.disabled = this.isSimulating;
+            nextMatchBtn.style.display = 'block';
         }
     }
 
@@ -2826,6 +2925,16 @@ export class Game {
         if (!this.isSimulating) return Promise.resolve();
 
         if (this.simulationMode === 'auto') {
+            if (this.autoViewMode === 'game') {
+                return Promise.resolve();
+            }
+            if (this.autoViewMode === 'inning') {
+                if (type === 'batter' && this.halfInningPausePending) {
+                    this.halfInningPausePending = false;
+                    return this.wait(1200);
+                }
+                return Promise.resolve();
+            }
             if (this.autoViewMode === 'pitch') {
                 return this.wait(type === 'pitch' ? this.simPitchDelayMs : this.simBatterDelayMs);
             }
