@@ -491,6 +491,19 @@ h3 {
     background: #388e3c;
 }
 
+.action-btn.secondary {
+    background: #202020;
+    border: 1px solid #3a3a3a;
+    color: #ddd;
+    font-size: 1.1rem;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.action-btn.secondary:hover {
+    background: #2b2b2b;
+}
+
 /* STADIUM STYLES */
 .stadium-panel {
     display: flex;

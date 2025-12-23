@@ -79,6 +79,8 @@ export class Game {
         this.bullpenRoles = ['Long Relief', 'Middle Relief', 'Setup', 'Closer', 'Opener'];
         this.autoBullpenEnabled = false;
         this.autoBullpenThreshold = 0.4;
+        this.autoClearMatchLog = false;
+        this.matchCompleted = false;
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -162,6 +164,15 @@ export class Game {
                 this.saveGame();
             });
         }
+        const matchLogClearToggle = document.getElementById('match-log-auto-clear');
+        if (matchLogClearToggle) {
+            matchLogClearToggle.addEventListener('change', (e) => {
+                this.autoClearMatchLog = e.target.checked;
+                if (this.roster && this.roster.length > 0) {
+                    this.saveGame();
+                }
+            });
+        }
 
         this.updateStartScreenUI();
     }
@@ -187,6 +198,7 @@ export class Game {
             }
         });
         this.updateAaaOptionsUI();
+        this.updateMatchOptionsUI();
     }
 
     updateBudgetUI() {
@@ -210,6 +222,13 @@ export class Game {
         statusEl.innerText = isActive
             ? `AAA ACTIVE (Season ${season})`
             : `AAA unlocks in Season ${this.aaaEnabledSeason}`;
+    }
+
+    updateMatchOptionsUI() {
+        const matchLogClearToggle = document.getElementById('match-log-auto-clear');
+        if (matchLogClearToggle) {
+            matchLogClearToggle.checked = !!this.autoClearMatchLog;
+        }
     }
 
     openOptions() {
@@ -246,6 +265,8 @@ export class Game {
             this.aaaRoster = [];
             this.aaaAutoManagement = true;
             this.aaaAutoPromotions = false;
+            const matchLogClearToggle = document.getElementById('match-log-auto-clear');
+            this.autoClearMatchLog = matchLogClearToggle ? matchLogClearToggle.checked : false;
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 26); // Full 26-man roster now
             this.ensureRosterMinimums();
@@ -292,6 +313,7 @@ export class Game {
             teamSeasonStats: this.teamSeasonStats,
             seasonGoals: this.seasonGoals,
             autoBullpenEnabled: this.autoBullpenEnabled,
+            autoClearMatchLog: this.autoClearMatchLog,
             pitcherStamina: Array.from(this.pitcherStamina.entries()),
             pitcherRestDays: Array.from(this.pitcherRestDays.entries()),
             pitcherWorkloadHistory: Array.from(this.pitcherWorkloadHistory.entries()),
@@ -329,6 +351,7 @@ export class Game {
         this.teamSeasonStats = data.teamSeasonStats || {};
         this.seasonGoals = data.seasonGoals || [];
         this.autoBullpenEnabled = !!data.autoBullpenEnabled;
+        this.autoClearMatchLog = !!data.autoClearMatchLog;
         this.pitcherStamina = new Map(data.pitcherStamina || []);
         this.pitcherRestDays = new Map(data.pitcherRestDays || []);
         this.pitcherWorkloadHistory = new Map(data.pitcherWorkloadHistory || []);
@@ -372,6 +395,7 @@ export class Game {
 
         this.updateLeagueView();
         this.updateDraftUI();
+        this.updateMatchOptionsUI();
 
         // Go to Dashboard
         this.switchView('league');
@@ -1787,6 +1811,7 @@ export class Game {
         this.incrementGamesForTeam(myMatch.home);
         this.incrementGamesForTeam(myMatch.away);
         this.currentMatch = myMatch;
+        this.matchCompleted = false;
         this.playerIsHomeInCurrentMatch = myMatch.home.id === this.playerTeamId;
         this.initMatchBattingOrder(myMatch);
         this.initLineScore();
@@ -1870,21 +1895,26 @@ export class Game {
             return;
         }
 
-        // 5. Show League View again
+        // 5. Update League View data but stay on Match screen
         await this.wait(2000);
         this.updateLeagueView();
-        this.switchView('league');
 
         document.getElementById('play-match-btn').disabled = false;
         this.isSimulating = false;
         this.updateSimControls();
         this.currentMatch = null;
+        this.matchCompleted = false;
         this.updatePitcherStaminaUI();
         this.updatePitcherRestDaysAfterMatch();
         this.advancePlayerRecovery();
         this.recoverPitcherStamina();
         this.renderRotation();
         this.renderBullpen();
+        if (this.autoClearMatchLog) {
+            this.setMatchLogMessage('Match complete. Ready for next game.');
+        }
+        this.matchCompleted = true;
+        this.updateSimControls();
 
         this.saveGame();
     }
@@ -2211,7 +2241,7 @@ export class Game {
 
         // Reset game status text and log
         document.getElementById('game-status-text').innerText = 'WAITING FOR MATCH...';
-        document.getElementById('game-log').innerHTML = '<div class="log-entry">> Set your lineup and click "PLAY BALL" to start.</div>';
+        this.setMatchLogMessage('Set your lineup and click "PLAY BALL" to start.');
 
         // Reset matchup display
         this.updateMatchupDisplay({ name: '---' }, { name: '---' }, { name: '---' });
@@ -2306,6 +2336,13 @@ export class Game {
         }
     }
 
+    setMatchLogMessage(message) {
+        const log = document.getElementById('game-log');
+        if (log) {
+            log.innerHTML = `<div class="log-entry">> ${message}</div>`;
+        }
+    }
+
     switchView(mode) {
         const mainContent = document.querySelector('.main-content');
         const leagueBtn = document.getElementById('view-league-btn');
@@ -2360,6 +2397,7 @@ export class Game {
         const bullpenSelect = document.getElementById('bullpen-select');
         const subBtn = document.getElementById('sub-pitcher-btn');
         const autoBullpenToggle = document.getElementById('auto-bullpen-toggle');
+        const nextMatchBtn = document.getElementById('next-match-btn');
 
         if (autoBtn) autoBtn.addEventListener('click', () => this.setSimulationMode('auto'));
         if (pitchBtn) pitchBtn.addEventListener('click', () => this.setSimulationMode('pitch'));
@@ -2384,6 +2422,14 @@ export class Game {
             autoBullpenToggle.addEventListener('change', (e) => {
                 this.autoBullpenEnabled = e.target.checked;
                 this.saveGame();
+            });
+        }
+
+        if (nextMatchBtn) {
+            nextMatchBtn.addEventListener('click', () => {
+                if (!this.league) return;
+                this.updateLeagueView();
+                this.switchView('league');
             });
         }
 
@@ -2748,8 +2794,13 @@ export class Game {
 
         const bullpenSelect = document.getElementById('bullpen-select');
         const subBtn = document.getElementById('sub-pitcher-btn');
+        const nextMatchBtn = document.getElementById('next-match-btn');
         if (bullpenSelect) bullpenSelect.disabled = !enabled;
         if (subBtn) subBtn.disabled = !enabled;
+        if (nextMatchBtn) {
+            nextMatchBtn.disabled = this.isSimulating || !this.matchCompleted;
+            nextMatchBtn.style.display = this.matchCompleted ? 'block' : 'none';
+        }
     }
 
     resolvePendingSimStep(triggeredMode) {
