@@ -4,6 +4,33 @@
 
 A web-based Baseball Manager game where you build your roster, manage your lineup and pitching rotation, and compete in a simulated league.
 
+## 🚀 How to Run Locally
+
+You can use any static file server. Choose one:
+
+1.  Clone the repository:
+    ```bash
+    git clone https://github.com/CyCle03/diamond-manager.git
+    ```
+2.  Navigate to the directory:
+    ```bash
+    cd diamond-manager
+    ```
+3.  Start a local server (Modules/CORS requires a server):
+    ```bash
+    # Python 3
+    python3 -m http.server 8000
+    ```
+    ```bash
+    # Node.js (no install)
+    npx serve .
+    ```
+    ```bash
+    # PHP
+    php -S localhost:8000
+    ```
+4.  Open `http://localhost:8000` in your browser.
+
 ## 🎮 Features
 
 *   **League System**: Compete in a full season against 7 AI teams with last-5 and streak indicators.
@@ -13,8 +40,8 @@ A web-based Baseball Manager game where you build your roster, manage your lineu
     *   **Expanded Player Stats**: Players have `Age` and `Defense` stats, providing more strategic depth.
 *   **Team Management (Dashboard)**:
     *   **Strategic Auto-Lineup**: Automatically selects the best defensive players and orders the batting lineup based on stats (Speed #1, Power #4, etc.).
-    *   **Flexible Lineup**: Drag & Drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
-    *   **Pitching Rotation**: Manage a 4-6 man rotation with full Drag & Drop support for reordering starters.
+    *   **Flexible Lineup**: Drag-and-drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
+    *   **Pitching Rotation**: Manage a 4-6 man rotation with full drag-and-drop support for reordering starters.
     *   **Roster & Market**: Sign free agents from a dynamic market to manage your 25-man squad, keeping an eye on your budget.
     *   **Position Rankings**: View your team’s league rank by position in the Dugout.
 *   **Scouting & Draft**: Spend budget to scout prospects during the season, then draft players in a 5-round offseason draft.
@@ -89,11 +116,48 @@ A web-based Baseball Manager game where you build your roster, manage your lineu
 *   Defaults to auto management; manual control is available in **Options**.
 *   Auto promotions/demotions can be toggled independently.
 
+## 📸 Screenshots
+
+| Title Screen | Team Management | Match Simulation |
+| --- | --- | --- |
+| ![Title Screen](./assets/screenshots/title-screen.png) | ![Team Management](./assets/screenshots/team-management.png) | ![Match Simulation](./assets/screenshots/match-simulation.png) |
+
+| League Overview | Draft Room | Stats & Rankings |
+| --- | --- | --- |
+| ![League Overview](./assets/screenshots/league-overview.png) | ![Draft Room](./assets/screenshots/draft-room.png) | ![Stats & Rankings](./assets/screenshots/stats-rankings.png) |
+
 ---
 
 ## ⚾ 다이아몬드 매니저 (웹 야구 매니저)
 
 라인업과 로테이션을 구성하고, 리그를 시뮬레이션하며 시즌을 운영하는 웹 야구 매니저 게임입니다.
+
+## 🚀 로컬 실행 방법
+
+정적 파일 서버라면 무엇이든 사용할 수 있습니다. 아래 중 하나를 선택하세요.
+
+1.  저장소 클론:
+    ```bash
+    git clone https://github.com/CyCle03/diamond-manager.git
+    ```
+2.  디렉토리 이동:
+    ```bash
+    cd diamond-manager
+    ```
+3.  로컬 서버 실행 (Modules/CORS 때문에 필요):
+    ```bash
+    # Python 3
+    python3 -m http.server 8000
+    ```
+    ```bash
+    # Node.js (설치 없이 실행)
+    npx serve .
+    ```
+    ```bash
+    # PHP
+    php -S localhost:8000
+    ```
+4.  브라우저에서 `http://localhost:8000` 접속.
 
 ## 🎮 주요 기능
 
@@ -130,43 +194,15 @@ A web-based Baseball Manager game where you build your roster, manage your lineu
 *   **불펜 자동 교체**: **AUTO BP** 토글로 체력 낮을 때 자동 교체
 *   **경기 로그**: **Options**에서 **Auto clear match log after game** 옵션으로 종료 시 로그를 초기화합니다.
 
-## 🚀 How to Run Locally
+## 📸 스크린샷
 
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/CyCle03/diamond-manager.git
-    ```
-2.  Navigate to the directory:
-    ```bash
-    cd diamond-manager
-    ```
-3.  Run a local server (required for Modules/CORS):
-    ```bash
-    # Python 3
-    python3 -m http.server 8000
-    ```
-4.  Open `http://localhost:8000` in your browser.
+| 타이틀 화면 | 팀 관리 | 경기 시뮬레이션 |
+| --- | --- | --- |
+| ![타이틀 화면](./assets/screenshots/title-screen.png) | ![팀 관리](./assets/screenshots/team-management.png) | ![경기 시뮬레이션](./assets/screenshots/match-simulation.png) |
 
-## 🚀 로컬 실행 방법
-
-1.  저장소 클론:
-    ```bash
-    git clone https://github.com/CyCle03/diamond-manager.git
-    ```
-2.  디렉토리 이동:
-    ```bash
-    cd diamond-manager
-    ```
-3.  로컬 서버 실행 (Modules/CORS 때문에 필요):
-    ```bash
-    # Python 3
-    python3 -m http.server 8000
-    ```
-4.  브라우저에서 `http://localhost:8000` 접속.
-
-## 📸 Screenshots
-
-*(Add screenshots here after uploading)*
+| 리그 개요 | 드래프트 룸 | 스탯 & 순위 |
+| --- | --- | --- |
+| ![리그 개요](./assets/screenshots/league-overview.png) | ![드래프트 룸](./assets/screenshots/draft-room.png) | ![스탯 & 순위](./assets/screenshots/stats-rankings.png) |
 
 ## 💾 데이터/세이브
 
