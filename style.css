@@ -483,6 +483,19 @@ h3 {
     grid-column: 2;
 }
 
+.main-content.match-mode .dugout-columns {
+    overflow-y: auto;
+}
+
+.main-content.match-mode .pitching-section {
+    max-height: 45%;
+    overflow-y: auto;
+}
+
+.main-content.match-mode .rankings-section {
+    display: none;
+}
+
 .main-content.stats-mode {
     grid-template-columns: 1fr;
 }

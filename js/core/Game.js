@@ -44,6 +44,8 @@ export class Game {
         this.simBatterDelayMs = 600;
         this.pendingSimResolve = null;
         this.pendingSimType = null;
+        this.isSimPaused = false;
+        this.pauseSimResolvers = [];
         this.teamStatsSortKey = 'ops';
         this.teamStatsSortDir = 'desc';
         this.batterRankSortKey = 'ops';
@@ -699,12 +701,18 @@ export class Game {
         // --- MATCH CONTROLS ---
         const playMatchBtn = document.getElementById('play-match-btn');
         if (playMatchBtn) playMatchBtn.addEventListener('click', () => {
-            if (this.validateLineup()) {
-                if (this.matchCompleted) {
-                    this.resetMatchView();
+            if (this.isSimulating) {
+                if (this.simulationMode === 'manual') {
+                    const step = this.manualStepMode === 'pitch' ? 'pitch' : 'batter';
+                    this.resolvePendingSimStep(step);
                 }
-                this.startMatch();
+                return;
             }
+            if (!this.validateLineup()) return;
+            if (this.matchCompleted) {
+                this.resetMatchView();
+            }
+            this.startMatch();
         });
 
         // Options Button
@@ -1632,7 +1640,9 @@ export class Game {
             container.appendChild(slot);
         });
 
+        this.syncPlayerTeamLineup();
         this.renderRotation();
+        this.renderBench();
     }
 
     signFreeAgent(player) {
@@ -2074,6 +2084,12 @@ export class Game {
         team.aaaRoster = this.aaaRoster;
         team.ilRoster = this.ilRoster;
         team.fortyManRoster = this.fortyManRoster || [];
+    }
+
+    syncPlayerTeamLineup() {
+        const team = this.getPlayerTeam();
+        if (!team) return;
+        team.lineup = this.lineup;
     }
 
     setPlayerRosterStatus(player, status) {
@@ -2736,8 +2752,9 @@ export class Game {
 
         // 3. Update UI to "Simulating" state
         this.isSimulating = true;
+        this.isSimPaused = false;
+        this.pauseSimResolvers = [];
         this.updateSimControls();
-        document.getElementById('play-match-btn').disabled = true;
         document.getElementById('game-status-text').innerText = "PLAY BALL!";
         this.log(`MATCH STARTING! SP: ${starter.name} vs ${myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name}`);
 
@@ -2754,6 +2771,8 @@ export class Game {
     // Callback after match ends
     async finishMatch(homeScore, awayScore) {
         this.isSimulating = false; // RESET FLAG
+        this.isSimPaused = false;
+        this.pauseSimResolvers = [];
 
         if (this.postseasonActive) {
             this.finishPostseasonMatch(homeScore, awayScore);
@@ -2822,7 +2841,7 @@ export class Game {
         await this.wait(2000);
         this.updateLeagueView();
 
-        document.getElementById('play-match-btn').disabled = false;
+        this.updatePlayBallButton();
         this.isSimulating = false;
         this.updateSimControls();
         this.currentMatch = null;
@@ -2900,8 +2919,7 @@ export class Game {
         }
 
         this.updateLeagueView();
-        const playBtn = document.getElementById('play-match-btn');
-        if (playBtn) playBtn.disabled = false;
+        this.updatePlayBallButton();
         this.updatePitcherStaminaUI();
         this.updatePitcherRestDaysAfterMatch();
         this.advancePlayerRecovery();
@@ -2916,6 +2934,9 @@ export class Game {
         this.updateSimControls();
         this.currentMatch = null;
         this.currentPostseasonSeries = null;
+        this.isSimPaused = false;
+        this.pauseSimResolvers = [];
+        this.updatePlayBallButton();
 
         this.saveGame();
 
@@ -3551,8 +3572,7 @@ export class Game {
         // Reset matchup display
         this.updateMatchupDisplay({ name: '---' }, { name: '---' }, { name: '---' });
         
-        // Ensure play button is enabled
-        document.getElementById('play-match-btn').disabled = false;
+        this.updatePlayBallButton();
         this.isSimulating = false;
         this.updateSimControls();
         this.currentMatch = null;
@@ -3952,8 +3972,10 @@ export class Game {
 
     initMatchControls() {
         const autoBtn = document.getElementById('sim-auto-btn');
+        const manualBtn = document.getElementById('sim-manual-btn');
         const pitchBtn = document.getElementById('sim-pitch-btn');
         const batterBtn = document.getElementById('sim-batter-btn');
+        const pauseBtn = document.getElementById('sim-pause-btn');
         const autoViewSelect = document.getElementById('auto-view-select');
         const bullpenSelect = document.getElementById('bullpen-select');
         const subBtn = document.getElementById('sub-pitcher-btn');
@@ -3964,8 +3986,10 @@ export class Game {
         const summaryConfirmBtn = document.getElementById('summary-confirm-btn');
 
         if (autoBtn) autoBtn.addEventListener('click', () => this.setSimulationMode('auto'));
+        if (manualBtn) manualBtn.addEventListener('click', () => this.setSimulationMode('batter'));
         if (pitchBtn) pitchBtn.addEventListener('click', () => this.setSimulationMode('pitch'));
         if (batterBtn) batterBtn.addEventListener('click', () => this.setSimulationMode('batter'));
+        if (pauseBtn) pauseBtn.addEventListener('click', () => this.toggleSimPause());
 
         if (autoViewSelect) {
             autoViewSelect.addEventListener('change', (e) => {
@@ -4531,28 +4555,65 @@ export class Game {
     setSimulationMode(mode) {
         if (mode === 'auto') {
             this.simulationMode = 'auto';
+            this.isSimPaused = false;
+            this.resumeSimPause();
+            this.forceResolvePendingSim();
         } else {
             this.simulationMode = 'manual';
             this.manualStepMode = mode;
+        }
+        if (this.simulationMode !== 'auto' && this.isSimPaused) {
+            this.isSimPaused = false;
+            this.resumeSimPause();
         }
         this.updateSimControls();
         this.resolvePendingSimStep(mode);
     }
 
+    toggleSimPause() {
+        if (!this.isSimulating || this.simulationMode !== 'auto') return;
+        this.isSimPaused = !this.isSimPaused;
+        if (!this.isSimPaused) {
+            this.resumeSimPause();
+        }
+        this.updateSimControls();
+    }
+
+    resumeSimPause() {
+        if (!this.pauseSimResolvers || this.pauseSimResolvers.length === 0) return;
+        const resolvers = [...this.pauseSimResolvers];
+        this.pauseSimResolvers = [];
+        resolvers.forEach(resolve => resolve());
+    }
+
+    forceResolvePendingSim() {
+        if (!this.pendingSimResolve) return;
+        const resolve = this.pendingSimResolve;
+        this.pendingSimResolve = null;
+        this.pendingSimType = null;
+        resolve();
+    }
+
     updateSimControls() {
         const autoBtn = document.getElementById('sim-auto-btn');
+        const manualBtn = document.getElementById('sim-manual-btn');
         const pitchBtn = document.getElementById('sim-pitch-btn');
         const batterBtn = document.getElementById('sim-batter-btn');
+        const pauseBtn = document.getElementById('sim-pause-btn');
         const autoViewSelect = document.getElementById('auto-view-select');
         const autoBullpenToggle = document.getElementById('auto-bullpen-toggle');
 
         const enabled = this.isSimulating;
         if (autoBtn) {
-            autoBtn.disabled = !enabled;
+            autoBtn.disabled = false;
             autoBtn.classList.toggle('active', this.simulationMode === 'auto');
         }
+        if (manualBtn) {
+            manualBtn.disabled = false;
+            manualBtn.classList.toggle('active', this.simulationMode === 'manual');
+        }
         if (pitchBtn) {
-            pitchBtn.disabled = !enabled;
+            pitchBtn.disabled = false;
             pitchBtn.classList.toggle('active', this.simulationMode === 'manual' && this.manualStepMode === 'pitch');
             pitchBtn.onclick = () => {
                 if (this.simulationMode === 'manual' && this.manualStepMode === 'pitch') {
@@ -4561,7 +4622,7 @@ export class Game {
             };
         }
         if (batterBtn) {
-            batterBtn.disabled = !enabled;
+            batterBtn.disabled = false;
             batterBtn.classList.toggle('active', this.simulationMode === 'manual' && this.manualStepMode === 'batter');
             batterBtn.onclick = () => {
                 if (this.simulationMode === 'manual' && this.manualStepMode === 'batter') {
@@ -4569,6 +4630,12 @@ export class Game {
                 }
             };
         }
+        if (pauseBtn) {
+            pauseBtn.disabled = !enabled || this.simulationMode !== 'auto';
+            pauseBtn.classList.toggle('active', this.isSimPaused);
+            pauseBtn.innerText = this.isSimPaused ? 'RESUME' : 'PAUSE';
+        }
+        this.updatePlayBallButton();
         if (autoViewSelect) {
             autoViewSelect.disabled = false;
         }
@@ -4607,6 +4674,11 @@ export class Game {
 
     waitForSimulationEvent(type) {
         if (!this.isSimulating) return Promise.resolve();
+        if (this.isSimPaused) {
+            return new Promise(resolve => {
+                this.pauseSimResolvers.push(resolve);
+            });
+        }
 
         if (this.simulationMode === 'auto') {
             if (this.autoViewMode === 'game') {
@@ -4662,6 +4734,23 @@ export class Game {
             const { current, max } = this.getPitcherStaminaValues(pitcher);
             node.textContent = `STA ${Math.round(current)}/${Math.round(max)}`;
         });
+    }
+
+    updatePlayBallButton() {
+        const playBtn = document.getElementById('play-match-btn');
+        if (!playBtn) return;
+        if (!this.isSimulating) {
+            playBtn.disabled = false;
+            playBtn.innerText = 'PLAY BALL';
+            return;
+        }
+        if (this.simulationMode === 'manual') {
+            playBtn.disabled = false;
+            playBtn.innerText = 'NEXT';
+        } else {
+            playBtn.disabled = true;
+            playBtn.innerText = this.isSimPaused ? 'RESUME' : 'AUTO';
+        }
     }
 
     getBullpenPitchers() {
@@ -4918,7 +5007,8 @@ export class Game {
         if (!match) return;
         [match.home, match.away].forEach(team => {
             const order = this.getTeamLineupPlayers(team);
-            this.battingOrderState.set(team.id, { order, index: 0 });
+            const orderIds = order.map(player => player.id);
+            this.battingOrderState.set(team.id, { order, orderIds, index: 0 });
         });
     }
 
@@ -4926,8 +5016,19 @@ export class Game {
         if (!team) return null;
         const existing = this.battingOrderState.get(team.id);
         const order = this.getTeamLineupPlayers(team);
-        if (!existing || existing.order.length !== order.length) {
-            const state = { order, index: 0 };
+        const orderIds = order.map(player => player.id);
+        const hasChanged = !existing
+            || existing.order.length !== order.length
+            || !existing.orderIds
+            || existing.orderIds.some((id, idx) => id !== orderIds[idx]);
+        if (hasChanged) {
+            let index = 0;
+            if (existing && existing.order.length > 0) {
+                const current = existing.order[existing.index % existing.order.length];
+                const currentIndex = current ? orderIds.indexOf(current.id) : -1;
+                if (currentIndex >= 0) index = currentIndex;
+            }
+            const state = { order, orderIds, index };
             this.battingOrderState.set(team.id, state);
             return state;
         }
