@@ -168,6 +168,9 @@ h3 {
     display: flex;
 }
 
+.main-content.league-mode .home-panel {
+    display: none;
+}
 .main-content.league-mode .stadium-panel {
     display: none;
 }
@@ -212,6 +215,9 @@ h3 {
     display: none;
 }
 
+.main-content.team-mode .home-panel {
+    display: none;
+}
 .main-content.team-mode .dugout-panel {
     grid-column: 1 / span 3;
 }
@@ -257,6 +263,9 @@ h3 {
     display: none;
 }
 
+.main-content.roster-mode .home-panel {
+    display: none;
+}
 /* MARKET MODE */
 .main-content.market-mode {
     grid-template-columns: 1fr;
@@ -448,7 +457,8 @@ h3 {
 
 /* MATCH MODE: Dugout + Stadium */
 .main-content.match-mode {
-    grid-template-columns: 400px 1fr;
+    grid-template-columns: 360px minmax(0, 1fr);
+    align-items: stretch;
 }
 
 .main-content.match-mode .dugout-panel,
@@ -459,6 +469,18 @@ h3 {
 .main-content.match-mode .roster-panel,
 .main-content.match-mode .league-panel {
     display: none;
+}
+
+.main-content.match-mode .home-panel {
+    display: none;
+}
+
+.main-content.match-mode .dugout-panel {
+    grid-column: 1;
+}
+
+.main-content.match-mode .stadium-panel {
+    grid-column: 2;
 }
 
 .main-content.stats-mode {
@@ -472,6 +494,10 @@ h3 {
 .main-content.stats-mode .dugout-panel,
 .main-content.stats-mode .roster-panel,
 .main-content.stats-mode .stadium-panel {
+    display: none;
+}
+
+.main-content.stats-mode .home-panel {
     display: none;
 }
 
