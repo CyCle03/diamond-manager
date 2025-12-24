@@ -53,6 +53,11 @@ You can use any static file server. Choose one:
 *   **Injuries & Fatigue**: Players accumulate fatigue and can miss games when injured.
 *   **Goals & Rewards**: Complete season goals for budget bonuses.
 *   **Trades**: Propose player-for-player trades with AI teams (optional cash add-on).
+*   **Trade Deadline**: Trades are disabled after the mid-season deadline.
+*   **Postseason**: Top 4 teams advance to a bracket-style postseason.
+*   **Injured List (IL)**: Move injured players to IL and activate them when healthy.
+*   **40-Man Roster**: Organization roster cap shared across Active/AAA/IL (10-day).
+*   **Options & Waivers**: Demotions use options; no options triggers waivers.
 *   **MLB-Style Rosters**: 26-man active roster with pitcher limits and position minimums.
 *   **AAA System (Season 3)**: AAA roster unlocks with optional auto management and auto call-ups.
 *   **Draft Need Button**: Draft by team needs and weak league position ranks.
@@ -65,6 +70,7 @@ You can use any static file server. Choose one:
 *   **Position Change**: Click the green dropdown (e.g., "SS") next to a player in the lineup to change their defensive role.
 *   **Rotation**: Drag Pitchers from Roster/Lineup to Rotation slots. Drag within Rotation to swap order.
 *   **Options**: Click the **OPTIONS** button in the header to manage save data.
+*   **Injured List**: Use the **IL** tab to stash injured players and activate them after recovery.
 *   **Scout**: Click **SCOUT** in the Roster/Market panel to find new prospects.
 *   **Draft**: Use the Draft Room in the League panel to make your picks.
 *   **Match Pace**:
@@ -175,6 +181,11 @@ You can use any static file server. Choose one:
 *   **부상 & 피로**: 선수 피로 누적과 부상으로 결장이 발생합니다.
 *   **목표 & 보상**: 시즌 목표 달성 시 예산 보상을 받습니다.
 *   **트레이드**: AI 팀과 선수 트레이드를 제안할 수 있습니다.
+*   **트레이드 마감일**: 시즌 중반 이후 트레이드가 제한됩니다.
+*   **포스트시즌**: 상위 4팀이 브래킷 방식으로 진출합니다.
+*   **부상자 명단(IL)**: 부상 선수를 IL로 이동하고 회복 후 복귀시킬 수 있습니다.
+*   **40인 로스터**: 액티브/AAA/IL(10일) 합산 인원 제한이 적용됩니다.
+*   **옵션 & 웨이버**: AAA 내려보낼 때 옵션을 사용하며, 옵션 소진 시 웨이버가 발생합니다.
 *   **MLB 스타일 로스터**: 26인 액티브 로스터, 투수 제한 및 포지션 최소 인원 적용.
 *   **AAA 시스템 (시즌 3)**: AAA 로스터가 열리며 자동/수동 관리 옵션 제공.
 *   **DRAFT NEED 버튼**: 팀 필요와 리그 포지션 약점을 반영한 자동 픽.
@@ -182,6 +193,7 @@ You can use any static file server. Choose one:
 ## 🕹️ 조작
 
 *   **라인업/로테이션**: 드래그 앤 드롭으로 배치/교체.
+*   **부상자 명단**: **IL** 탭에서 부상 선수 이동/복귀.
 *   **스카우트**: 오른쪽 패널의 **SCOUT** 버튼으로 유망주 확보.
 *   **드래프트**: League 패널의 Draft Room에서 픽 진행.
 *   **경기 진행 속도**:

@@ -20,7 +20,7 @@ export class Game {
         this.currentTab = 'tab-roster';
         this.currentSlotId = 1; // Default
         this.teamName = "Cyber Nine";
-        this.teamBudget = 5000000; // Starting budget
+        this.teamBudget = 20000000; // Starting budget
         this.playerIsHomeInCurrentMatch = true;
         this.scoutCost = 75000;
         this.scoutCount = 3;
@@ -60,6 +60,16 @@ export class Game {
         this.minCatchersActive = 2;
         this.minInfieldByPosition = { '1B': 1, '2B': 1, '3B': 1, 'SS': 1 };
         this.minOutfieldActive = 4;
+        this.fortyManLimit = 40;
+        this.ilRoster = [];
+        this.fortyManRoster = [];
+        this.ilEligibleMinDays = 1;
+        this.tradeDeadlineRound = null;
+        this.tradeDeadlinePassed = false;
+        this.postseason = null;
+        this.postseasonActive = false;
+        this.postseasonSeriesLengths = [3, 5];
+        this.transactionsLogLimit = 80;
         this.aaaEnabledSeason = 3;
         this.aaaActive = false;
         this.aaaRoster = [];
@@ -84,6 +94,11 @@ export class Game {
         this.autoClearMatchLog = false;
         this.matchCompleted = false;
         this.matchSummary = null;
+        this.currentPostseasonSeries = null;
+        this.scheduleViewRoundIndex = null;
+        this.scheduleFilter = 'all';
+        this.currentMatchLog = [];
+        this.multiRosterPanels = new Set(['roster', 'il', 'options']);
 
         // Initialize Start Screen listeners (Always needed for Options menu)
         this.initStartScreen();
@@ -255,7 +270,7 @@ export class Game {
 
         if (isNew) {
             this.teamName = teamName;
-            this.teamBudget = 5000000;
+            this.teamBudget = 20000000;
             this.currentRotationIndex = 0; // Explicitly reset for new game
             this.scoutingPool = [];
             this.draftPool = [];
@@ -266,12 +281,19 @@ export class Game {
             this.teamSeasonStats = {};
             this.aaaActive = false;
             this.aaaRoster = [];
+            this.ilRoster = [];
+            this.postseason = null;
+            this.postseasonActive = false;
+            this.tradeDeadlineRound = null;
+            this.tradeDeadlinePassed = false;
             this.aaaAutoManagement = true;
             this.aaaAutoPromotions = false;
             const matchLogClearToggle = document.getElementById('match-log-auto-clear');
             this.autoClearMatchLog = matchLogClearToggle ? matchLogClearToggle.checked : false;
             // Generate initial roster
             this.roster = PlayerGenerator.createTeamRoster(this.rules, 26); // Full 26-man roster now
+            this.roster.forEach(player => this.setPlayerRosterStatus(player, 'active'));
+            this.fortyManRoster = this.roster.map(player => player.id);
             this.ensureRosterMinimums();
             this.ensureRosterHealth();
             // Auto-fill roster/lineup
@@ -326,6 +348,13 @@ export class Game {
             aaaRosterLimit: this.aaaRosterLimit,
             aaaAutoManagement: this.aaaAutoManagement,
             aaaAutoPromotions: this.aaaAutoPromotions,
+            ilRoster: this.ilRoster,
+            fortyManRoster: this.fortyManRoster,
+            transactionsLog: this.getPlayerTeam()?.transactionsLog || [],
+            tradeDeadlineRound: this.tradeDeadlineRound,
+            tradeDeadlinePassed: this.tradeDeadlinePassed,
+            postseason: this.postseason,
+            postseasonActive: this.postseasonActive,
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
@@ -338,10 +367,21 @@ export class Game {
             return;
         }
 
-        const rehydrate = p => p ? new Player(p.id, p.name, p.position, p.age, p.stats, p.performance) : null;
+        const rehydrate = p => {
+            if (!p) return null;
+            const player = new Player(p.id, p.name, p.position, p.age, p.stats, p.performance);
+            player.optionsRemaining = typeof p.optionsRemaining === 'number' ? p.optionsRemaining : 3;
+            player.rosterStatus = p.rosterStatus || 'active';
+            player.serviceTimeYears = typeof p.serviceTimeYears === 'number' ? p.serviceTimeYears : 0;
+            player.contract = p.contract || player.contract;
+            if (p.health) player.health = { ...p.health };
+            if (p.ilType) player.ilType = p.ilType;
+            if (p.waiverInfo) player.waiverInfo = { ...p.waiverInfo };
+            return player;
+        };
 
         this.teamName = data.teamName;
-        this.teamBudget = data.teamBudget || 5000000;
+        this.teamBudget = data.teamBudget || 20000000;
         this.playerTeamId = data.playerTeamId;
         this.currentRotationIndex = data.currentRotationIndex;
         this.rotationSize = data.rotationSize;
@@ -367,6 +407,12 @@ export class Game {
         this.aaaRosterLimit = data.aaaRosterLimit || this.aaaRosterLimit;
         this.aaaAutoManagement = data.aaaAutoManagement !== undefined ? data.aaaAutoManagement : true;
         this.aaaAutoPromotions = data.aaaAutoPromotions !== undefined ? data.aaaAutoPromotions : false;
+        this.ilRoster = (data.ilRoster || []).map(rehydrate);
+        this.fortyManRoster = (data.fortyManRoster || []).slice();
+        this.tradeDeadlineRound = typeof data.tradeDeadlineRound === 'number' ? data.tradeDeadlineRound : null;
+        this.tradeDeadlinePassed = !!data.tradeDeadlinePassed;
+        this.postseason = data.postseason || null;
+        this.postseasonActive = !!data.postseasonActive;
 
         // Re-hydrate Player objects
         this.roster = data.roster.map(rehydrate);
@@ -381,6 +427,12 @@ export class Game {
             // lineup and pitcher objects in AI teams are simpler, direct assignment is fine for now
         });
         this.league.freeAgents = this.league.freeAgents.map(rehydrate);
+        this.league.waiverWire = (this.league.waiverWire || []).map(rehydrate);
+        if (!this.league.waiverWire) this.league.waiverWire = [];
+        const playerTeam = this.getPlayerTeam();
+        if (playerTeam) {
+            playerTeam.transactionsLog = data.transactionsLog || playerTeam.transactionsLog || [];
+        }
         this.ensureRosterPerformance();
         this.ensureTeamSeasonStats();
         this.ensureBullpenRoles();
@@ -388,6 +440,9 @@ export class Game {
         this.ensureAllPlayerHealth();
         this.ensureSeasonGoals();
         this.ensureAAAInitialized();
+        this.ensureFortyManRosterInitialized();
+        this.syncPlayerTeamRosterState();
+        this.rehydratePostseasonTeams();
 
 
         // Manually update the UI to show the league view correctly
@@ -399,6 +454,8 @@ export class Game {
         this.updateLeagueView();
         this.updateDraftUI();
         this.updateMatchOptionsUI();
+        this.renderTransactions();
+        this.updateHeaderIndicators();
 
         // Go to Dashboard
         this.switchView('league');
@@ -408,13 +465,85 @@ export class Game {
         // --- VIEW NAVIGATION ---
         const viewLeagueBtn = document.getElementById('view-league-btn');
         const viewTeamBtn = document.getElementById('view-team-btn');
+        const viewRosterBtn = document.getElementById('view-roster-btn');
+        const viewMarketBtn = document.getElementById('view-market-btn');
         const viewMatchBtn = document.getElementById('view-match-btn');
         const viewStatsBtn = document.getElementById('view-stats-btn');
+        const viewHomeBtn = document.getElementById('view-home-btn');
 
+        if (viewHomeBtn) viewHomeBtn.addEventListener('click', () => this.switchView('home', 'view-home-btn'));
         if (viewLeagueBtn) viewLeagueBtn.addEventListener('click', () => this.switchView('league'));
         if (viewTeamBtn) viewTeamBtn.addEventListener('click', () => this.switchView('team'));
+        if (viewRosterBtn) viewRosterBtn.addEventListener('click', () => {
+            this.setRosterView('roster');
+            this.switchView('roster', 'view-roster-btn');
+        });
+        if (viewMarketBtn) viewMarketBtn.addEventListener('click', () => {
+            this.setRosterView('market');
+            this.setMarketTab('fa');
+            this.switchView('market', 'view-market-btn');
+        });
         if (viewMatchBtn) viewMatchBtn.addEventListener('click', () => this.switchView('match'));
         if (viewStatsBtn) viewStatsBtn.addEventListener('click', () => this.switchView('stats'));
+
+        const homeStart = document.getElementById('home-start-season');
+        if (homeStart) {
+            homeStart.addEventListener('click', () => {
+                if (this.league) {
+                    this.switchView('league');
+                } else {
+                    this.startSeason();
+                    this.switchView('league');
+                }
+            });
+        }
+        const homeLeague = document.getElementById('home-go-league');
+        if (homeLeague) homeLeague.addEventListener('click', () => this.switchView('league'));
+        const homeRoster = document.getElementById('home-go-roster');
+        if (homeRoster) {
+            homeRoster.addEventListener('click', () => {
+                this.setRosterView('roster');
+                this.switchView('roster', 'view-roster-btn');
+            });
+        }
+        const homeMatch = document.getElementById('home-go-match');
+        if (homeMatch) {
+            homeMatch.addEventListener('click', () => {
+                if (!this.league) {
+                    this.startSeason();
+                }
+                this.switchView('match');
+            });
+        }
+
+        const scheduleOverlay = document.getElementById('schedule-log-overlay');
+        if (scheduleOverlay) {
+            scheduleOverlay.addEventListener('click', (e) => {
+                if (e.target === scheduleOverlay) scheduleOverlay.classList.add('hidden');
+            });
+        }
+
+        const scheduleSelect = document.getElementById('schedule-round-select');
+        if (scheduleSelect) {
+            scheduleSelect.addEventListener('change', (e) => {
+                this.scheduleViewRoundIndex = parseInt(e.target.value, 10);
+                this.renderSchedule();
+            });
+        }
+        const scheduleFilterAll = document.getElementById('schedule-filter-all');
+        const scheduleFilterMy = document.getElementById('schedule-filter-my');
+        if (scheduleFilterAll) {
+            scheduleFilterAll.addEventListener('click', () => {
+                this.scheduleFilter = 'all';
+                this.renderSchedule();
+            });
+        }
+        if (scheduleFilterMy) {
+            scheduleFilterMy.addEventListener('click', () => {
+                this.scheduleFilter = 'my';
+                this.renderSchedule();
+            });
+        }
 
         // --- GAME ACTIONS ---
         const startBtn = document.getElementById('start-season-btn');
@@ -469,14 +598,22 @@ export class Game {
         this.initBenchControls();
         this.initTradeControls();
         this.initRosterMarketNav();
+        this.initRosterMultiControls();
         this.renderBullpen();
+        this.updateHomeView();
 
     }
 
     renderRosterAndMarket() {
+        this.syncPlayerTeamRosterState();
         this.ensureRosterHealth();
         this.renderList('#roster-list', this.roster, false);
         this.renderAaaList();
+        this.renderIlList();
+        this.renderOptionsList();
+        this.renderFortyManList();
+        this.renderWaiverList();
+        this.updateHeaderIndicators();
 
         if (this.league) {
             this.renderList('#market-list', this.league.freeAgents, true);
@@ -532,16 +669,31 @@ export class Game {
                         }
                     });
                 } else {
-                    this.openPlayerModal(player, {
-                        showPerformance: true,
-                        actionLabel: 'RELEASE',
-                        action: () => {
+                    const isInjured = (player.health?.injuryDays || 0) > 0;
+                    const primaryLabel = isInjured ? 'MOVE TO IL' : 'RELEASE';
+                    const primaryAction = isInjured
+                        ? () => this.movePlayerToIL(player, player.health.injuryDays >= 30 ? '60' : '10')
+                        : () => {
                             if (confirm(`Release ${player.name}?`)) {
                                 this.releasePlayer(player);
                             }
-                        },
-                        secondaryActionLabel: this.aaaActive ? 'SEND TO AAA' : null,
-                        secondaryAction: this.aaaActive ? () => this.sendPlayerToAAA(player) : null
+                        };
+                    const secondaryLabel = isInjured
+                        ? 'RELEASE'
+                        : (this.aaaActive ? 'SEND TO AAA' : null);
+                    const secondaryAction = isInjured
+                        ? () => {
+                            if (confirm(`Release ${player.name}?`)) {
+                                this.releasePlayer(player);
+                            }
+                        }
+                        : (this.aaaActive ? () => this.sendPlayerToAAA(player) : null);
+                    this.openPlayerModal(player, {
+                        showPerformance: true,
+                        actionLabel: primaryLabel,
+                        action: primaryAction,
+                        secondaryActionLabel: secondaryLabel,
+                        secondaryAction: secondaryAction
                     });
                 }
             });
@@ -629,6 +781,162 @@ export class Game {
             });
             container.appendChild(card);
         });
+    }
+
+    renderIlList() {
+        const container = document.getElementById('il-list');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!this.ilRoster || this.ilRoster.length === 0) {
+            container.innerHTML = '<div style="padding:10px; color:#888;">No players on IL</div>';
+            return;
+        }
+        this.ilRoster.forEach(player => {
+            const card = document.createElement('div');
+            this.ensurePlayerHealth(player);
+            const injuryDays = player.health?.injuryDays || 0;
+            const fatigue = player.health?.fatigue || 0;
+            const ilTag = player.ilType || '10';
+            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''} ${injuryDays > 0 ? 'injured' : ''}`;
+            card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
+            const badges = [];
+            badges.push(`<span class="status-badge injury">IL${ilTag}</span>`);
+            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
+            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
+            const statsHtml = player.position === 'P'
+                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
+                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+
+            card.innerHTML = `
+                <div class="card-pos">${player.position}</div>
+                <div class="card-age">(${player.age})</div>
+                <div class="card-name">${player.name}${badges.join('')}</div>
+                <div class="card-stats">
+                    ${statsHtml}
+                </div>
+            `;
+            card.addEventListener('click', () => {
+                this.openPlayerModal(player, {
+                    showPerformance: true,
+                    actionLabel: 'ACTIVATE',
+                    action: () => this.activatePlayerFromIL(player)
+                });
+            });
+            container.appendChild(card);
+        });
+    }
+
+    renderOptionsList() {
+        const container = document.getElementById('options-list');
+        if (!container) return;
+        container.innerHTML = '';
+        const players = [...this.roster, ...this.aaaRoster, ...this.ilRoster];
+        if (players.length === 0) {
+            container.innerHTML = '<div style="padding:10px; color:#888;">No players available</div>';
+            return;
+        }
+        players.forEach(player => {
+            const card = document.createElement('div');
+            const optionsLeft = typeof player.optionsRemaining === 'number' ? player.optionsRemaining : 0;
+            const status = player.rosterStatus || (this.roster.includes(player) ? 'active' : 'aaa');
+            const statusLabel = status.toUpperCase();
+            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+            card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
+            const statsHtml = player.position === 'P'
+                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
+                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            card.innerHTML = `
+                <div class="card-pos">${player.position}</div>
+                <div class="card-age">(${player.age})</div>
+                <div class="card-name">${player.name}<span class="status-badge">${statusLabel}</span><span class="status-badge">OPT ${optionsLeft}</span></div>
+                <div class="card-stats">
+                    ${statsHtml}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    renderFortyManList() {
+        const container = document.getElementById('forty-man-list');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!this.fortyManRoster || this.fortyManRoster.length === 0) {
+            container.innerHTML = '<div style="padding:10px; color:#888;">No players on 40-man roster</div>';
+            return;
+        }
+
+        const pool = new Map();
+        [...this.roster, ...this.aaaRoster, ...this.ilRoster].forEach(player => {
+            pool.set(player.id, player);
+        });
+
+        const players = this.fortyManRoster
+            .map(id => pool.get(id))
+            .filter(Boolean)
+            .sort((a, b) => (a.position || '').localeCompare(b.position || ''));
+
+        players.forEach(player => {
+            const card = document.createElement('div');
+            const status = player.rosterStatus || 'active';
+            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+            card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
+            const statsHtml = player.position === 'P'
+                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
+                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            card.innerHTML = `
+                <div class="card-pos">${player.position}</div>
+                <div class="card-age">(${player.age})</div>
+                <div class="card-name">${player.name}<span class="status-badge">${status.toUpperCase()}</span></div>
+                <div class="card-stats">
+                    ${statsHtml}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    renderWaiverList() {
+        const container = document.getElementById('waiver-list');
+        if (!container) return;
+        container.innerHTML = '';
+        if (!this.league || !this.league.waiverWire || this.league.waiverWire.length === 0) {
+            container.innerHTML = '<div style="padding:10px; color:#888;">No players on waivers</div>';
+            this.updateHeaderIndicators();
+            return;
+        }
+        this.league.waiverWire.forEach(player => {
+            const card = document.createElement('div');
+            const optionsLeft = typeof player.optionsRemaining === 'number' ? player.optionsRemaining : 0;
+            const waiverInfo = player.waiverInfo || {};
+            const expiresRound = waiverInfo.expiresRound || '-';
+            card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
+            card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
+            const statsHtml = player.position === 'P'
+                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
+                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            card.innerHTML = `
+                <div class="card-pos">${player.position}</div>
+                <div class="card-age">(${player.age})</div>
+                <div class="card-name">${player.name}<span class="status-badge">OPT ${optionsLeft}</span></div>
+                <div class="card-stats">
+                    ${statsHtml} | EXPIRES: R${expiresRound}
+                </div>
+            `;
+            const claimBtn = document.createElement('button');
+            claimBtn.className = 'cyber-button compact';
+            claimBtn.innerText = 'CLAIM';
+            const rosterFull = this.roster.length >= this.activeRosterLimit || this.getFortyManCount() >= this.fortyManLimit;
+            const ownWaiver = waiverInfo.originTeamId === this.playerTeamId;
+            claimBtn.disabled = rosterFull || ownWaiver;
+            claimBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.claimWaiverPlayer(player);
+            });
+            card.appendChild(claimBtn);
+            container.appendChild(card);
+        });
+        this.updateHeaderIndicators();
     }
 
     renderScoutingList() {
@@ -1201,6 +1509,10 @@ export class Game {
             alert(`Roster is full (Max ${this.activeRosterLimit})!`);
             return;
         }
+        if (this.getFortyManCount() >= this.fortyManLimit) {
+            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
+            return;
+        }
         if (!this.canAddPlayerToRoster(player)) {
             alert("Roster limit reached for this position (pitchers max 13).");
             return;
@@ -1223,17 +1535,24 @@ export class Game {
 
         // Move from FA to Roster
         this.ensurePlayerHealth(player);
+        this.setPlayerRosterStatus(player, 'active');
+        this.addToFortyManRoster(player);
         this.roster.push(player);
         this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
         alert(`Signed ${player.name}!`);
         this.ensureRosterCompliance();
         this.renderRosterAndMarket();
+        this.logTransaction('SIGN FA', player, `$${player.stats.signingBonus.toLocaleString()}`);
         this.saveGame();
     }
 
     signScoutedPlayer(player) {
         if (this.roster.length >= this.activeRosterLimit) {
             alert(`Roster is full (Max ${this.activeRosterLimit})!`);
+            return;
+        }
+        if (this.getFortyManCount() >= this.fortyManLimit) {
+            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
             return;
         }
         if (!this.canAddPlayerToRoster(player)) {
@@ -1251,11 +1570,14 @@ export class Game {
         this.updateBudgetUI();
 
         this.ensurePlayerHealth(player);
+        this.setPlayerRosterStatus(player, 'active');
+        this.addToFortyManRoster(player);
         this.roster.push(player);
         this.scoutingPool = this.scoutingPool.filter(p => p.id !== player.id);
         alert(`Signed ${player.name}!`);
         this.ensureRosterCompliance();
         this.renderRosterAndMarket();
+        this.logTransaction('SIGN SCOUT', player, `$${player.stats.signingBonus.toLocaleString()}`);
         this.saveGame();
     }
 
@@ -1269,6 +1591,7 @@ export class Game {
         this.renderRosterAndMarket();
         this.renderLineup();
         this.renderRotation();
+        this.logTransaction('RELEASE', player);
 
         // Save game
         this.saveGame();
@@ -1288,12 +1611,16 @@ export class Game {
             this.roster = this.roster.filter(p => p.id !== player.id);
             this.lineup = this.lineup.map(slot => (slot && slot.player.id === player.id) ? null : slot);
             this.rotation = this.rotation.map(p => (p && p.id === player.id) ? null : p);
+            this.removeFromFortyManRoster(player);
         } else if (team.lineup) {
             team.lineup = team.lineup.map(entry => {
                 const p = entry && entry.player ? entry.player : entry;
                 if (p && p.id === player.id) return null;
                 return entry;
             }).filter(Boolean);
+        }
+        if (team.fortyManRoster) {
+            team.fortyManRoster = team.fortyManRoster.filter(id => id !== player.id);
         }
         if (team.pitcher && team.pitcher.id === player.id) {
             team.pitcher = team.roster.find(p => p.position === 'P') || team.roster[0] || null;
@@ -1302,7 +1629,62 @@ export class Game {
         if (addToFreeAgents && this.league && this.league.freeAgents) {
             const exists = this.league.freeAgents.some(p => p.id === player.id);
             if (!exists) this.league.freeAgents.push(player);
+            this.setPlayerRosterStatus(player, 'fa');
         }
+        return true;
+    }
+
+    movePlayerToIL(player, ilType = '10') {
+        if (!player) return false;
+        this.ensurePlayerHealth(player);
+        if ((player.health.injuryDays || 0) < this.ilEligibleMinDays) {
+            alert('Player is not injured.');
+            return false;
+        }
+        const removed = this.releasePlayerFromTeam(this.getPlayerTeam(), player, { enforceMinRoster: false, addToFreeAgents: false });
+        if (!removed) return false;
+        player.ilType = ilType;
+        this.setPlayerRosterStatus(player, 'il');
+        this.ilRoster.push(player);
+        if (ilType === '60') {
+            this.removeFromFortyManRoster(player);
+        } else {
+            this.addToFortyManRoster(player);
+        }
+        this.ensureFortyManLimit();
+        this.renderRosterAndMarket();
+        this.renderLineup();
+        this.renderRotation();
+        this.logTransaction('IL', player, `IL${ilType}`);
+        this.saveGame();
+        return true;
+    }
+
+    activatePlayerFromIL(player) {
+        if (!player) return false;
+        this.ensurePlayerHealth(player);
+        if (player.health.injuryDays > 0) {
+            alert('Player is still injured.');
+            return false;
+        }
+        if (this.roster.length >= this.activeRosterLimit) {
+            alert(`Roster is full (Max ${this.activeRosterLimit}).`);
+            return false;
+        }
+        const needsFortyMan = player.ilType === '60' && !(this.fortyManRoster || []).includes(player.id);
+        if (needsFortyMan && this.getFortyManCount() >= this.fortyManLimit) {
+            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
+            return false;
+        }
+        this.ilRoster = this.ilRoster.filter(p => p.id !== player.id);
+        delete player.ilType;
+        this.setPlayerRosterStatus(player, 'active');
+        this.addToFortyManRoster(player);
+        this.roster.push(player);
+        this.ensureRosterCompliance();
+        this.renderRosterAndMarket();
+        this.logTransaction('ACTIVATE', player);
+        this.saveGame();
         return true;
     }
 
@@ -1321,19 +1703,142 @@ export class Game {
         }
         const removed = this.releasePlayerFromTeam(this.getPlayerTeam(), player, { enforceMinRoster: false, addToFreeAgents: false });
         if (!removed) return false;
-        if (this.aaaRoster.length >= this.aaaRosterLimit && options.allowRelease) {
-            this.league.freeAgents.push(player);
+        const skipOptions = !!options.skipOptions;
+        player.optionsRemaining = typeof player.optionsRemaining === 'number' ? player.optionsRemaining : 0;
+        if (!skipOptions && player.optionsRemaining > 0) {
+            player.optionsRemaining -= 1;
+            this.setPlayerRosterStatus(player, 'aaa');
+            if (this.aaaRoster.length >= this.aaaRosterLimit && options.allowRelease) {
+                this.league.freeAgents.push(player);
+                this.setPlayerRosterStatus(player, 'fa');
+                this.removeFromFortyManRoster(player);
+            } else {
+                this.aaaRoster.push(player);
+            }
+            if (!options.silent) {
+                this.log(`${player.name} optioned to AAA. Options left: ${player.optionsRemaining}.`);
+                this.logTransaction('OPTION', player, `Options left ${player.optionsRemaining}`);
+            }
+        } else if (!skipOptions) {
+            this.placePlayerOnWaivers(player);
+            if (!options.silent) {
+                this.log(`${player.name} placed on waivers.`);
+                this.logTransaction('WAIVERS', player);
+            }
         } else {
-            this.aaaRoster.push(player);
-        }
-        if (!options.silent) {
-            this.log(`${player.name} was sent to AAA.`);
+            this.setPlayerRosterStatus(player, 'aaa');
+            if (this.aaaRoster.length >= this.aaaRosterLimit && options.allowRelease) {
+                this.league.freeAgents.push(player);
+                this.setPlayerRosterStatus(player, 'fa');
+                this.removeFromFortyManRoster(player);
+            } else {
+                this.aaaRoster.push(player);
+            }
         }
         this.renderRosterAndMarket();
         this.renderLineup();
         this.renderRotation();
         this.saveGame();
         return true;
+    }
+
+    placePlayerOnWaivers(player) {
+        if (!this.league || !player) return;
+        player.waiverInfo = {
+            originTeamId: this.playerTeamId,
+            expiresRound: (this.league.currentRoundIndex || 0) + 2
+        };
+        this.setPlayerRosterStatus(player, 'waivers');
+        this.removeFromFortyManRoster(player);
+        if (!this.league.waiverWire) this.league.waiverWire = [];
+        this.league.waiverWire.push(player);
+    }
+
+    claimWaiverPlayer(player) {
+        if (!this.league || !player) return false;
+        if (this.roster.length >= this.activeRosterLimit) {
+            alert(`Roster is full (Max ${this.activeRosterLimit}).`);
+            return false;
+        }
+        if (this.getFortyManCount() >= this.fortyManLimit) {
+            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
+            return false;
+        }
+        this.league.waiverWire = (this.league.waiverWire || []).filter(p => p.id !== player.id);
+        delete player.waiverInfo;
+        this.setPlayerRosterStatus(player, 'active');
+        this.addToFortyManRoster(player);
+        this.roster.push(player);
+        this.log(`${player.name} claimed off waivers.`);
+        this.logTransaction('CLAIM', player);
+        this.renderRosterAndMarket();
+        this.saveGame();
+        return true;
+    }
+
+    processWaiverWire() {
+        if (!this.league || !this.league.waiverWire || this.league.waiverWire.length === 0) return;
+        const currentRound = this.league.currentRoundIndex + 1;
+        const standings = this.league.getSortedStandings();
+        const claimOrder = [...standings].reverse().filter(team => team.id !== this.playerTeamId);
+        const remaining = [];
+
+        this.league.waiverWire.forEach(player => {
+            const waiverInfo = player.waiverInfo || { originTeamId: null, expiresRound: currentRound };
+            let claimedBy = null;
+            claimOrder.forEach(team => {
+                if (claimedBy) return;
+                if (team.id === waiverInfo.originTeamId) return;
+                const recordGames = (team.w || 0) + (team.l || 0);
+                const pct = recordGames > 0 ? team.w / recordGames : 0.5;
+                const claimChance = Math.min(0.7, Math.max(0.2, 0.55 - pct));
+                if (Math.random() < claimChance) {
+                    claimedBy = team;
+                }
+            });
+
+            if (claimedBy) {
+                delete player.waiverInfo;
+                this.setPlayerRosterStatus(player, 'active');
+                if (claimedBy.id === this.playerTeamId) {
+                    this.addToFortyManRoster(player);
+                    this.roster.push(player);
+                } else {
+                    if (waiverInfo.originTeamId === this.playerTeamId) {
+                        this.removeFromFortyManRoster(player);
+                    }
+                    claimedBy.roster.push(player);
+                    if (claimedBy.fortyManRoster && !claimedBy.fortyManRoster.includes(player.id)) {
+                        claimedBy.fortyManRoster.push(player.id);
+                    }
+                }
+                this.enforceRosterLimitsForTeam(claimedBy);
+                return;
+            }
+
+            if (waiverInfo.expiresRound && currentRound >= waiverInfo.expiresRound) {
+                delete player.waiverInfo;
+                if (waiverInfo.originTeamId === this.playerTeamId) {
+                    if (this.aaaActive && this.aaaRoster.length < this.aaaRosterLimit) {
+                        this.setPlayerRosterStatus(player, 'aaa');
+                        this.aaaRoster.push(player);
+                    } else {
+                        this.setPlayerRosterStatus(player, 'fa');
+                        this.league.freeAgents.push(player);
+                        this.removeFromFortyManRoster(player);
+                    }
+                } else {
+                    this.setPlayerRosterStatus(player, 'fa');
+                    this.league.freeAgents.push(player);
+                }
+                return;
+            }
+
+            remaining.push(player);
+        });
+
+        this.league.waiverWire = remaining;
+        this.renderWaiverList();
     }
 
     callUpPlayerFromAAA(player, options = {}) {
@@ -1346,9 +1851,12 @@ export class Game {
             return false;
         }
         this.aaaRoster = this.aaaRoster.filter(p => p.id !== player.id);
+        this.setPlayerRosterStatus(player, 'active');
+        this.addToFortyManRoster(player);
         this.roster.push(player);
         if (!options.silent) {
             this.log(`${player.name} was called up from AAA.`);
+            this.logTransaction('CALL UP', player);
         }
         this.renderRosterAndMarket();
         this.saveGame();
@@ -1360,8 +1868,11 @@ export class Game {
         if (this.league && this.league.freeAgents) {
             this.league.freeAgents.push(player);
         }
+        this.setPlayerRosterStatus(player, 'fa');
+        this.removeFromFortyManRoster(player);
         if (!options.silent) {
             this.log(`${player.name} was released from AAA.`);
+            this.logTransaction('RELEASE AAA', player);
         }
         this.renderRosterAndMarket();
         this.saveGame();
@@ -1388,6 +1899,61 @@ export class Game {
             }
         });
         return counts;
+    }
+
+    getFortyManCount() {
+        if (!this.fortyManRoster || this.fortyManRoster.length === 0) {
+            this.rebuildFortyManRoster();
+        }
+        return (this.fortyManRoster || []).length;
+    }
+
+    rebuildFortyManRoster() {
+        const ids = new Set();
+        this.roster.forEach(player => ids.add(player.id));
+        this.ilRoster.forEach(player => {
+            if (player.ilType !== '60') ids.add(player.id);
+        });
+        this.fortyManRoster = [...ids];
+    }
+
+    ensureFortyManRosterInitialized() {
+        if (!this.fortyManRoster || this.fortyManRoster.length === 0) {
+            this.rebuildFortyManRoster();
+        }
+    }
+
+    addToFortyManRoster(player) {
+        if (!player) return;
+        if (!this.fortyManRoster) this.fortyManRoster = [];
+        if (!this.fortyManRoster.includes(player.id)) {
+            this.fortyManRoster.push(player.id);
+        }
+    }
+
+    removeFromFortyManRoster(player) {
+        if (!player || !this.fortyManRoster) return;
+        this.fortyManRoster = this.fortyManRoster.filter(id => id !== player.id);
+    }
+
+    syncPlayerTeamRosterState() {
+        const team = this.getPlayerTeam();
+        if (!team) return;
+        team.roster = this.roster;
+        team.aaaRoster = this.aaaRoster;
+        team.ilRoster = this.ilRoster;
+        team.fortyManRoster = this.fortyManRoster || [];
+    }
+
+    setPlayerRosterStatus(player, status) {
+        if (!player) return;
+        player.rosterStatus = status;
+    }
+
+    ensureFortyManLimit() {
+        let count = this.getFortyManCount();
+        if (count <= this.fortyManLimit) return;
+        this.log(`40-man roster exceeds limit (${count}/${this.fortyManLimit}).`);
     }
 
     getRosterComplianceIssues(roster) {
@@ -1471,11 +2037,15 @@ export class Game {
             if (this.league && this.league.freeAgents) {
                 this.league.freeAgents.push(player);
             }
+            this.setPlayerRosterStatus(player, 'fa');
+            this.removeFromFortyManRoster(player);
         };
 
         const addPlayer = (pos) => {
             const player = PlayerGenerator.createPlayer(this.rules, pos);
             this.ensurePlayerHealth(player);
+            this.setPlayerRosterStatus(player, 'active');
+            this.addToFortyManRoster(player);
             this.roster.push(player);
         };
 
@@ -1571,11 +2141,15 @@ export class Game {
             if (counts.OF < this.minOutfieldActive) needs.push('OF');
             const pick = this.pickFreeAgentForNeed(needs);
             if (!pick) break;
-            const budget = typeof team.budget === 'number' ? team.budget : 5000000;
+            const budget = typeof team.budget === 'number' ? team.budget : 20000000;
             const cost = pick.stats.signingBonus || 0;
             if (budget < cost) break;
             team.budget = budget - cost;
+            pick.rosterStatus = 'active';
             team.roster.push(pick);
+            if (team.fortyManRoster && !team.fortyManRoster.includes(pick.id)) {
+                team.fortyManRoster.push(pick.id);
+            }
             this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== pick.id);
         }
         this.autoFillAiLineup(team);
@@ -1598,7 +2172,7 @@ export class Game {
         const perRoundFactor = 1 / totalRounds;
         this.league.teams.forEach(team => {
             if (team.id === this.playerTeamId) return;
-            if (typeof team.budget !== 'number') team.budget = 5000000;
+            if (typeof team.budget !== 'number') team.budget = 20000000;
             const payroll = (team.roster || []).reduce((sum, p) => sum + (p.stats.salary || 0), 0);
             team.budget -= Math.round(payroll * perRoundFactor);
         });
@@ -1613,7 +2187,7 @@ export class Game {
             const standings = this.league.standings[team.id] || { w: 0, l: 0 };
             const games = standings.w + standings.l;
             const pct = games > 0 ? standings.w / games : 0.5;
-            const budget = typeof team.budget === 'number' ? team.budget : 5000000;
+            const budget = typeof team.budget === 'number' ? team.budget : 20000000;
             if (pct < 0.4 || budget < 1000000) {
                 const candidate = this.getRosterCutCandidate(team, team.roster);
                 if (candidate) {
@@ -1637,6 +2211,7 @@ export class Game {
         if (this.aaaAutoManagement) {
             this.balanceAaaRosters();
         }
+        this.ensureFortyManLimit();
     }
 
     createAaaRoster() {
@@ -1646,12 +2221,17 @@ export class Game {
         if (needed === 0) return;
         const pool = [...this.league.freeAgents].sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0));
         const fromFa = pool.slice(0, needed);
+        fromFa.forEach(player => {
+            this.setPlayerRosterStatus(player, 'aaa');
+        });
         this.aaaRoster.push(...fromFa);
         this.league.freeAgents = this.league.freeAgents.filter(p => !fromFa.some(fa => fa.id === p.id));
         const remaining = this.aaaRosterLimit - this.aaaRoster.length;
         if (remaining > 0) {
             for (let i = 0; i < remaining; i++) {
-                this.aaaRoster.push(PlayerGenerator.createProspect(this.rules, { minAge: 19, maxAge: 26 }));
+                const prospect = PlayerGenerator.createProspect(this.rules, { minAge: 19, maxAge: 26 });
+                this.setPlayerRosterStatus(prospect, 'aaa');
+                this.aaaRoster.push(prospect);
             }
         }
     }
@@ -1662,7 +2242,7 @@ export class Game {
             while (this.roster.length > this.activeRosterLimit) {
                 const candidate = this.getRosterCutCandidate(this.getPlayerTeam(), this.roster);
                 if (!candidate) break;
-                this.sendPlayerToAAA(candidate, { silent: true, allowRelease: true });
+                this.sendPlayerToAAA(candidate, { silent: true, allowRelease: true, skipOptions: true });
             }
         }
         while (this.aaaRoster.length > this.aaaRosterLimit) {
@@ -1682,12 +2262,17 @@ export class Game {
         const pool = [...this.league.freeAgents].sort((a, b) => (a.stats.overall || 0) - (b.stats.overall || 0));
         const picks = pool.slice(0, needed);
         if (picks.length === 0) return;
+        picks.forEach(player => {
+            this.setPlayerRosterStatus(player, 'aaa');
+        });
         this.aaaRoster.push(...picks);
         this.league.freeAgents = this.league.freeAgents.filter(p => !picks.some(pick => pick.id === p.id));
         const remaining = this.aaaRosterLimit - this.aaaRoster.length;
         if (remaining > 0) {
             for (let i = 0; i < remaining; i++) {
-                this.aaaRoster.push(PlayerGenerator.createProspect(this.rules, { minAge: 19, maxAge: 26 }));
+                const prospect = PlayerGenerator.createProspect(this.rules, { minAge: 19, maxAge: 26 });
+                this.setPlayerRosterStatus(prospect, 'aaa');
+                this.aaaRoster.push(prospect);
             }
         }
     }
@@ -1763,12 +2348,17 @@ export class Game {
     startSeason() {
         // 1. Create League
         this.league = new League(this.rules);
+        this.ensureFortyManRosterInitialized();
 
         // 2. Register Player Team
         const myTeam = {
             id: this.playerTeamId,
             name: this.teamName,
             roster: this.roster,
+            aaaRoster: this.aaaRoster,
+            ilRoster: this.ilRoster,
+            fortyManRoster: this.fortyManRoster,
+            transactionsLog: [],
             lineup: this.lineup,
             pitcher: this.pitcher,
             isPlayer: true,
@@ -1781,6 +2371,14 @@ export class Game {
         this.ensureAllPlayerHealth();
         this.ensureRosterCompliance();
         this.ensureAAAInitialized();
+        this.tradeDeadlineRound = Math.max(1, Math.floor(this.league.schedule.length * 0.7));
+        this.tradeDeadlinePassed = false;
+        this.postseason = null;
+        this.postseasonActive = false;
+        if (this.league && this.league.calendar) {
+            this.league.calendar.tradeDeadlineRound = this.tradeDeadlineRound;
+            this.league.calendar.postseasonStartRound = this.league.schedule.length + 1;
+        }
 
         // 3. Update League Panel UI
         document.getElementById('start-season-btn').style.display = 'none';
@@ -1789,6 +2387,160 @@ export class Game {
         this.updateLeagueView();
 
         // 4. Go to Team View
+    }
+
+    startPostseason() {
+        if (!this.league) return;
+        const sorted = this.league.getSortedStandings();
+        const seeded = sorted.slice(0, 4);
+        if (seeded.length < 4) {
+            this.advanceSeason();
+            return;
+        }
+        const seedMap = {};
+        seeded.forEach((team, index) => {
+            seedMap[team.id] = index + 1;
+        });
+        const bestOf = this.postseasonSeriesLengths[0] || 3;
+        const roundOne = {
+            name: 'Semifinals',
+            series: [
+                { home: seeded[0], away: seeded[3], winsHome: 0, winsAway: 0, bestOf },
+                { home: seeded[1], away: seeded[2], winsHome: 0, winsAway: 0, bestOf }
+            ]
+        };
+        this.postseason = {
+            rounds: [roundOne],
+            roundIndex: 0,
+            seedMap,
+            champion: null
+        };
+        this.postseasonActive = true;
+        this.currentPostseasonSeries = null;
+        this.log('Postseason begins!');
+        this.renderPostseason();
+    }
+
+    getCurrentPostseasonRound() {
+        if (!this.postseason || !this.postseason.rounds) return null;
+        return this.postseason.rounds[this.postseason.roundIndex] || null;
+    }
+
+    getPostseasonSeriesForTeam(teamId) {
+        const round = this.getCurrentPostseasonRound();
+        if (!round) return null;
+        return round.series.find(entry => entry.home.id === teamId || entry.away.id === teamId) || null;
+    }
+
+    isSeriesComplete(series) {
+        if (!series) return false;
+        const winsNeeded = Math.ceil(series.bestOf / 2);
+        return series.winsHome >= winsNeeded || series.winsAway >= winsNeeded;
+    }
+
+    isPostseasonRoundComplete(round) {
+        if (!round) return true;
+        return round.series.every(entry => this.isSeriesComplete(entry));
+    }
+
+    advancePostseasonRound() {
+        if (!this.postseason) return;
+        const currentRound = this.getCurrentPostseasonRound();
+        if (!currentRound) return;
+        const winners = currentRound.series.map(series => (series.winsHome >= series.winsAway ? series.home : series.away));
+        if (winners.length === 1) {
+            this.postseason.champion = winners[0];
+            this.postseasonActive = false;
+            this.log(`Champion: ${winners[0].name}`);
+            alert(`${winners[0].name} wins the championship!`);
+            this.advanceSeason();
+            return;
+        }
+        const seedMap = this.postseason.seedMap || {};
+        const roundIndex = this.postseason.roundIndex + 1;
+        const bestOf = this.postseasonSeriesLengths[Math.min(roundIndex, this.postseasonSeriesLengths.length - 1)] || 5;
+        const [teamA, teamB] = winners;
+        const home = (seedMap[teamA.id] || 99) <= (seedMap[teamB.id] || 99) ? teamA : teamB;
+        const away = home.id === teamA.id ? teamB : teamA;
+        const nextRound = {
+            name: 'Finals',
+            series: [{ home, away, winsHome: 0, winsAway: 0, bestOf }]
+        };
+        this.postseason.rounds[roundIndex] = nextRound;
+        this.postseason.roundIndex = roundIndex;
+        this.currentPostseasonSeries = null;
+        this.log(`Postseason Round ${roundIndex + 1} begins!`);
+    }
+
+    simulatePostseasonRound() {
+        const currentRound = this.getCurrentPostseasonRound();
+        if (!currentRound) return;
+        currentRound.series.forEach(series => {
+            if (this.isSeriesComplete(series)) return;
+            const hScore = Math.floor(Math.random() * 10);
+            const aScore = Math.floor(Math.random() * 10);
+            if (hScore >= aScore) {
+                series.winsHome += 1;
+            } else {
+                series.winsAway += 1;
+            }
+            this.recordTeamGame(series.home.id, series.away.id, hScore, aScore);
+            this.applyMatchFatigue(series.home, series.away);
+            this.applyMatchFatigue(series.away, series.home);
+        });
+        if (this.isPostseasonRoundComplete(currentRound)) {
+            this.advancePostseasonRound();
+        }
+        this.updateLeagueView();
+        this.saveGame();
+    }
+
+    renderPostseason() {
+        const area = document.getElementById('postseason-area');
+        const bracket = document.getElementById('postseason-bracket');
+        if (!area || !bracket) return;
+        if (!this.postseasonActive || !this.postseason) {
+            area.style.display = 'none';
+            bracket.innerHTML = '';
+            return;
+        }
+
+        area.style.display = 'block';
+        bracket.innerHTML = '';
+        this.postseason.rounds.forEach((round, index) => {
+            const roundEl = document.createElement('div');
+            roundEl.className = 'postseason-round';
+            round.series.forEach(series => {
+                const winsNeeded = Math.ceil(series.bestOf / 2);
+                const seriesEl = document.createElement('div');
+                seriesEl.className = 'postseason-series';
+                seriesEl.innerHTML = `
+                    <div class="series-title">${round.name || `Round ${index + 1}`} • Best of ${series.bestOf}</div>
+                    <div class="series-team">
+                        <span>${series.home.name}</span>
+                        <span>${series.winsHome}/${winsNeeded}</span>
+                    </div>
+                    <div class="series-team">
+                        <span>${series.away.name}</span>
+                        <span>${series.winsAway}/${winsNeeded}</span>
+                    </div>
+                `;
+                roundEl.appendChild(seriesEl);
+            });
+            bracket.appendChild(roundEl);
+        });
+    }
+
+    rehydratePostseasonTeams() {
+        if (!this.postseason || !this.league || !this.league.teams) return;
+        this.postseason.rounds = (this.postseason.rounds || []).map(round => ({
+            ...round,
+            series: (round.series || []).map(series => {
+                const home = this.league.teams.find(team => team.id === series.home?.id) || series.home;
+                const away = this.league.teams.find(team => team.id === series.away?.id) || series.away;
+                return { ...series, home, away };
+            })
+        }));
     }
 
     enterMatchSetup() {
@@ -1800,12 +2552,26 @@ export class Game {
         if (this.isSimulating) return;
 
         const starter = this.rotation[this.currentRotationIndex];
+        let myMatch = null;
 
-        const round = this.league.getCurrentRound();
-        const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
-        if (!myMatch) {
-            this.log("No match scheduled for this round.");
-            return;
+        this.currentMatchLog = [];
+
+        if (this.postseasonActive) {
+            const postseason = this.getPostseasonSeriesForTeam(this.playerTeamId);
+            if (!postseason) {
+                this.log("No postseason match scheduled. Simulating remaining series...");
+                this.simulatePostseasonRound();
+                return;
+            }
+            myMatch = { home: postseason.home, away: postseason.away };
+            this.currentPostseasonSeries = postseason;
+        } else {
+            const round = this.league.getCurrentRound();
+            myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
+            if (!myMatch) {
+                this.log("No match scheduled for this round.");
+                return;
+            }
         }
         
         if (myMatch.home.id === this.playerTeamId) {
@@ -1852,6 +2618,11 @@ export class Game {
     async finishMatch(homeScore, awayScore) {
         this.isSimulating = false; // RESET FLAG
 
+        if (this.postseasonActive) {
+            this.finishPostseasonMatch(homeScore, awayScore);
+            return;
+        }
+
         // 1. Update League Standings for Player Match
         const round = this.league.getCurrentRound();
         const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
@@ -1870,6 +2641,7 @@ export class Game {
         }
 
         this.recordTeamGame(myMatch.home.id, myMatch.away.id, homeScore, awayScore);
+        this.persistMatchLog(myMatch, this.league.currentRoundIndex + 1);
         this.advanceScoutingProgress();
         this.applyMatchFatigue(myMatch.home, myMatch.away);
         this.applyMatchFatigue(myMatch.away, myMatch.home);
@@ -1889,19 +2661,21 @@ export class Game {
             this.applyMatchFatigue(match.away, match.home);
         });
 
+        this.processWaiverWire();
         this.manageAiRosterAfterRound();
         this.ensureAAAInitialized();
         this.manageAaaAfterRound();
 
         // 3. Advance Round
         this.league.currentRoundIndex++;
+        this.tradeDeadlinePassed = this.isTradeDeadlinePassed();
 
         // 4. Advance Rotation (Player Team)
         this.currentRotationIndex = (this.currentRotationIndex + 1) % this.rotationSize;
         this.renderRotation(); // Update UI to show next starter
 
         if (this.league.currentRoundIndex >= this.league.schedule.length) {
-            this.advanceSeason();
+            this.startPostseason();
             return;
         }
 
@@ -1930,7 +2704,86 @@ export class Game {
         this.saveGame();
     }
 
+    finishPostseasonMatch(homeScore, awayScore) {
+        const currentRound = this.getCurrentPostseasonRound();
+        const series = this.currentPostseasonSeries;
+        if (!currentRound || !series) {
+            this.log('Postseason state missing.');
+            this.postseasonActive = false;
+            return;
+        }
+
+        const winnerIsHome = homeScore >= awayScore;
+        if (winnerIsHome) {
+            series.winsHome += 1;
+        } else {
+            series.winsAway += 1;
+        }
+
+        const seriesCompleted = this.isSeriesComplete(series);
+
+        this.recordTeamGame(series.home.id, series.away.id, homeScore, awayScore);
+        this.persistMatchLog({ home: series.home, away: series.away }, this.league.currentRoundIndex + 1, { isPostseason: true });
+        this.applyMatchFatigue(series.home, series.away);
+        this.applyMatchFatigue(series.away, series.home);
+
+        currentRound.series.forEach(entry => {
+            if (entry === series) return;
+            if (this.isSeriesComplete(entry)) return;
+            const hScore = Math.floor(Math.random() * 10);
+            const aScore = Math.floor(Math.random() * 10);
+            if (hScore >= aScore) {
+                entry.winsHome += 1;
+            } else {
+                entry.winsAway += 1;
+            }
+            this.recordTeamGame(entry.home.id, entry.away.id, hScore, aScore);
+            this.applyMatchFatigue(entry.home, entry.away);
+            this.applyMatchFatigue(entry.away, entry.home);
+        });
+
+        this.processWaiverWire();
+        this.manageAiRosterAfterRound();
+        this.ensureAAAInitialized();
+        this.manageAaaAfterRound();
+
+        this.currentRotationIndex = (this.currentRotationIndex + 1) % this.rotationSize;
+        this.renderRotation();
+
+        if (this.isPostseasonRoundComplete(currentRound)) {
+            this.advancePostseasonRound();
+        }
+
+        this.updateLeagueView();
+        const playBtn = document.getElementById('play-match-btn');
+        if (playBtn) playBtn.disabled = false;
+        this.updatePitcherStaminaUI();
+        this.updatePitcherRestDaysAfterMatch();
+        this.advancePlayerRecovery();
+        this.recoverPitcherStamina();
+        this.renderRotation();
+        this.renderBullpen();
+        if (this.autoClearMatchLog) {
+            this.setMatchLogMessage('Match complete. Ready for next game.');
+        }
+        this.matchCompleted = true;
+        this.updateMatchSummary(homeScore, awayScore);
+        this.updateSimControls();
+        this.currentMatch = null;
+        this.currentPostseasonSeries = null;
+
+        this.saveGame();
+
+        if (seriesCompleted) {
+            this.log(`Series update: ${series.home.name} ${series.winsHome} - ${series.away.name} ${series.winsAway}`);
+        }
+    }
+
     advanceSeason() {
+        this.postseason = null;
+        this.postseasonActive = false;
+        this.currentPostseasonSeries = null;
+        if (this.league) this.league.waiverWire = [];
         // Calculate and deduct annual salaries for all players on the roster
         let totalSalaries = 0;
         this.roster.forEach(player => {
@@ -1945,6 +2798,7 @@ export class Game {
         this.log(`Annual salaries of $${totalSalaries.toLocaleString()} deducted.`);
         this.updateBudgetUI();
 
+        this.incrementServiceTime();
         this.applyPerformanceTraining();
         this.finalizeSeasonStats(this.league.season);
         
@@ -1958,6 +2812,17 @@ export class Game {
         });
 
         this.startDraft();
+    }
+
+    incrementServiceTime() {
+        const teams = this.league ? this.league.teams : [];
+        teams.forEach(team => {
+            (team.roster || []).forEach(player => {
+                if (!player.rosterStatus) player.rosterStatus = 'active';
+                if (player.rosterStatus !== 'active') return;
+                player.serviceTimeYears = (player.serviceTimeYears || 0) + 1;
+            });
+        });
     }
 
     // --- VIEW UPDATES ---
@@ -1993,20 +2858,98 @@ export class Game {
         });
 
         // Update Next Match Text
-        const round = this.league.getCurrentRound();
-        if (round) {
-            const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
-            const opponent = myMatch.home.id === this.playerTeamId ? myMatch.away : myMatch.home;
-            const display = document.getElementById('next-opponent-display');
-            if (display) display.innerText = `NEXT: vs ${opponent.name}`;
+        const display = document.getElementById('next-opponent-display');
+        if (display) {
+            if (this.postseasonActive) {
+                const series = this.getPostseasonSeriesForTeam(this.playerTeamId);
+                if (series) {
+                    const opponent = series.home.id === this.playerTeamId ? series.away : series.home;
+                    display.innerText = `POSTSEASON: vs ${opponent.name}`;
+                } else {
+                    display.innerText = 'POSTSEASON: Eliminated';
+                }
+            } else {
+                const round = this.league.getCurrentRound();
+                if (round) {
+                    const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
+                    const opponent = myMatch.home.id === this.playerTeamId ? myMatch.away : myMatch.home;
+                    display.innerText = `NEXT: vs ${opponent.name}`;
+                }
+            }
+        }
+        const playBtn = document.getElementById('play-match-btn-league');
+        if (playBtn) {
+            playBtn.innerText = this.postseasonActive ? 'POSTSEASON GAME' : 'ENTER MATCH';
         }
 
+        const deadlineEl = document.getElementById('trade-deadline-status');
+        if (deadlineEl && this.league && this.tradeDeadlineRound) {
+            const currentRound = this.league.currentRoundIndex + 1;
+            const passed = this.isTradeDeadlinePassed();
+            deadlineEl.innerText = passed
+                ? `TRADE DEADLINE PASSED (Round ${this.tradeDeadlineRound})`
+                : `TRADE DEADLINE: Round ${this.tradeDeadlineRound} • Current Round ${currentRound}`;
+        }
+
+        this.renderPostseason();
+        this.renderSchedule();
         this.updateDraftUI();
         this.updateTeamStatsView();
         this.updateGoalProgress();
         this.updateGoalUI();
         this.renderPositionRankings();
+        this.renderTransactions();
+        this.updateHeaderIndicators();
         this.updateAaaOptionsUI();
+        this.updateHomeView();
+    }
+
+    updateHomeView() {
+        const teamNameEl = document.getElementById('home-team-name');
+        const seasonEl = document.getElementById('home-season');
+        const recordEl = document.getElementById('home-record');
+        const nextEl = document.getElementById('home-next');
+        const budgetEl = document.getElementById('home-budget');
+        const fortyEl = document.getElementById('home-forty');
+        const waiversEl = document.getElementById('home-waivers');
+        const activeEl = document.getElementById('home-active-count');
+        const ilEl = document.getElementById('home-il-count');
+        const optionsEl = document.getElementById('home-options-count');
+        if (teamNameEl) teamNameEl.innerText = this.teamName || 'Your Franchise HQ';
+        if (!this.league) {
+            if (seasonEl) seasonEl.innerText = 'SEASON 1 (Not Started)';
+            if (recordEl) recordEl.innerText = 'Record: 0-0';
+            if (nextEl) nextEl.innerText = 'Next: --';
+            if (budgetEl) budgetEl.innerText = `Budget: $${(this.teamBudget || 0).toLocaleString()}`;
+            if (fortyEl) fortyEl.innerText = `40-Man: ${this.getFortyManCount()}/${this.fortyManLimit}`;
+            if (waiversEl) waiversEl.innerText = `Waivers: 0`;
+            if (activeEl) activeEl.innerText = `Active: ${this.roster.length}`;
+            if (ilEl) ilEl.innerText = `IL: ${(this.ilRoster || []).length}`;
+            if (optionsEl) optionsEl.innerText = `Options: ${this.getOptionsRemainingCount()}`;
+            return;
+        }
+        if (seasonEl) seasonEl.innerText = `SEASON ${this.league.season}`;
+        const standings = this.league.standings?.[this.playerTeamId] || { w: 0, l: 0 };
+        if (recordEl) recordEl.innerText = `Record: ${standings.w}-${standings.l}`;
+        const round = this.league.getCurrentRound();
+        if (round) {
+            const myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
+            if (myMatch) {
+                const opponent = myMatch.home.id === this.playerTeamId ? myMatch.away : myMatch.home;
+                if (nextEl) nextEl.innerText = `Next: vs ${opponent.name}`;
+            }
+        }
+        if (budgetEl) budgetEl.innerText = `Budget: $${(this.teamBudget || 0).toLocaleString()}`;
+        if (fortyEl) fortyEl.innerText = `40-Man: ${this.getFortyManCount()}/${this.fortyManLimit}`;
+        if (waiversEl) waiversEl.innerText = `Waivers: ${this.league?.waiverWire?.length || 0}`;
+        if (activeEl) activeEl.innerText = `Active: ${this.roster.length}`;
+        if (ilEl) ilEl.innerText = `IL: ${(this.ilRoster || []).length}`;
+        if (optionsEl) optionsEl.innerText = `Options: ${this.getOptionsRemainingCount()}`;
+    }
+
+    getOptionsRemainingCount() {
+        const players = [...this.roster, ...this.aaaRoster, ...this.ilRoster];
+        return players.reduce((sum, player) => sum + (player.optionsRemaining || 0), 0);
     }
 
     getTeamLastFive(teamId) {
@@ -2031,6 +2974,136 @@ export class Game {
         if (!this.league || !this.league.teams) return null;
         const team = this.league.teams.find(entry => entry.id === teamId);
         return team ? team.name : null;
+    }
+
+    renderSchedule() {
+        const list = document.getElementById('schedule-list');
+        const select = document.getElementById('schedule-round-select');
+        if (!list || !select) return;
+        if (!this.league || !this.league.schedule || this.league.schedule.length === 0) {
+            list.innerHTML = '<div class="schedule-row">Start season to view schedule.</div>';
+            select.innerHTML = '';
+            return;
+        }
+
+        select.innerHTML = '';
+        this.league.schedule.forEach((_, index) => {
+            const opt = document.createElement('option');
+            opt.value = index;
+            opt.textContent = `Round ${index + 1}`;
+            select.appendChild(opt);
+        });
+
+        const current = typeof this.scheduleViewRoundIndex === 'number'
+            ? this.scheduleViewRoundIndex
+            : this.league.currentRoundIndex;
+        const safeIndex = Math.max(0, Math.min(current, this.league.schedule.length - 1));
+        this.scheduleViewRoundIndex = safeIndex;
+        select.value = String(safeIndex);
+
+        const round = this.league.schedule[safeIndex] || [];
+        list.innerHTML = '';
+        const currentRoundNumber = this.league.currentRoundIndex + 1;
+        const roundNumber = safeIndex + 1;
+        const filterMyTeam = this.scheduleFilter === 'my';
+        const filterAllBtn = document.getElementById('schedule-filter-all');
+        const filterMyBtn = document.getElementById('schedule-filter-my');
+        if (filterAllBtn) filterAllBtn.classList.toggle('active', !filterMyTeam);
+        if (filterMyBtn) filterMyBtn.classList.toggle('active', filterMyTeam);
+
+        const getMatchResult = (homeId, awayId) => {
+            const log = this.teamSeasonStats?.[homeId]?.gameLog || [];
+            const entry = log.find(item => item.round === roundNumber && item.opponentId === awayId && item.isHome);
+            if (!entry) return null;
+            return {
+                homeRuns: entry.runsFor,
+                awayRuns: entry.runsAgainst,
+                result: entry.result,
+                matchLog: entry.matchLog || null
+            };
+        };
+
+        round.forEach(match => {
+            const row = document.createElement('div');
+            const isPlayerMatch = match.home.id === this.playerTeamId || match.away.id === this.playerTeamId;
+            if (filterMyTeam && !isPlayerMatch) return;
+            row.className = `schedule-row ${isPlayerMatch ? 'player-team' : ''}`;
+            const result = getMatchResult(match.home.id, match.away.id);
+            let statusText = 'UPCOMING';
+            if (roundNumber < currentRoundNumber) {
+                statusText = result ? `FINAL ${result.awayRuns}-${result.homeRuns}` : 'COMPLETED';
+            } else if (roundNumber === currentRoundNumber) {
+                statusText = isPlayerMatch ? 'NEXT' : 'TODAY';
+            }
+            if (result?.matchLog) row.classList.add('clickable');
+            row.innerHTML = `
+                <span>${match.away.name} @ ${match.home.name}</span>
+                <span class="schedule-status">${statusText}</span>
+            `;
+            if (result?.matchLog) {
+                row.addEventListener('click', () => {
+                    this.openMatchLogForRound(match, roundNumber, result);
+                });
+            }
+            list.appendChild(row);
+        });
+    }
+
+    openMatchLogForRound(match, roundNumber, result) {
+        if (!match || !result) return;
+        this.setScheduleLogModal(match, roundNumber, result);
+        this.switchView('match');
+        this.setMatchLogMessage(`R${roundNumber} ${match.away.name} @ ${match.home.name} FINAL ${result.awayRuns}-${result.homeRuns}`);
+        if (result.matchLog?.matchLog?.length) {
+            result.matchLog.matchLog.forEach(entry => {
+                this.log(entry);
+            });
+        } else {
+            const isPlayerHome = match.home.id === this.playerTeamId;
+            const isPlayerAway = match.away.id === this.playerTeamId;
+            if (isPlayerHome || isPlayerAway) {
+                const outcome = isPlayerHome
+                    ? (result.homeRuns >= result.awayRuns ? 'W' : 'L')
+                    : (result.awayRuns >= result.homeRuns ? 'W' : 'L');
+                this.log(`> Result: ${outcome} (summary only)`);
+            } else {
+                this.log('> Result: AI game (summary only)');
+            }
+        }
+    }
+
+    setScheduleLogModal(match, roundNumber, result) {
+        const overlay = document.getElementById('schedule-log-overlay');
+        const titleEl = document.getElementById('schedule-log-title');
+        const scoreEl = document.getElementById('schedule-log-score');
+        const bodyEl = document.getElementById('schedule-log-body');
+        const openBtn = document.getElementById('schedule-log-open-match');
+        const closeBtn = document.getElementById('schedule-log-close');
+        const closeBtnAlt = document.getElementById('schedule-log-close-btn');
+        if (!overlay || !titleEl || !scoreEl || !bodyEl) return;
+        titleEl.innerText = `R${roundNumber} ${match.away.name} @ ${match.home.name}`;
+        scoreEl.innerText = `FINAL ${result.awayRuns}-${result.homeRuns}`;
+        bodyEl.innerHTML = '';
+        if (result.matchLog?.matchLog?.length) {
+            result.matchLog.matchLog.forEach(entry => {
+                const row = document.createElement('div');
+                row.className = 'log-entry';
+                row.innerText = entry;
+                bodyEl.appendChild(row);
+            });
+        } else {
+            bodyEl.innerHTML = '<div class="log-entry">No detailed log available.</div>';
+        }
+        const close = () => overlay.classList.add('hidden');
+        if (closeBtn) closeBtn.onclick = close;
+        if (closeBtnAlt) closeBtnAlt.onclick = close;
+        if (openBtn) {
+            openBtn.onclick = () => {
+                overlay.classList.add('hidden');
+                this.switchView('match');
+            };
+        }
+        overlay.classList.remove('hidden');
     }
 
     renderPositionRankings() {
@@ -2397,6 +3470,9 @@ export class Game {
             log.innerHTML += `<div class="${cls}">${msg}</div>`;
             log.scrollTop = log.scrollHeight;
         }
+        if (this.currentMatchLog && this.isSimulating) {
+            this.currentMatchLog.push(msg);
+        }
     }
 
     setMatchLogMessage(message) {
@@ -2404,6 +3480,20 @@ export class Game {
         if (log) {
             log.innerHTML = `<div class="log-entry">> ${message}</div>`;
         }
+    }
+
+    persistMatchLog(match, roundNumber, options = {}) {
+        if (!match || !roundNumber || !this.currentMatchLog) return;
+        const homeLog = this.teamSeasonStats?.[match.home.id]?.gameLog || [];
+        const awayLog = this.teamSeasonStats?.[match.away.id]?.gameLog || [];
+        const homeEntry = homeLog.find(entry => entry.round === roundNumber && entry.opponentId === match.away.id && entry.isHome);
+        const awayEntry = awayLog.find(entry => entry.round === roundNumber && entry.opponentId === match.home.id && !entry.isHome);
+        const logPayload = {
+            matchLog: [...this.currentMatchLog],
+            postseason: !!options.isPostseason
+        };
+        if (homeEntry) homeEntry.matchLog = logPayload;
+        if (awayEntry) awayEntry.matchLog = logPayload;
     }
 
     initMatchSummary(match) {
@@ -2479,30 +3569,79 @@ export class Game {
         summary.style.display = visible ? 'flex' : 'none';
     }
 
-    switchView(mode) {
+    switchView(mode, activeOverrideId = null) {
         const mainContent = document.querySelector('.main-content');
         const leagueBtn = document.getElementById('view-league-btn');
         const teamBtn = document.getElementById('view-team-btn');
+        const rosterBtn = document.getElementById('view-roster-btn');
+        const marketBtn = document.getElementById('view-market-btn');
         const matchBtn = document.getElementById('view-match-btn');
         const statsBtn = document.getElementById('view-stats-btn');
 
-        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode', 'stats-mode');
+        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode', 'stats-mode', 'roster-mode', 'home-mode');
 
-        if (leagueBtn) leagueBtn.classList.remove('active');
-        if (teamBtn) teamBtn.classList.remove('active');
-        if (matchBtn) matchBtn.classList.remove('active');
-        if (statsBtn) statsBtn.classList.remove('active');
+        const navButtons = [leagueBtn, teamBtn, rosterBtn, marketBtn, matchBtn, statsBtn, document.getElementById('view-home-btn')];
+        navButtons.forEach(btn => {
+            if (btn) btn.classList.remove('active');
+        });
 
-        if (mode === 'team') {
+        const modeDisplay = document.getElementById('view-mode-display');
+        if (modeDisplay) {
+            const labels = {
+                home: 'HOME VIEW',
+                league: 'LEAGUE VIEW',
+                team: 'DUGOUT VIEW',
+                roster: 'ROSTER VIEW',
+                market: 'MARKET VIEW',
+                stats: 'STATS VIEW',
+                match: 'MATCH VIEW'
+            };
+            modeDisplay.innerText = labels[mode] || 'DUGOUT VIEW';
+        }
+
+        if (mode === 'home') {
+            mainContent.classList.add('home-mode');
+            if (activeOverrideId) {
+                const activeBtn = document.getElementById(activeOverrideId);
+                if (activeBtn) activeBtn.classList.add('active');
+            }
+            this.updateHomeView();
+        } else if (mode === 'team') {
             mainContent.classList.add('team-mode');
-            if (teamBtn) teamBtn.classList.add('active');
+            if (activeOverrideId) {
+                const activeBtn = document.getElementById(activeOverrideId);
+                if (activeBtn) activeBtn.classList.add('active');
+            } else if (teamBtn) {
+                teamBtn.classList.add('active');
+            }
+        } else if (mode === 'roster') {
+            mainContent.classList.add('roster-mode');
+            if (activeOverrideId) {
+                const activeBtn = document.getElementById(activeOverrideId);
+                if (activeBtn) activeBtn.classList.add('active');
+            } else if (rosterBtn) {
+                rosterBtn.classList.add('active');
+            }
+        } else if (mode === 'market') {
+            mainContent.classList.add('roster-mode');
+            if (activeOverrideId) {
+                const activeBtn = document.getElementById(activeOverrideId);
+                if (activeBtn) activeBtn.classList.add('active');
+            } else if (marketBtn) {
+                marketBtn.classList.add('active');
+            }
         } else if (mode === 'match') {
             mainContent.classList.add('match-mode');
             if (matchBtn) matchBtn.classList.add('active');
             this.resetMatchView(); // Reset the view when switching to it
         } else if (mode === 'league') {
             mainContent.classList.add('league-mode');
-            if (leagueBtn) leagueBtn.classList.add('active');
+            if (activeOverrideId) {
+                const activeBtn = document.getElementById(activeOverrideId);
+                if (activeBtn) activeBtn.classList.add('active');
+            } else if (leagueBtn) {
+                leagueBtn.classList.add('active');
+            }
             const calendarArea = document.getElementById('calendar-area');
             const seasonInfoArea = document.getElementById('season-info-area');
             const statsArea = document.getElementById('team-stats-area');
@@ -2519,6 +3658,10 @@ export class Game {
             if (statsBtn) statsBtn.classList.add('active');
             this.updateTeamStatsView();
         }
+        if (mode === 'roster' || mode === 'market') {
+            this.updateRosterMarketUI();
+        }
+        this.updateHeaderIndicators();
     }
 
     wait(ms) {
@@ -2633,17 +3776,25 @@ export class Game {
     initRosterMarketNav() {
         const rosterTab = document.getElementById('roster-tab-btn');
         const aaaTab = document.getElementById('aaa-tab-btn');
+        const ilTab = document.getElementById('il-tab-btn');
+        const optionsTab = document.getElementById('options-tab-btn');
+        const fortyManTab = document.getElementById('forty-man-tab-btn');
         const marketTab = document.getElementById('market-tab-btn');
         const faTab = document.getElementById('market-fa-tab');
         const tradeTab = document.getElementById('market-trade-tab');
         const scoutTab = document.getElementById('market-scout-tab');
+        const waiverTab = document.getElementById('market-waiver-tab');
 
         if (rosterTab) rosterTab.addEventListener('click', () => this.setRosterView('roster'));
         if (aaaTab) aaaTab.addEventListener('click', () => this.setRosterView('aaa'));
+        if (ilTab) ilTab.addEventListener('click', () => this.setRosterView('il'));
+        if (optionsTab) optionsTab.addEventListener('click', () => this.setRosterView('options'));
+        if (fortyManTab) fortyManTab.addEventListener('click', () => this.setRosterView('forty-man'));
         if (marketTab) marketTab.addEventListener('click', () => this.setRosterView('market'));
         if (faTab) faTab.addEventListener('click', () => this.setMarketTab('fa'));
         if (tradeTab) tradeTab.addEventListener('click', () => this.setMarketTab('trade'));
         if (scoutTab) scoutTab.addEventListener('click', () => this.setMarketTab('scout'));
+        if (waiverTab) waiverTab.addEventListener('click', () => this.setMarketTab('waivers'));
 
         this.updateRosterMarketUI();
     }
@@ -2658,13 +3809,70 @@ export class Game {
         this.updateRosterMarketUI();
     }
 
+    initRosterMultiControls() {
+        const controls = document.getElementById('roster-multi-controls');
+        if (!controls) return;
+        controls.querySelectorAll('button[data-multi-panel]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const panel = btn.dataset.multiPanel;
+                this.toggleMultiRosterPanel(panel);
+            });
+        });
+        this.updateRosterMultiView();
+    }
+
+    toggleMultiRosterPanel(panel) {
+        if (!panel) return;
+        const active = new Set(this.multiRosterPanels || []);
+        if (active.has(panel)) {
+            if (active.size <= 2) return;
+            active.delete(panel);
+        } else {
+            if (active.size >= 3) return;
+            active.add(panel);
+        }
+        this.multiRosterPanels = active;
+        this.updateRosterMultiView();
+    }
+
+    updateRosterMultiView() {
+        const controls = document.getElementById('roster-multi-controls');
+        if (controls) {
+            controls.querySelectorAll('button[data-multi-panel]').forEach(btn => {
+                const panel = btn.dataset.multiPanel;
+                btn.classList.toggle('active', this.multiRosterPanels?.has(panel));
+            });
+        }
+        const panelMap = {
+            roster: document.getElementById('roster-view'),
+            il: document.getElementById('il-view'),
+            options: document.getElementById('options-view'),
+            'forty-man': document.getElementById('forty-man-view'),
+            market: document.getElementById('market-view'),
+            aaa: document.getElementById('aaa-view')
+        };
+        Object.entries(panelMap).forEach(([key, node]) => {
+            if (!node) return;
+            node.classList.toggle('multi-active', this.multiRosterPanels?.has(key));
+        });
+    }
+
     updateRosterMarketUI() {
         const rosterView = document.getElementById('roster-view');
         const aaaView = document.getElementById('aaa-view');
+        const ilView = document.getElementById('il-view');
+        const optionsView = document.getElementById('options-view');
+        const fortyManView = document.getElementById('forty-man-view');
         const marketView = document.getElementById('market-view');
         const rosterTab = document.getElementById('roster-tab-btn');
         const aaaTab = document.getElementById('aaa-tab-btn');
+        const ilTab = document.getElementById('il-tab-btn');
+        const optionsTab = document.getElementById('options-tab-btn');
+        const fortyManTab = document.getElementById('forty-man-tab-btn');
         const marketTab = document.getElementById('market-tab-btn');
+        const rosterContent = document.querySelector('.roster-content');
+        const rosterPanel = document.querySelector('.roster-panel');
+        const mainContent = document.querySelector('.main-content');
 
         if (!this.aaaActive && this.rosterView === 'aaa') {
             this.rosterView = 'roster';
@@ -2672,33 +3880,130 @@ export class Game {
 
         if (rosterView) rosterView.classList.toggle('active', this.rosterView === 'roster');
         if (aaaView) aaaView.classList.toggle('active', this.rosterView === 'aaa');
+        if (ilView) ilView.classList.toggle('active', this.rosterView === 'il');
+        if (optionsView) optionsView.classList.toggle('active', this.rosterView === 'options');
+        if (fortyManView) fortyManView.classList.toggle('active', this.rosterView === 'forty-man');
         if (marketView) marketView.classList.toggle('active', this.rosterView === 'market');
         if (rosterTab) rosterTab.classList.toggle('active', this.rosterView === 'roster');
         if (aaaTab) aaaTab.classList.toggle('active', this.rosterView === 'aaa');
+        if (ilTab) ilTab.classList.toggle('active', this.rosterView === 'il');
+        if (optionsTab) optionsTab.classList.toggle('active', this.rosterView === 'options');
+        if (fortyManTab) fortyManTab.classList.toggle('active', this.rosterView === 'forty-man');
         if (marketTab) marketTab.classList.toggle('active', this.rosterView === 'market');
 
         if (aaaTab) {
             aaaTab.style.display = this.aaaActive ? 'inline-flex' : 'none';
         }
+        if (ilTab) {
+            ilTab.style.display = 'inline-flex';
+        }
+        if (optionsTab) {
+            optionsTab.style.display = 'inline-flex';
+        }
+        if (fortyManTab) {
+            fortyManTab.style.display = 'inline-flex';
+        }
+
+        const inMultiMode = !!mainContent && mainContent.classList.contains('roster-mode');
+        if (rosterPanel) rosterPanel.classList.toggle('multi-mode', inMultiMode);
+        if (rosterContent) rosterContent.classList.toggle('multi-mode', inMultiMode);
+        if (inMultiMode) {
+            this.updateRosterMultiView();
+        }
 
         const faTab = document.getElementById('market-fa-tab');
         const tradeTab = document.getElementById('market-trade-tab');
         const scoutTab = document.getElementById('market-scout-tab');
+        const waiverTab = document.getElementById('market-waiver-tab');
         const faSection = document.getElementById('market-fa-section');
         const tradeSection = document.getElementById('market-trade-section');
         const scoutSection = document.getElementById('market-scouting-section');
+        const waiverSection = document.getElementById('market-waiver-section');
+
+        const tradeDeadlinePassed = this.isTradeDeadlinePassed();
+        if (tradeDeadlinePassed && this.marketTab === 'trade') {
+            this.marketTab = 'fa';
+        }
 
         if (faTab) faTab.classList.toggle('active', this.marketTab === 'fa');
         if (tradeTab) tradeTab.classList.toggle('active', this.marketTab === 'trade');
         if (scoutTab) scoutTab.classList.toggle('active', this.marketTab === 'scout');
+        if (waiverTab) waiverTab.classList.toggle('active', this.marketTab === 'waivers');
         if (faSection) faSection.classList.toggle('active', this.marketTab === 'fa');
         if (tradeSection) tradeSection.classList.toggle('active', this.marketTab === 'trade');
         if (scoutSection) scoutSection.classList.toggle('active', this.marketTab === 'scout');
+        if (waiverSection) waiverSection.classList.toggle('active', this.marketTab === 'waivers');
+        if (tradeTab) tradeTab.disabled = tradeDeadlinePassed;
+        if (tradeTab) tradeTab.title = tradeDeadlinePassed ? 'Trade deadline has passed.' : '';
+    }
+
+    updateHeaderIndicators() {
+        const fortyEl = document.getElementById('forty-man-indicator');
+        const waiverEl = document.getElementById('waiver-indicator');
+        const txEl = document.getElementById('transactions-indicator');
+        if (fortyEl) fortyEl.innerText = `40-MAN: ${this.getFortyManCount()}/${this.fortyManLimit}`;
+        if (waiverEl) waiverEl.innerText = `WAIVERS: ${this.league?.waiverWire?.length || 0}`;
+        const txCount = this.getPlayerTeam()?.transactionsLog?.length || 0;
+        if (txEl) txEl.innerText = `TX: ${txCount}`;
+    }
+
+    logTransaction(type, player, notes = '') {
+        const team = this.getPlayerTeam();
+        if (!team) return;
+        if (!team.transactionsLog) team.transactionsLog = [];
+        const round = this.league ? (this.league.currentRoundIndex + 1) : 0;
+        team.transactionsLog.push({
+            round,
+            type,
+            playerId: player ? player.id : null,
+            playerName: player ? player.name : '',
+            notes,
+            timestamp: Date.now()
+        });
+        if (team.transactionsLog.length > this.transactionsLogLimit) {
+            team.transactionsLog = team.transactionsLog.slice(-this.transactionsLogLimit);
+        }
+        this.renderTransactions();
+        this.updateHeaderIndicators();
+    }
+
+    renderTransactions() {
+        const list = document.getElementById('transactions-list');
+        if (!list) return;
+        const team = this.getPlayerTeam();
+        if (!team || !team.transactionsLog || team.transactionsLog.length === 0) {
+            list.innerHTML = '<div class="recent-game-row">No transactions yet.</div>';
+            return;
+        }
+        const recent = [...team.transactionsLog].slice(-12).reverse();
+        list.innerHTML = '';
+        recent.forEach(entry => {
+            const row = document.createElement('div');
+            row.className = 'recent-game-row';
+            const detail = entry.notes ? ` • ${entry.notes}` : '';
+            row.innerHTML = `
+                <span>R${entry.round} ${entry.type}</span>
+                <span>${entry.playerName}${detail}</span>
+            `;
+            list.appendChild(row);
+        });
+    }
+
+    isTradeDeadlinePassed() {
+        if (!this.league || !this.league.schedule) return false;
+        if (this.postseasonActive) return true;
+        if (typeof this.tradeDeadlineRound !== 'number') return false;
+        const currentRound = this.league.currentRoundIndex + 1;
+        return currentRound > this.tradeDeadlineRound;
     }
 
     renderTradeUI() {
         const teamSelect = document.getElementById('trade-team-select');
         const playerSelect = document.getElementById('trade-player-select');
+        const targetSelect = document.getElementById('trade-target-select');
+        const cashInput = document.getElementById('trade-cash-input');
+        const tradeBtn = document.getElementById('trade-submit-btn');
+        const status = document.getElementById('trade-status');
         if (!teamSelect || !playerSelect) return;
 
         if (!this.league) {
@@ -2710,6 +4015,19 @@ export class Game {
             playerSelect.innerHTML = '';
             return;
         }
+
+        const deadlinePassed = this.isTradeDeadlinePassed();
+        if (deadlinePassed) {
+            if (tradeBtn) tradeBtn.disabled = true;
+            if (status) status.innerText = 'Trade deadline has passed.';
+        } else {
+            if (tradeBtn) tradeBtn.disabled = false;
+            if (status) status.innerText = 'Pick a team and players to trade.';
+        }
+        if (teamSelect) teamSelect.disabled = deadlinePassed;
+        if (playerSelect) playerSelect.disabled = deadlinePassed;
+        if (targetSelect) targetSelect.disabled = deadlinePassed;
+        if (cashInput) cashInput.disabled = deadlinePassed;
 
         const aiTeams = this.league.teams.filter(team => team.id !== this.playerTeamId);
         teamSelect.innerHTML = '';
@@ -2754,6 +4072,11 @@ export class Game {
         const status = document.getElementById('trade-status');
         if (!teamSelect || !giveSelect || !getSelect || !cashInput) return;
 
+        if (this.isTradeDeadlinePassed()) {
+            if (status) status.innerText = 'Trade deadline has passed.';
+            return;
+        }
+
         const team = this.league ? this.league.teams.find(t => t.id === teamSelect.value) : null;
         if (!team) return;
 
@@ -2790,6 +4113,8 @@ export class Game {
         this.renderRosterAndMarket();
         this.renderLineup();
         this.renderRotation();
+        this.logTransaction('TRADE', givePlayer, `Sent to ${team.name}`);
+        this.logTransaction('TRADE', getPlayer, `Acquired from ${team.name}`);
         this.saveGame();
     }
 
@@ -2846,6 +4171,16 @@ export class Game {
         this.removePlayerFromTeam(otherTeam, getPlayer);
         this.addPlayerToTeam(this.getPlayerTeam(), getPlayer);
         this.addPlayerToTeam(otherTeam, givePlayer);
+        this.setPlayerRosterStatus(getPlayer, 'active');
+        this.setPlayerRosterStatus(givePlayer, 'active');
+        this.addToFortyManRoster(getPlayer);
+        this.removeFromFortyManRoster(givePlayer);
+        if (otherTeam.fortyManRoster) {
+            if (!otherTeam.fortyManRoster.includes(givePlayer.id)) {
+                otherTeam.fortyManRoster.push(givePlayer.id);
+            }
+            otherTeam.fortyManRoster = otherTeam.fortyManRoster.filter(id => id !== getPlayer.id);
+        }
         this.enforceRosterLimitsForTeam(this.getPlayerTeam());
         this.enforceRosterLimitsForTeam(otherTeam);
         this.autoFillAiLineup(otherTeam);
@@ -2861,6 +4196,7 @@ export class Game {
         if (team.id === this.playerTeamId) {
             this.lineup = this.lineup.map(slot => (slot && slot.player.id === player.id) ? null : slot);
             this.rotation = this.rotation.map(p => (p && p.id === player.id) ? null : p);
+            this.removeFromFortyManRoster(player);
         } else if (team.lineup) {
             team.lineup = team.lineup.map(entry => {
                 const p = entry && entry.player ? entry.player : entry;
@@ -2871,11 +4207,18 @@ export class Game {
         if (team.pitcher && team.pitcher.id === player.id) {
             team.pitcher = team.roster.find(p => p.position === 'P') || team.roster[0] || null;
         }
+        if (team.fortyManRoster) {
+            team.fortyManRoster = team.fortyManRoster.filter(id => id !== player.id);
+        }
     }
 
     addPlayerToTeam(team, player) {
         if (!team) return;
         team.roster.push(player);
+        player.rosterStatus = 'active';
+        if (team.fortyManRoster && !team.fortyManRoster.includes(player.id)) {
+            team.fortyManRoster.push(player.id);
+        }
         if (team.id !== this.playerTeamId && team.lineup) {
             const filled = team.lineup.filter(Boolean).length;
             if (filled < this.rules.getLineupSize() && player.position !== 'P') {
@@ -3358,7 +4701,10 @@ export class Game {
         if (fatigue < 75) return;
         const chance = baseChance + Math.max(0, (fatigue - 75) / 250);
         if (Math.random() < chance) {
-            player.health.injuryDays = 3 + Math.floor(Math.random() * 12);
+            const longInjury = Math.random() < 0.2;
+            const minDays = longInjury ? 30 : 7;
+            const maxDays = longInjury ? 60 : 21;
+            player.health.injuryDays = minDays + Math.floor(Math.random() * (maxDays - minDays + 1));
             this.log(`${player.name} is injured (${player.health.injuryDays} games).`, { highlight: true });
         }
     }
@@ -3524,6 +4870,9 @@ export class Game {
         if (player.health) {
             lines.push(`FAT ${Math.round(player.health.fatigue || 0)} • INJ ${player.health.injuryDays || 0}`);
         }
+        if (typeof player.optionsRemaining === 'number') {
+            lines.push(`OPTIONS ${player.optionsRemaining}`);
+        }
         if (options.includePerformance) {
             const batting = this.formatBattingLine(current);
             const pitching = this.formatPitchingLine(current);
@@ -3592,6 +4941,7 @@ export class Game {
             <div class="stat-label">Stamina</div><div class="stat-value">${staminaDisplay}</div>
             <div class="stat-label">Fatigue</div><div class="stat-value">${Math.round(player.health?.fatigue || 0)}</div>
             <div class="stat-label">Injury</div><div class="stat-value">${player.health?.injuryDays || 0} days</div>
+            <div class="stat-label">Options</div><div class="stat-value">${typeof player.optionsRemaining === 'number' ? player.optionsRemaining : 0}</div>
             <div class="stat-label">Salary</div><div class="stat-value">$${stats.salary.toLocaleString()}</div>
             <div class="stat-label">Signing Bonus</div><div class="stat-value">$${stats.signingBonus.toLocaleString()}</div>
             ${perfHtml}
@@ -3698,6 +5048,7 @@ export class Game {
         }
         if (typeof player.health.fatigue !== 'number') player.health.fatigue = 0;
         if (typeof player.health.injuryDays !== 'number') player.health.injuryDays = 0;
+        if (!player.rosterStatus) player.rosterStatus = 'active';
     }
 
     ensureRosterHealth() {
@@ -4381,12 +5732,15 @@ export class Game {
         };
 
         this.roster.forEach(addPlayer);
+        this.aaaRoster.forEach(addPlayer);
+        this.ilRoster.forEach(addPlayer);
         if (this.league) {
             this.league.teams.forEach(team => {
                 team.roster.forEach(addPlayer);
                 if (team.pitcher) addPlayer(team.pitcher);
             });
             this.league.freeAgents.forEach(addPlayer);
+            (this.league.waiverWire || []).forEach(addPlayer);
         }
 
         return [...seen.values()];
@@ -4695,11 +6049,21 @@ export class Game {
                 alert(`Roster is full (Max ${this.draftRosterLimit}). Release a player before drafting.`);
                 return;
             }
+            if (this.getFortyManCount() >= this.fortyManLimit) {
+                alert(`40-man roster is full (Max ${this.fortyManLimit}). Release a player before drafting.`);
+                return;
+            }
+            this.setPlayerRosterStatus(player, 'active');
+            this.addToFortyManRoster(player);
             this.roster.push(player);
             this.log(`Drafted ${player.name} (${player.position}).`);
         } else {
             if (currentTeam.roster.length < this.draftRosterLimit) {
+                player.rosterStatus = 'active';
                 currentTeam.roster.push(player);
+                if (currentTeam.fortyManRoster && !currentTeam.fortyManRoster.includes(player.id)) {
+                    currentTeam.fortyManRoster.push(player.id);
+                }
             }
             if (!isAuto) {
                 this.log(`${currentTeam.name} drafted ${player.name}.`);
@@ -4739,6 +6103,15 @@ export class Game {
         this.league.teams.forEach(t => {
             this.league.standings[t.id] = { w: 0, l: 0 };
         });
+        this.league.waiverWire = [];
+        this.tradeDeadlineRound = Math.max(1, Math.floor(this.league.schedule.length * 0.7));
+        this.tradeDeadlinePassed = false;
+        this.postseason = null;
+        this.postseasonActive = false;
+        if (this.league.calendar) {
+            this.league.calendar.tradeDeadlineRound = this.tradeDeadlineRound;
+            this.league.calendar.postseasonStartRound = this.league.schedule.length + 1;
+        }
 
         this.resetSeasonStatsForNewSeason();
         this.initTeamSeasonStats();

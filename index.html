@@ -65,8 +65,11 @@
         <header class="main-header">
             <h1 class="game-title">DIAMOND MANAGER</h1>
             <div class="header-nav" style="display: flex; gap: 10px;">
+                <button id="view-home-btn" class="nav-btn">HOME</button>
                 <button id="view-league-btn" class="nav-btn">LEAGUE</button>
                 <button id="view-team-btn" class="nav-btn active">DUGOUT</button>
+                <button id="view-roster-btn" class="nav-btn">ROSTER</button>
+                <button id="view-market-btn" class="nav-btn">MARKET</button>
                 <button id="view-stats-btn" class="nav-btn">STATS</button>
                 <button id="view-match-btn" class="nav-btn">MATCH</button>
                 <div style="width: 1px; background: #333; height: 20px; margin: 0 5px;"></div>
@@ -74,13 +77,59 @@
             </div>
             <div class="header-status">
                 <span id="season-display">SEASON 1</span> |
+                <span id="view-mode-display">DUGOUT VIEW</span> |
                 <span id="league-rank">RANK: 8th</span> |
-                <span id="team-budget">BUDGET: $5,000,000</span>
+                <span id="team-budget">BUDGET: $20,000,000</span> |
+                <span id="forty-man-indicator">40-MAN: 0/40</span> |
+                <span id="waiver-indicator">WAIVERS: 0</span> |
+                <span id="transactions-indicator">TX: 0</span>
             </div>
         </header>
 
         <!-- Main Layout -->
         <main class="main-content league-mode">
+            <!-- Home Panel -->
+            <section class="panel home-panel">
+                <div class="home-hero">
+                    <div class="home-title">DIAMOND MANAGER</div>
+                    <div class="home-subtitle" id="home-team-name">Your Franchise HQ</div>
+                </div>
+                <div class="home-grid">
+                    <div class="home-card">
+                        <div class="section-header">SEASON SUMMARY</div>
+                        <div class="home-summary">
+                            <div id="home-season">SEASON 1</div>
+                            <div id="home-record">Record: 0-0</div>
+                            <div id="home-next">Next: --</div>
+                        </div>
+                    </div>
+                    <div class="home-card">
+                        <div class="section-header">FRONT OFFICE</div>
+                        <div class="home-summary">
+                            <div id="home-budget">Budget: $0</div>
+                            <div id="home-forty">40-Man: 0/40</div>
+                            <div id="home-waivers">Waivers: 0</div>
+                        </div>
+                    </div>
+                    <div class="home-card">
+                        <div class="section-header">ROSTER SNAPSHOT</div>
+                        <div class="home-summary">
+                            <div id="home-active-count">Active: 0</div>
+                            <div id="home-il-count">IL: 0</div>
+                            <div id="home-options-count">Options: 0</div>
+                        </div>
+                    </div>
+                    <div class="home-card">
+                        <div class="section-header">QUICK ACTIONS</div>
+                        <div class="home-actions">
+                            <button id="home-start-season" class="cyber-button compact">START SEASON</button>
+                            <button id="home-go-league" class="nav-btn">LEAGUE VIEW</button>
+                            <button id="home-go-roster" class="nav-btn">ROSTER HUB</button>
+                            <button id="home-go-match" class="nav-btn">NEXT MATCH</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
             <!-- Left: Lineup / Dugout -->
             <section class="panel dugout-panel">
                 <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
@@ -280,8 +329,8 @@
                 <div class="panel-header">
                     <h2>SEASON OVERVIEW</h2>
                 </div>
-                <div class="league-content" style="padding: 20px; text-align: center;">
-                    <h1 style="font-size: 3rem; color: var(--accent-green); margin-bottom: 10px;">DIAMOND MANAGER</h1>
+                <div class="league-content" style="padding: 20px;">
+                    <h1 style="font-size: 3rem; color: var(--accent-green); margin-bottom: 10px; text-align:center;">DIAMOND MANAGER</h1>
                     <div id="season-info-area">
                         <p class="menu-subtitle" style="font-size: 1.5rem; color: #aaa;">SEASON 1</p>
                         <button id="start-season-btn" class="cyber-button" style="margin-top:20px;">START
@@ -289,42 +338,69 @@
                     </div>
 
                     <div id="calendar-area" style="display:none; margin-top: 30px;">
-                        <h2>LEAGUE STANDINGS</h2>
-                        <div class="standings-table-wrapper">
-                            <table class="standings-table" id="standings-table">
-                                <thead>
-                                    <tr>
-                                        <th>RK</th>
-                                        <th>TEAM</th>
-                                        <th>W</th>
-                                        <th>L</th>
-                                        <th>PCT</th>
-                                        <th>L5</th>
-                                        <th>STK</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Injected by JS -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="league-actions">
-                            <div id="next-opponent-display">NEXT: vs ---</div>
-                            <button id="play-match-btn-league" class="cyber-button">ENTER MATCH</button>
-                        </div>
-                        <div class="goals-card" id="goals-card">
-                            <div class="section-header">GOALS</div>
-                            <div id="goal-list"></div>
-                        </div>
-                        <div id="draft-area" style="display:none; margin-top: 20px;">
-                            <h2>DRAFT ROOM</h2>
-                            <div id="draft-status" class="menu-subtitle">Draft is starting...</div>
-                            <div class="draft-actions">
-                                <button id="draft-advance-btn" class="cyber-button compact">ADVANCE PICK</button>
-                                <button id="draft-best-btn" class="cyber-button compact">DRAFT BEST</button>
-                                <button id="draft-need-btn" class="cyber-button compact">DRAFT NEED</button>
+                        <div class="league-grid">
+                            <div class="league-left">
+                                <div class="section-header">LEAGUE STANDINGS</div>
+                                <div class="standings-table-wrapper">
+                                    <table class="standings-table" id="standings-table">
+                                        <thead>
+                                            <tr>
+                                                <th>RK</th>
+                                                <th>TEAM</th>
+                                                <th>W</th>
+                                                <th>L</th>
+                                                <th>PCT</th>
+                                                <th>L5</th>
+                                                <th>STK</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Injected by JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="league-actions">
+                                    <div id="next-opponent-display">NEXT: vs ---</div>
+                                    <button id="play-match-btn-league" class="cyber-button">ENTER MATCH</button>
+                                </div>
+                                <div id="trade-deadline-status" class="subtext"></div>
+                                <div id="postseason-area" class="postseason-area" style="display:none;">
+                                    <div class="section-header">POSTSEASON BRACKET</div>
+                                    <div id="postseason-bracket"></div>
+                                </div>
                             </div>
-                            <div id="draft-list" class="card-list"></div>
+                            <div class="league-right">
+                                <div class="goals-card" id="schedule-card">
+                                    <div class="section-header">SCHEDULE</div>
+                                    <div class="schedule-controls">
+                                        <label for="schedule-round-select">ROUND</label>
+                                        <select id="schedule-round-select"></select>
+                                        <div class="schedule-filters">
+                                            <button id="schedule-filter-all" class="nav-btn active" type="button">ALL</button>
+                                            <button id="schedule-filter-my" class="nav-btn" type="button">MY TEAM</button>
+                                        </div>
+                                    </div>
+                                    <div id="schedule-list" class="schedule-list"></div>
+                                </div>
+                                <div class="goals-card" id="goals-card" style="margin-top: 12px;">
+                                    <div class="section-header">GOALS</div>
+                                    <div id="goal-list"></div>
+                                </div>
+                                <div class="goals-card" id="transactions-card" style="margin-top: 12px;">
+                                    <div class="section-header">TRANSACTIONS</div>
+                                    <div id="transactions-list"></div>
+                                </div>
+                                <div id="draft-area" style="display:none; margin-top: 12px;">
+                                    <h2>DRAFT ROOM</h2>
+                                    <div id="draft-status" class="menu-subtitle">Draft is starting...</div>
+                                    <div class="draft-actions">
+                                        <button id="draft-advance-btn" class="cyber-button compact">ADVANCE PICK</button>
+                                        <button id="draft-best-btn" class="cyber-button compact">DRAFT BEST</button>
+                                        <button id="draft-need-btn" class="cyber-button compact">DRAFT NEED</button>
+                                    </div>
+                                    <div id="draft-list" class="card-list"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div id="team-stats-area" style="display:none; margin-top: 20px;">
@@ -431,7 +507,18 @@
                     <div class="roster-nav">
                         <button id="roster-tab-btn" class="nav-btn active">ROSTER</button>
                         <button id="aaa-tab-btn" class="nav-btn">AAA</button>
+                        <button id="il-tab-btn" class="nav-btn">IL</button>
+                        <button id="options-tab-btn" class="nav-btn">OPTIONS</button>
+                        <button id="forty-man-tab-btn" class="nav-btn">40-MAN</button>
                         <button id="market-tab-btn" class="nav-btn">MARKET</button>
+                    </div>
+                    <div class="roster-multi-controls" id="roster-multi-controls">
+                        <span class="subtext">Multi View (2-3 panels)</span>
+                        <button class="nav-btn active" data-multi-panel="roster" type="button">ROSTER</button>
+                        <button class="nav-btn" data-multi-panel="il" type="button">IL</button>
+                        <button class="nav-btn" data-multi-panel="options" type="button">OPTIONS</button>
+                        <button class="nav-btn" data-multi-panel="forty-man" type="button">40-MAN</button>
+                        <button class="nav-btn" data-multi-panel="market" type="button">MARKET</button>
                     </div>
                 </div>
                 <div class="roster-content">
@@ -443,11 +530,24 @@
                         <div class="section-header">AAA ROSTER</div>
                         <div id="aaa-list" class="card-list"></div>
                     </div>
+                    <div id="il-view" class="roster-view">
+                        <div class="section-header">INJURED LIST</div>
+                        <div id="il-list" class="card-list"></div>
+                    </div>
+                    <div id="options-view" class="roster-view">
+                        <div class="section-header">OPTIONS TRACKER</div>
+                        <div id="options-list" class="card-list"></div>
+                    </div>
+                    <div id="forty-man-view" class="roster-view">
+                        <div class="section-header">40-MAN ROSTER</div>
+                        <div id="forty-man-list" class="card-list"></div>
+                    </div>
                     <div id="market-view" class="roster-view">
                         <div class="market-nav">
                             <button id="market-fa-tab" class="nav-btn active">FA</button>
                             <button id="market-trade-tab" class="nav-btn">TRADE</button>
                             <button id="market-scout-tab" class="nav-btn">SCOUTING</button>
+                            <button id="market-waiver-tab" class="nav-btn">WAIVERS</button>
                         </div>
                         <div id="market-fa-section" class="market-section">
                             <div class="section-header">FREE AGENTS</div>
@@ -476,6 +576,10 @@
                             </div>
                             <div id="scouting-list" class="card-list compact"></div>
                         </div>
+                        <div id="market-waiver-section" class="market-section">
+                            <div class="section-header">WAIVER WIRE</div>
+                            <div id="waiver-list" class="card-list"></div>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -498,8 +602,8 @@
         </div>
     </div>
 
-    <div id="match-summary-overlay" class="modal-overlay hidden">
-        <div class="modal-card match-summary-card">
+        <div id="match-summary-overlay" class="modal-overlay hidden">
+            <div class="modal-card match-summary-card">
             <div class="match-summary-title">GAME SUMMARY</div>
             <div class="match-summary-score" id="match-summary-score">FINAL</div>
             <div class="match-summary-grid">
@@ -537,6 +641,21 @@
                 <button id="summary-confirm-btn" class="nav-btn">OK</button>
             </div>
         </div>
+
+    <div id="schedule-log-overlay" class="modal-overlay hidden">
+        <div class="modal-card schedule-log-card">
+            <div class="modal-header">
+                <h3 id="schedule-log-title">GAME LOG</h3>
+                <button id="schedule-log-close" class="modal-close">&times;</button>
+            </div>
+            <div id="schedule-log-score" class="schedule-log-score">FINAL</div>
+            <div id="schedule-log-body" class="schedule-log-body"></div>
+            <div class="modal-actions">
+                <button id="schedule-log-open-match" class="cyber-button compact">OPEN MATCH LOG</button>
+                <button id="schedule-log-close-btn" class="nav-btn">CLOSE</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script type="module" src="js/main.js"></script>

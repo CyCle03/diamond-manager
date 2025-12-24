@@ -22,6 +22,16 @@ export class Player {
         };
 
         this.performance = performance || Player.defaultPerformance();
+        this.optionsRemaining = typeof stats.optionsRemaining === 'number' ? stats.optionsRemaining : 3;
+        this.rosterStatus = 'active';
+        this.serviceTimeYears = 0;
+        this.contract = {
+            years: 1,
+            salary: this.stats.salary,
+            signingBonus: this.stats.signingBonus,
+            arbEligible: false,
+            isFA: false
+        };
     }
 
     getOverview() {

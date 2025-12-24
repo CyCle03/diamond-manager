@@ -8,6 +8,8 @@ export class League {
         this.currentRoundIndex = 0;
         this.standings = {}; // teamId -> { w, l, pts }
         this.freeAgents = [];
+        this.waiverWire = [];
+        this.calendar = { totalRounds: 0, tradeDeadlineRound: null, postseasonStartRound: null };
         this.season = 1;
     }
 
@@ -26,15 +28,23 @@ export class League {
                 id: Math.random().toString(36).substr(2, 9),
                 name: name,
                 roster: roster,
+                aaaRoster: [],
+                ilRoster: [],
+                fortyManRoster: roster.map(player => player.id),
+                transactionsLog: [],
                 lineup: lineup,
                 pitcher: pitcher,
                 isPlayer: false,
-                budget: 5000000
+                budget: 20000000
             });
         });
 
         // 1.5 Generate Free Agents
         this.freeAgents = PlayerGenerator.createTeamRoster(this.rules, 10); // Start with 10 FAs
+        this.freeAgents.forEach(player => {
+            player.rosterStatus = 'fa';
+        });
+        this.waiverWire = [];
 
         // 2. Initialize Standings
         this.teams.forEach(t => {
@@ -76,6 +86,7 @@ export class League {
             // Rotate teams (keep first fixed)
             teams.splice(1, 0, teams.pop());
         }
+        this.calendar.totalRounds = this.schedule.length;
     }
 
     getCurrentRound() {
