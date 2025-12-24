@@ -25,7 +25,8 @@ h3 {
     letter-spacing: 1px;
 }
 
-.app-container {
+.app-container,
+.container {
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -140,11 +141,25 @@ h3 {
     height: calc(100vh - 70px);
     /* Explicit height minus header */
     overflow: hidden;
+    min-height: 0;
 }
 
 /* LEAGUE MODE: Dashboard (Dugout | League | Roster) */
 .main-content.league-mode {
     grid-template-columns: 320px 1fr 550px;
+    align-items: stretch;
+}
+
+.main-content.league-mode .dugout-panel {
+    grid-column: 1;
+}
+
+.main-content.league-mode .league-panel {
+    grid-column: 2;
+}
+
+.main-content.league-mode .roster-panel {
+    grid-column: 3;
 }
 
 .main-content.league-mode .dugout-panel,

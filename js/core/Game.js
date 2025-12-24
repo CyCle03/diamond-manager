@@ -316,6 +316,7 @@ export class Game {
         this.renderLineup();
         this.renderRotation();
         this.updateBudgetUI();
+        this.switchView('home', 'view-home-btn');
 
         // Ensure name is updated in UI if element exists
         // (Optional: Add team name display in header)
@@ -461,8 +462,8 @@ export class Game {
         this.renderTransactions();
         this.updateHeaderIndicators();
 
-        // Go to Dashboard
-        this.switchView('league');
+        // Go to Home by default after load
+        this.switchView('home', 'view-home-btn');
     }
 
     initUI() {
@@ -3773,7 +3774,7 @@ export class Game {
         const matchBtn = document.getElementById('view-match-btn');
         const statsBtn = document.getElementById('view-stats-btn');
 
-        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode', 'stats-mode', 'roster-mode', 'home-mode', 'market-mode');
+        mainContent.className = 'main-content';
 
         const navButtons = [leagueBtn, teamBtn, rosterBtn, marketBtn, matchBtn, statsBtn, document.getElementById('view-home-btn')];
         navButtons.forEach(btn => {
@@ -3858,6 +3859,7 @@ export class Game {
                 if (calendarArea) calendarArea.style.display = 'none';
                 if (seasonInfoArea) seasonInfoArea.style.display = 'block';
             }
+            this.updateLeagueView();
         } else if (mode === 'stats') {
             mainContent.classList.add('stats-mode');
             if (statsBtn) statsBtn.classList.add('active');
