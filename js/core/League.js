@@ -56,36 +56,69 @@ export class League {
     }
 
     generateSchedule() {
-        // Simple Round Robin algorithm
-        this.schedule = []; // Clear existing schedule
+        // 8 teams: 84-game season with 3-game series (H/A/H/A) vs each opponent.
+        this.schedule = [];
         const numTeams = this.teams.length;
         if (numTeams % 2 !== 0) {
             // In case of odd teams, this simple algorithm might fail. Add a dummy if needed.
             // For now, we assume 8 teams.
         }
+
         const rounds = numTeams - 1;
         const half = numTeams / 2;
-
+        const baseRounds = [];
         let teams = [...this.teams];
 
-        for (let round = 0; round < rounds * 2; round++) { // Double Round Robin (Home & Away)
+        for (let round = 0; round < rounds; round++) { // Single round robin base
             const roundMatches = [];
             for (let i = 0; i < half; i++) {
-                let home = teams[i];
-                let away = teams[numTeams - 1 - i];
-
-                // For the second half of the season, swap home and away to ensure fairness
-                if (round >= rounds) {
-                    [home, away] = [away, home];
-                }
-
+                const home = teams[i];
+                const away = teams[numTeams - 1 - i];
                 roundMatches.push({ home, away });
             }
-            this.schedule.push(roundMatches);
-
-            // Rotate teams (keep first fixed)
+            baseRounds.push(roundMatches);
             teams.splice(1, 0, teams.pop());
         }
+
+        const seriesLength = 3;
+        const cycles = 4; // 4 series per opponent, 2 home / 2 away in any order
+        const seriesOrderMap = new Map();
+        const shuffle = (arr) => {
+            const copy = [...arr];
+            for (let i = copy.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [copy[i], copy[j]] = [copy[j], copy[i]];
+            }
+            return copy;
+        };
+
+        baseRounds.forEach(roundMatches => {
+            roundMatches.forEach(match => {
+                const ids = [match.home.id, match.away.id].sort();
+                const key = `${ids[0]}_${ids[1]}`;
+                if (!seriesOrderMap.has(key)) {
+                    seriesOrderMap.set(key, shuffle([true, true, false, false]));
+                }
+            });
+        });
+
+        for (let cycle = 0; cycle < cycles; cycle++) {
+            baseRounds.forEach(roundMatches => {
+                for (let game = 0; game < seriesLength; game++) {
+                    const seriesRound = roundMatches.map(match => {
+                        const ids = [match.home.id, match.away.id].sort();
+                        const key = `${ids[0]}_${ids[1]}`;
+                        const order = seriesOrderMap.get(key) || [true, true, false, false];
+                        const baseHome = match.home;
+                        const baseAway = match.away;
+                        if (order[cycle]) return { home: baseHome, away: baseAway };
+                        return { home: baseAway, away: baseHome };
+                    });
+                    this.schedule.push(seriesRound);
+                }
+            });
+        }
+
         this.calendar.totalRounds = this.schedule.length;
     }
 

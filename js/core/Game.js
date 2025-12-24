@@ -102,6 +102,8 @@ export class Game {
         this.matchLogFilterMode = 'all';
         this.matchLogTeamFilter = 'all';
         this.matchLogInningFilter = 'all';
+        this.matchLogRetentionRounds = 10;
+        this.matchLogMaxEntries = 250;
         this.multiRosterPanels = new Set(['roster', 'il', 'options']);
 
         // Initialize Start Screen listeners (Always needed for Options menu)
@@ -323,6 +325,7 @@ export class Game {
     }
 
     saveGame() {
+        this.pruneMatchLogs();
         const data = {
             teamName: this.teamName,
             teamBudget: this.teamBudget,
@@ -330,7 +333,7 @@ export class Game {
             roster: this.roster, // Player objects should serialize fine
             lineup: this.lineup,
             rotation: this.rotation,
-            league: this.league, // Needs care on deserialization
+            league: this.getLeagueSaveData(),
             playerTeamId: this.playerTeamId,
             currentRotationIndex: this.currentRotationIndex,
             rotationSize: this.rotationSize,
@@ -363,6 +366,54 @@ export class Game {
             timestamp: Date.now()
         };
         SaveManager.save(this.currentSlotId, data);
+    }
+
+    getLeagueSaveData() {
+        if (!this.league) return null;
+        return {
+            teams: this.league.teams,
+            schedule: (this.league.schedule || []).map(round => (
+                round.map(match => ({
+                    homeId: match.home?.id || match.homeId,
+                    awayId: match.away?.id || match.awayId
+                }))
+            )),
+            currentRoundIndex: this.league.currentRoundIndex,
+            standings: this.league.standings,
+            freeAgents: this.league.freeAgents,
+            waiverWire: this.league.waiverWire,
+            calendar: this.league.calendar,
+            season: this.league.season
+        };
+    }
+
+    pruneMatchLogs() {
+        if (!this.teamSeasonStats) return;
+        const currentRound = this.league ? (this.league.currentRoundIndex + 1) : 0;
+        const retention = Math.max(0, this.matchLogRetentionRounds || 0);
+        const maxEntries = Math.max(50, this.matchLogMaxEntries || 0);
+        Object.entries(this.teamSeasonStats).forEach(([teamId, stats]) => {
+            if (!stats || !Array.isArray(stats.gameLog)) return;
+            stats.gameLog = stats.gameLog.map(entry => {
+                if (!entry || !entry.matchLog) return entry;
+                const isPlayerRelated = teamId === this.playerTeamId || entry.opponentId === this.playerTeamId;
+                const withinRetention = retention === 0 || currentRound === 0
+                    ? true
+                    : (currentRound - entry.round <= retention);
+                if (!isPlayerRelated || !withinRetention) {
+                    const { matchLog, ...rest } = entry;
+                    return rest;
+                }
+                const trimmed = { ...entry };
+                if (Array.isArray(trimmed.matchLog?.matchLog) && trimmed.matchLog.matchLog.length > maxEntries) {
+                    trimmed.matchLog = {
+                        ...trimmed.matchLog,
+                        matchLog: trimmed.matchLog.matchLog.slice(-maxEntries)
+                    };
+                }
+                return trimmed;
+            });
+        });
     }
 
     loadGame(slotId) {
@@ -434,6 +485,7 @@ export class Game {
         this.league.freeAgents = this.league.freeAgents.map(rehydrate);
         this.league.waiverWire = (this.league.waiverWire || []).map(rehydrate);
         if (!this.league.waiverWire) this.league.waiverWire = [];
+        this.rehydrateLeagueSchedule();
         const playerTeam = this.getPlayerTeam();
         if (playerTeam) {
             playerTeam.transactionsLog = data.transactionsLog || playerTeam.transactionsLog || [];
@@ -464,6 +516,29 @@ export class Game {
 
         // Go to Home by default after load
         this.switchView('home', 'view-home-btn');
+    }
+
+    rehydrateLeagueSchedule() {
+        if (!this.league || !Array.isArray(this.league.schedule)) return;
+        if (this.league.schedule.length === 0) return;
+        const firstMatch = this.league.schedule[0]?.[0];
+        if (!firstMatch) return;
+        const teamMap = new Map((this.league.teams || []).map(team => [team.id, team]));
+        if (firstMatch.home && firstMatch.away) return;
+        this.league.schedule = this.league.schedule.map(round => (
+            round.map(match => {
+                if (match.home && match.away) return match;
+                const home = teamMap.get(match.homeId || match.home);
+                const away = teamMap.get(match.awayId || match.away);
+                return {
+                    home: home || match.home || match.homeId,
+                    away: away || match.away || match.awayId
+                };
+            })
+        ));
+        if (this.league.calendar) {
+            this.league.calendar.totalRounds = this.league.schedule.length;
+        }
     }
 
     initUI() {
