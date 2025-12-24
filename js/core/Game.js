@@ -100,6 +100,8 @@ export class Game {
         this.currentMatchLog = [];
         this.matchLogSearchTerm = '';
         this.matchLogFilterMode = 'all';
+        this.matchLogTeamFilter = 'all';
+        this.matchLogInningFilter = 'all';
         this.multiRosterPanels = new Set(['roster', 'il', 'options']);
 
         // Initialize Start Screen listeners (Always needed for Options menu)
@@ -536,6 +538,35 @@ export class Game {
         if (logFilterHighlight) {
             logFilterHighlight.addEventListener('click', () => {
                 this.matchLogFilterMode = 'highlight';
+                this.renderMatchLogView();
+            });
+        }
+        const logTeamAll = document.getElementById('match-log-team-all');
+        const logTeamHome = document.getElementById('match-log-team-home');
+        const logTeamAway = document.getElementById('match-log-team-away');
+        if (logTeamAll) {
+            logTeamAll.addEventListener('click', () => {
+                this.matchLogTeamFilter = 'all';
+                this.renderMatchLogView();
+            });
+        }
+        if (logTeamHome) {
+            logTeamHome.addEventListener('click', () => {
+                this.matchLogTeamFilter = 'home';
+                this.renderMatchLogView();
+            });
+        }
+        if (logTeamAway) {
+            logTeamAway.addEventListener('click', () => {
+                this.matchLogTeamFilter = 'away';
+                this.renderMatchLogView();
+            });
+        }
+        const logInningSelect = document.getElementById('match-log-inning');
+        if (logInningSelect) {
+            logInningSelect.addEventListener('change', (e) => {
+                const value = e.target.value;
+                this.matchLogInningFilter = value === 'all' ? 'all' : parseInt(value, 10);
                 this.renderMatchLogView();
             });
         }
@@ -2509,6 +2540,12 @@ export class Game {
                 series.winsAway += 1;
             }
             this.recordTeamGame(series.home.id, series.away.id, hScore, aScore);
+            const lineScore = this.buildLineScoreFromTotals(hScore, aScore);
+            this.persistMatchLog({ home: series.home, away: series.away }, this.league.currentRoundIndex + 1, {
+                isPostseason: true,
+                lineScore,
+                matchLog: []
+            });
             this.applyMatchFatigue(series.home, series.away);
             this.applyMatchFatigue(series.away, series.home);
         });
@@ -2681,6 +2718,8 @@ export class Game {
             const lose = hScore >= aScore ? match.away.id : match.home.id;
             this.league.updateStandings(win, lose);
             this.recordTeamGame(match.home.id, match.away.id, hScore, aScore);
+            const lineScore = this.buildLineScoreFromTotals(hScore, aScore);
+            this.persistMatchLog(match, this.league.currentRoundIndex + 1, { lineScore, matchLog: [] });
             this.applyMatchFatigue(match.home, match.away);
             this.applyMatchFatigue(match.away, match.home);
         });
@@ -2762,6 +2801,12 @@ export class Game {
                 entry.winsAway += 1;
             }
             this.recordTeamGame(entry.home.id, entry.away.id, hScore, aScore);
+            const lineScore = this.buildLineScoreFromTotals(hScore, aScore);
+            this.persistMatchLog({ home: entry.home, away: entry.away }, this.league.currentRoundIndex + 1, {
+                isPostseason: true,
+                lineScore,
+                matchLog: []
+            });
             this.applyMatchFatigue(entry.home, entry.away);
             this.applyMatchFatigue(entry.away, entry.home);
         });
@@ -3511,6 +3556,23 @@ export class Game {
         this.setLineScoreTotal(team);
     }
 
+    buildLineScoreFromTotals(homeRuns, awayRuns) {
+        const distribute = (total) => {
+            const innings = 9;
+            const runs = new Array(innings).fill(0);
+            const count = Math.max(0, Math.floor(total || 0));
+            for (let i = 0; i < count; i++) {
+                const index = Math.floor(Math.random() * innings);
+                runs[index] += 1;
+            }
+            return runs;
+        };
+        return {
+            home: distribute(homeRuns),
+            away: distribute(awayRuns)
+        };
+    }
+
     updateInningDisplay(half, inning) {
         const inningEl = document.getElementById('sb-inning');
         if (!inningEl) return;
@@ -3530,7 +3592,9 @@ export class Game {
     log(msg, options = {}) {
         const log = document.getElementById('game-log');
         if (this.currentMatchLog && this.isSimulating) {
-            this.currentMatchLog.push({ text: msg, highlight: !!options.highlight });
+            const inning = Number.isFinite(options.inning) ? options.inning : null;
+            const team = options.team === 'home' || options.team === 'away' ? options.team : null;
+            this.currentMatchLog.push({ text: msg, highlight: !!options.highlight, inning, team });
             this.renderMatchLogView();
             return;
         }
@@ -3551,18 +3615,25 @@ export class Game {
 
     normalizeMatchLogEntry(entry) {
         if (!entry) return null;
-        if (typeof entry === 'string') return { text: entry, highlight: false };
+        if (typeof entry === 'string') return { text: entry, highlight: false, inning: null, team: null };
         if (typeof entry.text === 'string') {
-            return { text: entry.text, highlight: !!entry.highlight };
+            const parsedInning = entry.inning != null ? parseInt(entry.inning, 10) : null;
+            const inning = Number.isFinite(entry.inning) ? entry.inning : (Number.isFinite(parsedInning) ? parsedInning : null);
+            const team = entry.team === 'home' || entry.team === 'away' ? entry.team : null;
+            return { text: entry.text, highlight: !!entry.highlight, inning, team };
         }
         return null;
     }
 
     getFilteredMatchLogEntries(entries) {
         const term = (this.matchLogSearchTerm || '').toLowerCase();
+        const teamFilter = this.matchLogTeamFilter || 'all';
+        const inningFilter = this.matchLogInningFilter ?? 'all';
         return entries.filter(entry => {
             if (!entry) return false;
             if (this.matchLogFilterMode === 'highlight' && !entry.highlight) return false;
+            if (teamFilter !== 'all' && entry.team !== teamFilter) return false;
+            if (inningFilter !== 'all' && entry.inning !== inningFilter) return false;
             if (!term) return true;
             return entry.text.toLowerCase().includes(term);
         });
@@ -3583,21 +3654,38 @@ export class Game {
         const filterHighlight = document.getElementById('match-log-filter-highlight');
         if (filterAll) filterAll.classList.toggle('active', this.matchLogFilterMode === 'all');
         if (filterHighlight) filterHighlight.classList.toggle('active', this.matchLogFilterMode === 'highlight');
+        const teamAll = document.getElementById('match-log-team-all');
+        const teamHome = document.getElementById('match-log-team-home');
+        const teamAway = document.getElementById('match-log-team-away');
+        if (teamAll) teamAll.classList.toggle('active', this.matchLogTeamFilter === 'all');
+        if (teamHome) teamHome.classList.toggle('active', this.matchLogTeamFilter === 'home');
+        if (teamAway) teamAway.classList.toggle('active', this.matchLogTeamFilter === 'away');
+        const inningSelect = document.getElementById('match-log-inning');
+        if (inningSelect) {
+            inningSelect.value = this.matchLogInningFilter === 'all'
+                ? 'all'
+                : String(this.matchLogInningFilter);
+        }
     }
 
     persistMatchLog(match, roundNumber, options = {}) {
-        if (!match || !roundNumber || !this.currentMatchLog) return;
+        if (!match || !roundNumber) return;
         const homeLog = this.teamSeasonStats?.[match.home.id]?.gameLog || [];
         const awayLog = this.teamSeasonStats?.[match.away.id]?.gameLog || [];
         const homeEntry = homeLog.find(entry => entry.round === roundNumber && entry.opponentId === match.away.id && entry.isHome);
         const awayEntry = awayLog.find(entry => entry.round === roundNumber && entry.opponentId === match.home.id && !entry.isHome);
+        const matchLogEntries = Array.isArray(options.matchLog)
+            ? options.matchLog
+            : (Array.isArray(this.currentMatchLog) ? this.currentMatchLog : []);
+        const baseLineScore = options.lineScore
+            || (this.currentLineScore ? { home: [...this.currentLineScore.home], away: [...this.currentLineScore.away] } : null);
+        const lineScore = baseLineScore && Array.isArray(baseLineScore.home) && Array.isArray(baseLineScore.away)
+            ? { home: [...baseLineScore.home], away: [...baseLineScore.away] }
+            : null;
         const logPayload = {
-            matchLog: [...this.currentMatchLog],
+            matchLog: [...matchLogEntries],
             postseason: !!options.isPostseason,
-            lineScore: this.currentLineScore ? {
-                home: [...this.currentLineScore.home],
-                away: [...this.currentLineScore.away]
-            } : null
+            lineScore
         };
         if (homeEntry) homeEntry.matchLog = logPayload;
         if (awayEntry) awayEntry.matchLog = logPayload;
@@ -3685,7 +3773,7 @@ export class Game {
         const matchBtn = document.getElementById('view-match-btn');
         const statsBtn = document.getElementById('view-stats-btn');
 
-        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode', 'stats-mode', 'roster-mode', 'home-mode');
+        mainContent.classList.remove('league-mode', 'team-mode', 'match-mode', 'stats-mode', 'roster-mode', 'home-mode', 'market-mode');
 
         const navButtons = [leagueBtn, teamBtn, rosterBtn, marketBtn, matchBtn, statsBtn, document.getElementById('view-home-btn')];
         navButtons.forEach(btn => {

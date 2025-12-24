@@ -314,6 +314,7 @@ h3 {
 .log-controls {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
     padding: 8px 10px;
     background: #1f1f1f;
@@ -322,6 +323,19 @@ h3 {
 
 .log-controls input {
     flex: 1;
+    background: #1f1f1f;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 4px 6px;
+    font-family: 'Teko', sans-serif;
+}
+
+.log-controls .log-label {
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
+.log-controls .log-select {
     background: #1f1f1f;
     color: #eee;
     border: 1px solid #444;

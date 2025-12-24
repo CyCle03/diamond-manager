@@ -93,16 +93,17 @@ export class BaseballRules extends GameRules {
 
         let inning = 1;
         while (true) {
-            game.log(`--- INNING ${inning} START ---`);
+            game.log(`--- INNING ${inning} START ---`, { inning });
 
             // Top (Away Bats)
-            game.log(`TOP ${inning}: Away Team batting.`);
+            game.log(`TOP ${inning}: Away Team batting.`, { inning, team: 'away' });
             if (game.updateInningDisplay) {
                 game.updateInningDisplay('TOP', inning);
             }
             const awayRuns = await this.simulateHalfInning(game, awayTeam, homeTeam, {
                 canWalkOff: false,
                 isHomeBatting: false,
+                inning,
                 homeScore: scores.home,
                 awayScore: scores.away
             });
@@ -119,13 +120,14 @@ export class BaseballRules extends GameRules {
             }
 
             // Bot (Home Bats)
-            game.log(`BOT ${inning}: Home Team batting.`);
+            game.log(`BOT ${inning}: Home Team batting.`, { inning, team: 'home' });
             if (game.updateInningDisplay) {
                 game.updateInningDisplay('BOT', inning);
             }
             const homeRuns = await this.simulateHalfInning(game, homeTeam, awayTeam, {
                 canWalkOff: inning >= 9,
                 isHomeBatting: true,
+                inning,
                 homeScore: scores.home,
                 awayScore: scores.away
             });
@@ -164,6 +166,9 @@ export class BaseballRules extends GameRules {
         const homeScore = options.homeScore || 0;
         const awayScore = options.awayScore || 0;
         let walkOffReached = false;
+        const inningNumber = options.inning || 1;
+        const logTeam = isHomeBatting ? 'home' : 'away';
+        const logMeta = { inning: inningNumber, team: logTeam };
 
         // Helper to get a player object whether the lineup item is a raw Player or an {player, role} entry.
         const getPlayer = (entry) => entry.player || entry;
@@ -190,7 +195,7 @@ export class BaseballRules extends GameRules {
                 game.updateOutsDisplay(outs);
             }
             const name = runner?.name || 'Runner';
-            game.log(`${name} out at ${desc} (${outs} Out)`, { highlight: true });
+            game.log(`${name} out at ${desc} (${outs} Out)`, { ...logMeta, highlight: true });
         };
         const forceAdvance = (batter) => {
             if (bases.first) {
@@ -391,7 +396,7 @@ export class BaseballRules extends GameRules {
                 if (game.updateOutsDisplay) {
                     game.updateOutsDisplay(outs);
                 }
-                game.log(`${batter.name}: Sac Fly (${outs} Out)`, { highlight: true });
+                game.log(`${batter.name}: Sac Fly (${outs} Out)`, { ...logMeta, highlight: true });
                 scoreRunner(bases.third);
                 bases.third = null;
             } else if (outcome.type === 'out') {
@@ -399,19 +404,19 @@ export class BaseballRules extends GameRules {
                 if (isGrounder && bases.first && outs < 2 && Math.random() < 0.22) {
                     outs += 2;
                     bases.first = null;
-                    game.log(`${batter.name}: Groundout DP (${outs} Out)`, { highlight: true });
+                    game.log(`${batter.name}: Groundout DP (${outs} Out)`, { ...logMeta, highlight: true });
                 } else {
                     outs++;
-                    game.log(`${batter.name}: ${outcome.desc} (${outs} Out)`);
+                    game.log(`${batter.name}: ${outcome.desc} (${outs} Out)`, logMeta);
                 }
                 if (game.updateOutsDisplay) {
                     game.updateOutsDisplay(outs);
                 }
             } else {
-                game.log(`${batter.name}: ${outcome.desc}!`);
+                game.log(`${batter.name}: ${outcome.desc}!`, logMeta);
                 if (outcome.type === 'hit') {
                     if (outcome.desc.includes('Home Run')) {
-                        game.log(`>>> HOME RUN! <<<<`, { highlight: true });
+                        game.log(`>>> HOME RUN! <<<<`, { ...logMeta, highlight: true });
                         advanceOnHomer(batter);
                     } else if (outcome.desc.includes('Triple')) {
                         advanceOnTriple(batter);
@@ -426,7 +431,7 @@ export class BaseballRules extends GameRules {
             }
             updateBases();
             if (walkOffReached) {
-                game.log(`WALK-OFF!`, { highlight: true });
+                game.log(`WALK-OFF!`, { ...logMeta, highlight: true });
                 return runs;
             }
             if (game.maybeAutoSubstituteForTeam) {
