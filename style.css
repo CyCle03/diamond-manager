@@ -242,6 +242,22 @@ h3 {
     display: none;
 }
 
+/* MARKET MODE */
+.main-content.market-mode {
+    grid-template-columns: 1fr;
+}
+
+.main-content.market-mode .roster-panel {
+    display: flex;
+}
+
+.main-content.market-mode .dugout-panel,
+.main-content.market-mode .stadium-panel,
+.main-content.market-mode .league-panel,
+.main-content.market-mode .home-panel {
+    display: none;
+}
+
 .home-panel {
     display: none;
     flex-direction: column;
@@ -295,6 +311,34 @@ h3 {
     gap: 8px;
 }
 
+.log-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #1f1f1f;
+    border-bottom: 1px solid #333;
+}
+
+.log-controls input {
+    flex: 1;
+    background: #1f1f1f;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 4px 6px;
+    font-family: 'Teko', sans-serif;
+}
+
+.log-filter {
+    display: flex;
+    gap: 6px;
+}
+
+.log-filter .nav-btn {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+}
+
 .schedule-log-card {
     width: min(720px, 92vw);
 }
@@ -304,6 +348,24 @@ h3 {
     font-family: 'Teko', sans-serif;
     font-size: 1.6rem;
     color: var(--accent-green);
+}
+
+.schedule-log-linescore {
+    padding: 8px 16px;
+}
+
+.schedule-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    color: #ddd;
+}
+
+.schedule-log-table th,
+.schedule-log-table td {
+    border: 1px solid #333;
+    padding: 4px 6px;
+    text-align: center;
 }
 
 .schedule-log-body {

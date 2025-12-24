@@ -98,6 +98,8 @@ export class Game {
         this.scheduleViewRoundIndex = null;
         this.scheduleFilter = 'all';
         this.currentMatchLog = [];
+        this.matchLogSearchTerm = '';
+        this.matchLogFilterMode = 'all';
         this.multiRosterPanels = new Set(['roster', 'il', 'options']);
 
         // Initialize Start Screen listeners (Always needed for Options menu)
@@ -513,6 +515,28 @@ export class Game {
                     this.startSeason();
                 }
                 this.switchView('match');
+            });
+        }
+
+        const logSearch = document.getElementById('match-log-search');
+        if (logSearch) {
+            logSearch.addEventListener('input', (e) => {
+                this.matchLogSearchTerm = e.target.value || '';
+                this.renderMatchLogView();
+            });
+        }
+        const logFilterAll = document.getElementById('match-log-filter-all');
+        const logFilterHighlight = document.getElementById('match-log-filter-highlight');
+        if (logFilterAll) {
+            logFilterAll.addEventListener('click', () => {
+                this.matchLogFilterMode = 'all';
+                this.renderMatchLogView();
+            });
+        }
+        if (logFilterHighlight) {
+            logFilterHighlight.addEventListener('click', () => {
+                this.matchLogFilterMode = 'highlight';
+                this.renderMatchLogView();
             });
         }
 
@@ -3052,12 +3076,86 @@ export class Game {
     openMatchLogForRound(match, roundNumber, result) {
         if (!match || !result) return;
         this.setScheduleLogModal(match, roundNumber, result);
+    }
+
+    setScheduleLogModal(match, roundNumber, result) {
+        const overlay = document.getElementById('schedule-log-overlay');
+        const titleEl = document.getElementById('schedule-log-title');
+        const scoreEl = document.getElementById('schedule-log-score');
+        const bodyEl = document.getElementById('schedule-log-body');
+        const lineScoreEl = document.getElementById('schedule-log-linescore');
+        const openBtn = document.getElementById('schedule-log-open-match');
+        const closeBtn = document.getElementById('schedule-log-close');
+        const closeBtnAlt = document.getElementById('schedule-log-close-btn');
+        if (!overlay || !titleEl || !scoreEl || !bodyEl) return;
+        titleEl.innerText = `R${roundNumber} ${match.away.name} @ ${match.home.name}`;
+        scoreEl.innerText = `FINAL ${result.awayRuns}-${result.homeRuns}`;
+        if (lineScoreEl) {
+            lineScoreEl.innerHTML = '';
+            const line = result.matchLog?.lineScore;
+            if (line) {
+                const innings = line.home.length;
+                const headCells = Array.from({ length: innings }, (_, i) => `<th>${i + 1}</th>`).join('');
+                const homeCells = line.home.map(val => `<td>${val}</td>`).join('');
+                const awayCells = line.away.map(val => `<td>${val}</td>`).join('');
+                const totalHome = line.home.reduce((sum, val) => sum + val, 0);
+                const totalAway = line.away.reduce((sum, val) => sum + val, 0);
+                lineScoreEl.innerHTML = `
+                    <table class="schedule-log-table">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                ${headCells}
+                                <th>R</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${match.away.name}</td>
+                                ${awayCells}
+                                <td>${totalAway}</td>
+                            </tr>
+                            <tr>
+                                <td>${match.home.name}</td>
+                                ${homeCells}
+                                <td>${totalHome}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                lineScoreEl.innerHTML = '<div class="subtext">No line score available.</div>';
+            }
+        }
+        bodyEl.innerHTML = '';
+        if (result.matchLog?.matchLog?.length) {
+            result.matchLog.matchLog.forEach(entry => {
+                const row = document.createElement('div');
+                row.className = 'log-entry';
+                row.innerText = typeof entry === 'string' ? entry : entry.text;
+                bodyEl.appendChild(row);
+            });
+        } else {
+            bodyEl.innerHTML = '<div class="log-entry">No detailed log available.</div>';
+        }
+        const close = () => overlay.classList.add('hidden');
+        if (closeBtn) closeBtn.onclick = close;
+        if (closeBtnAlt) closeBtnAlt.onclick = close;
+        if (openBtn) {
+            openBtn.onclick = () => {
+                overlay.classList.add('hidden');
+                this.openStoredMatchLog(match, roundNumber, result);
+            };
+        }
+        overlay.classList.remove('hidden');
+    }
+
+    openStoredMatchLog(match, roundNumber, result) {
         this.switchView('match');
         this.setMatchLogMessage(`R${roundNumber} ${match.away.name} @ ${match.home.name} FINAL ${result.awayRuns}-${result.homeRuns}`);
         if (result.matchLog?.matchLog?.length) {
-            result.matchLog.matchLog.forEach(entry => {
-                this.log(entry);
-            });
+            this.currentMatchLog = result.matchLog.matchLog.map(entry => this.normalizeMatchLogEntry(entry)).filter(Boolean);
+            this.renderMatchLogView(this.currentMatchLog);
         } else {
             const isPlayerHome = match.home.id === this.playerTeamId;
             const isPlayerAway = match.away.id === this.playerTeamId;
@@ -3070,40 +3168,6 @@ export class Game {
                 this.log('> Result: AI game (summary only)');
             }
         }
-    }
-
-    setScheduleLogModal(match, roundNumber, result) {
-        const overlay = document.getElementById('schedule-log-overlay');
-        const titleEl = document.getElementById('schedule-log-title');
-        const scoreEl = document.getElementById('schedule-log-score');
-        const bodyEl = document.getElementById('schedule-log-body');
-        const openBtn = document.getElementById('schedule-log-open-match');
-        const closeBtn = document.getElementById('schedule-log-close');
-        const closeBtnAlt = document.getElementById('schedule-log-close-btn');
-        if (!overlay || !titleEl || !scoreEl || !bodyEl) return;
-        titleEl.innerText = `R${roundNumber} ${match.away.name} @ ${match.home.name}`;
-        scoreEl.innerText = `FINAL ${result.awayRuns}-${result.homeRuns}`;
-        bodyEl.innerHTML = '';
-        if (result.matchLog?.matchLog?.length) {
-            result.matchLog.matchLog.forEach(entry => {
-                const row = document.createElement('div');
-                row.className = 'log-entry';
-                row.innerText = entry;
-                bodyEl.appendChild(row);
-            });
-        } else {
-            bodyEl.innerHTML = '<div class="log-entry">No detailed log available.</div>';
-        }
-        const close = () => overlay.classList.add('hidden');
-        if (closeBtn) closeBtn.onclick = close;
-        if (closeBtnAlt) closeBtnAlt.onclick = close;
-        if (openBtn) {
-            openBtn.onclick = () => {
-                overlay.classList.add('hidden');
-                this.switchView('match');
-            };
-        }
-        overlay.classList.remove('hidden');
     }
 
     renderPositionRankings() {
@@ -3465,13 +3529,15 @@ export class Game {
 
     log(msg, options = {}) {
         const log = document.getElementById('game-log');
+        if (this.currentMatchLog && this.isSimulating) {
+            this.currentMatchLog.push({ text: msg, highlight: !!options.highlight });
+            this.renderMatchLogView();
+            return;
+        }
         if (log) {
             const cls = options.highlight ? 'log-entry highlight' : 'log-entry';
             log.innerHTML += `<div class="${cls}">${msg}</div>`;
             log.scrollTop = log.scrollHeight;
-        }
-        if (this.currentMatchLog && this.isSimulating) {
-            this.currentMatchLog.push(msg);
         }
     }
 
@@ -3480,6 +3546,43 @@ export class Game {
         if (log) {
             log.innerHTML = `<div class="log-entry">> ${message}</div>`;
         }
+        this.currentMatchLog = [];
+    }
+
+    normalizeMatchLogEntry(entry) {
+        if (!entry) return null;
+        if (typeof entry === 'string') return { text: entry, highlight: false };
+        if (typeof entry.text === 'string') {
+            return { text: entry.text, highlight: !!entry.highlight };
+        }
+        return null;
+    }
+
+    getFilteredMatchLogEntries(entries) {
+        const term = (this.matchLogSearchTerm || '').toLowerCase();
+        return entries.filter(entry => {
+            if (!entry) return false;
+            if (this.matchLogFilterMode === 'highlight' && !entry.highlight) return false;
+            if (!term) return true;
+            return entry.text.toLowerCase().includes(term);
+        });
+    }
+
+    renderMatchLogView(entriesOverride = null) {
+        const log = document.getElementById('game-log');
+        if (!log) return;
+        const baseEntries = (entriesOverride || this.currentMatchLog || [])
+            .map(entry => this.normalizeMatchLogEntry(entry))
+            .filter(Boolean);
+        const filtered = this.getFilteredMatchLogEntries(baseEntries);
+        log.innerHTML = filtered
+            .map(entry => `<div class="log-entry ${entry.highlight ? 'highlight' : ''}">${entry.text}</div>`)
+            .join('');
+        log.scrollTop = log.scrollHeight;
+        const filterAll = document.getElementById('match-log-filter-all');
+        const filterHighlight = document.getElementById('match-log-filter-highlight');
+        if (filterAll) filterAll.classList.toggle('active', this.matchLogFilterMode === 'all');
+        if (filterHighlight) filterHighlight.classList.toggle('active', this.matchLogFilterMode === 'highlight');
     }
 
     persistMatchLog(match, roundNumber, options = {}) {
@@ -3490,7 +3593,11 @@ export class Game {
         const awayEntry = awayLog.find(entry => entry.round === roundNumber && entry.opponentId === match.home.id && !entry.isHome);
         const logPayload = {
             matchLog: [...this.currentMatchLog],
-            postseason: !!options.isPostseason
+            postseason: !!options.isPostseason,
+            lineScore: this.currentLineScore ? {
+                home: [...this.currentLineScore.home],
+                away: [...this.currentLineScore.away]
+            } : null
         };
         if (homeEntry) homeEntry.matchLog = logPayload;
         if (awayEntry) awayEntry.matchLog = logPayload;
@@ -3598,6 +3705,16 @@ export class Game {
             };
             modeDisplay.innerText = labels[mode] || 'DUGOUT VIEW';
         }
+        const rosterTitle = document.getElementById('roster-panel-title');
+        if (rosterTitle) {
+            if (mode === 'market') {
+                rosterTitle.innerText = 'MARKET HUB';
+            } else if (mode === 'roster') {
+                rosterTitle.innerText = 'ROSTER HUB';
+            } else {
+                rosterTitle.innerText = 'ROSTER / MARKET';
+            }
+        }
 
         if (mode === 'home') {
             mainContent.classList.add('home-mode');
@@ -3623,7 +3740,7 @@ export class Game {
                 rosterBtn.classList.add('active');
             }
         } else if (mode === 'market') {
-            mainContent.classList.add('roster-mode');
+            mainContent.classList.add('market-mode');
             if (activeOverrideId) {
                 const activeBtn = document.getElementById(activeOverrideId);
                 if (activeBtn) activeBtn.classList.add('active');

@@ -316,6 +316,13 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="log-controls">
+                            <input id="match-log-search" type="text" placeholder="Search log..." />
+                            <div class="log-filter">
+                                <button id="match-log-filter-all" class="nav-btn active" type="button">ALL</button>
+                                <button id="match-log-filter-highlight" class="nav-btn" type="button">HIGHLIGHT</button>
+                            </div>
+                        </div>
                         <div class="game-log" id="game-log">
                             <div class="log-entry">> Welcome to Diamond Manager.</div>
                             <div class="log-entry">> Set your lineup and perform roster moves.</div>
@@ -503,7 +510,7 @@
             <!-- Right: Roster / Market -->
             <section class="panel roster-panel">
                 <div class="panel-header">
-                    <h2>ROSTER / MARKET</h2>
+                    <h2 id="roster-panel-title">ROSTER / MARKET</h2>
                     <div class="roster-nav">
                         <button id="roster-tab-btn" class="nav-btn active">ROSTER</button>
                         <button id="aaa-tab-btn" class="nav-btn">AAA</button>
@@ -642,20 +649,21 @@
             </div>
         </div>
 
-    <div id="schedule-log-overlay" class="modal-overlay hidden">
-        <div class="modal-card schedule-log-card">
-            <div class="modal-header">
-                <h3 id="schedule-log-title">GAME LOG</h3>
-                <button id="schedule-log-close" class="modal-close">&times;</button>
-            </div>
-            <div id="schedule-log-score" class="schedule-log-score">FINAL</div>
-            <div id="schedule-log-body" class="schedule-log-body"></div>
-            <div class="modal-actions">
-                <button id="schedule-log-open-match" class="cyber-button compact">OPEN MATCH LOG</button>
-                <button id="schedule-log-close-btn" class="nav-btn">CLOSE</button>
+        <div id="schedule-log-overlay" class="modal-overlay hidden">
+            <div class="modal-card schedule-log-card">
+                <div class="modal-header">
+                    <h3 id="schedule-log-title">GAME LOG</h3>
+                    <button id="schedule-log-close" class="modal-close">&times;</button>
+                </div>
+                <div id="schedule-log-score" class="schedule-log-score">FINAL</div>
+                <div id="schedule-log-linescore" class="schedule-log-linescore"></div>
+                <div id="schedule-log-body" class="schedule-log-body"></div>
+                <div class="modal-actions">
+                    <button id="schedule-log-open-match" class="cyber-button compact">OPEN MATCH LOG</button>
+                    <button id="schedule-log-close-btn" class="nav-btn">CLOSE</button>
+                </div>
             </div>
         </div>
-    </div>
     </div>
 
     <script type="module" src="js/main.js"></script>
