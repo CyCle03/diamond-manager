@@ -1,6 +1,6 @@
 # ⚾ Diamond Manager (Web Baseball Manager)
 
-[![Play Game](https://img.shields.io/badge/Play-Diamond%20Manager-2ea44f?style=for-the-badge&logo=github)](https://cycle03.github.io/diamond-manager/)
+[![Play Game](https://img.shields.io/badge/Play-Diamond%20Manager-2ea44f?style=for-the-badge&logo=github)](https://bm.elcherlab.com/)
 
 A web-based Baseball Manager game where you build your roster, manage your lineup and pitching rotation, and compete in a simulated league.
 
