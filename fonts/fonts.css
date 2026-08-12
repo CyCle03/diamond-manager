@@ -1,0 +1,54 @@
+/*
+ * 웹폰트 자체 호스팅 (Teko).
+ *
+ * 원래는 fonts.googleapis.com 에서 받았다. elcherlab.com 의 서비스들은 CSP 가
+ * font-src 'self' 라 외부 폰트가 차단되기도 하지만, 그보다 CDN 을 쓰면 방문자
+ * IP 가 Google 로 나가서 개인정보처리방침의 처리위탁·국외이전 표에 사업자를
+ * 하나 더 적어야 한다. woff2 두 개를 저장소에 넣는 편이 훨씬 싸다.
+ *
+ * 구글이 주는 서브셋 중 devanagari 는 받지 않았다. 이 게임은 화면과 선수 이름이
+ * 전부 라틴 문자라 데바나가리 글리프가 쓰일 일이 없다.
+ *
+ * 400 과 600 은 같은 파일을 가리킨다(가변 폰트).
+ * SIL Open Font License 1.1 — OFL-Teko.txt 참조.
+ */
+
+/* latin-ext */
+@font-face {
+  font-family: 'Teko';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(teko-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* latin */
+@font-face {
+  font-family: 'Teko';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(teko-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* latin-ext */
+@font-face {
+  font-family: 'Teko';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(teko-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* latin */
+@font-face {
+  font-family: 'Teko';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(teko-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

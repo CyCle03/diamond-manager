@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Baseball Manager</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;600&display=swap" rel="stylesheet">
+    <!-- 폰트는 자체 호스팅한다(fonts/fonts.css 의 주석 참조).
+         CDN 을 쓰면 방문자 IP 가 Google 로 나가 개인정보처리방침에 사업자를 하나 더
+         적어야 하고, elcherlab 의 CSP(font-src 'self')에도 걸린다. -->
+    <link rel="stylesheet" href="fonts/fonts.css">
     <link rel="stylesheet" href="style.css">
     <!-- Map imports for easier module handling if needed, or just rely on relative paths in modules -->
 </head>
@@ -24,6 +25,35 @@
             <div class="input-group">
                 <label>TEAM NAME</label>
                 <input type="text" id="team-name-input" value="Cyber Nine" maxlength="15">
+            </div>
+
+            <!-- elcherlab 통합 로그인. 로그인하면 세이브 슬롯이 서버(bm.saves)에도
+                 올라가 다른 기기에서 이어서 할 수 있다. 로그인하지 않으면 지금까지처럼
+                 이 브라우저에만 저장된다. 인라인 핸들러는 쓰지 않는다(CSP). -->
+            <div class="input-group">
+                <label>ACCOUNT — elcherlab 통합 로그인</label>
+                <div id="bm-account-status" class="subtext">확인 중…</div>
+
+                <div id="bm-auth-form" hidden>
+                    <input type="text" id="bm-auth-user" autocomplete="username"
+                        placeholder="아이디 (영문·숫자·밑줄 3~20자)" maxlength="20">
+                    <input type="password" id="bm-auth-pass" autocomplete="current-password"
+                        placeholder="비밀번호 (6자 이상)">
+                    <label class="bm-auth-check">
+                        <input type="checkbox" id="bm-auth-age">
+                        <span>만 14세 이상이며,
+                            <a href="https://elcherlab.com/terms.html" target="_blank" rel="noopener">이용약관</a>과
+                            <a href="https://elcherlab.com/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>에
+                            동의합니다. (가입할 때만 필요)</span>
+                    </label>
+                    <p id="bm-auth-error" class="bm-auth-error" hidden></p>
+                    <div class="options-row">
+                        <button type="button" id="bm-login-btn" class="menu-btn">LOG IN</button>
+                        <button type="button" id="bm-signup-btn" class="menu-btn">SIGN UP</button>
+                    </div>
+                </div>
+
+                <button type="button" id="bm-logout-btn" class="menu-btn" hidden>LOG OUT</button>
             </div>
 
             <div class="input-group">

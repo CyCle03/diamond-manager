@@ -1,0 +1,115 @@
+name: Deploy
+
+# main 에 푸시되면 서버(Oracle Cloud)에 바로 반영한다.
+# 이 저장소 전용 self-hosted 러너(cc-runner)가 서버에서 직접 실행한다.
+on:
+  push:
+    branches: [main]
+    # 문서만 고친 푸시로 웹루트를 다시 밀고 백엔드를 재시작하지 않는다.
+    # scripts/deploy.sh 가 *.md 를 웹루트에서 제외하므로 문서는 배포 대상이
+    # 아니고, 백엔드도 .md 를 읽지 않는다. 코드와 문서를 같이 담은 푸시는
+    # 그대로 배포되고, 문서만 담은 푸시는 다음 배포의
+    # git reset --hard origin/main 때 함께 따라온다.
+    paths-ignore:
+      - '**.md'
+  # 실패했을 때 코드 변경 없이 다시 돌릴 수 있도록 수동 실행도 열어둔다.
+  workflow_dispatch:
+
+# 배포가 겹치면 웹루트를 동시에 덮어써 파일이 섞이므로 한 번에 하나만 돈다.
+# 진행 중인 배포는 끊지 않는다 — 중간에 끊기면 웹루트가 반쯤 갱신된 채 남는다.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    # 공개 저장소 + self-hosted 러너 조합이라, 포크에서 실행되어 남의 코드가
+    # 서버에서 돌지 않도록 저장소를 못박는다. (pull_request 트리거도 두지 않는다)
+    if: github.repository == 'CyCle03/diamond-manager'
+    runs-on: [self-hosted, bm]
+    timeout-minutes: 10
+
+    steps:
+      - name: 코드 가져오기
+        uses: actions/checkout@v4
+
+      # 정적 사이트라 파일을 복사하는 순간 바로 서비스에 나간다.
+      # 그래서 스모크 체크를 먼저 통과시킨 뒤에만 배포한다.
+      # 브라우저 없이 할 수 있는 최소 확인 — 모듈이 서로를 제대로 불러오는지.
+      - name: 모듈 임포트 확인
+        run: |
+          node --version
+          node --input-type=module -e "
+            import('./js/core/SaveManager.js').then(()=>console.log('SaveManager OK'));
+            import('./js/core/League.js').then(()=>console.log('League OK'));
+            import('./js/rules/BaseballRules.js').then(()=>console.log('BaseballRules OK'));
+          "
+
+      # 인라인 스크립트가 다시 들어오면 CSP(script-src 'self')에 막혀 조용히
+      # 버튼이 죽는다. 브라우저 없이도 잡을 수 있는 회귀라 여기서 막는다.
+      - name: CSP 회귀 검사 (인라인 핸들러 금지)
+        run: |
+          if grep -nE ' on[a-z]+=' index.html; then
+            echo "인라인 이벤트 핸들러가 있습니다. data-act 위임(js/actions.js)을 쓰세요."
+            exit 1
+          fi
+          if grep -n '<script[^>]*>[^<[:space:]]' index.html; then
+            echo "인라인 <script> 블록이 있습니다."
+            exit 1
+          fi
+          echo "인라인 스크립트 없음"
+
+      # 외부 출처를 다시 붙이면 CSP 에 막히고, 폰트 CDN 은 방문자 IP 가
+      # 밖으로 나가 개인정보처리방침을 고쳐야 한다. 들어오는 즉시 잡는다.
+      - name: 외부 출처 검사
+        run: |
+          if grep -rnoE 'https?://[a-zA-Z0-9./_-]+' index.html style.css js/ | grep -v 'w3\.org' | grep -v 'elcherlab\.com'; then
+            echo "외부 출처 참조가 있습니다. 자체 호스팅으로 옮기세요."
+            exit 1
+          fi
+          echo "외부 출처 없음"
+
+      # 서버 저장 백엔드(server/ → /home/ubuntu/diamond-manager-server).
+      # .env 와 node_modules 는 rsync 제외라 --delete 에도 살아남는다.
+      # sudo 는 /etc/sudoers.d/deploy-restart 의 diamond-manager-server 규칙으로 허용된다.
+      - name: 백엔드 배포
+        run: |
+          rsync -a --delete --exclude node_modules --exclude .env server/ /home/ubuntu/diamond-manager-server/
+          cd /home/ubuntu/diamond-manager-server
+          npm install --omit=dev --no-audit --no-fund
+          sudo systemctl restart diamond-manager-server.service
+          # 부팅 시 DB 스키마 확인(원격 Supabase)이 있어 리슨까지 수 초 걸린다
+          for i in $(seq 1 20); do
+            if curl -sf http://127.0.0.1:3600/api/health > /dev/null; then
+              echo "백엔드 정상 (3600, ${i}초)"; exit 0
+            fi
+            sleep 1
+          done
+          echo "백엔드가 20초 안에 응답하지 않음"; systemctl status diamond-manager-server.service --no-pager | tail -5; exit 1
+
+      # 정적 파일 배포. 앱이 아닌 것(README·테스트·backup)은 스크립트가 걸러 낸다.
+      - name: 정적 배포
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
+
+      - name: 확인
+        run: |
+          for path in / /js/main.js /js/core/cloud.js /fonts/fonts.css /api/health; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://bm.elcherlab.com${path}")
+            echo "  ${path} → ${code}"
+            [ "$code" = "200" ] || { echo "확인 실패"; exit 1; }
+          done
+
+      - name: 요약
+        if: always()
+        run: |
+          {
+            echo "### 배포 결과"
+            echo ""
+            echo "- 커밋: \`${GITHUB_SHA::7}\`"
+            echo "- 주소: https://bm.elcherlab.com"
+          } >> "$GITHUB_STEP_SUMMARY"

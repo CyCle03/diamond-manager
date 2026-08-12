@@ -2221,3 +2221,36 @@ h3 {
     color: #666;
     font-style: italic;
 }
+
+/* ── elcherlab 통합 로그인 ─────────────────────────────── */
+/* 로그인하면 세이브 슬롯이 서버에도 올라간다. 로그인하지 않으면 지금까지와 같다. */
+
+#bm-auth-form input[type="text"],
+#bm-auth-form input[type="password"] {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+}
+
+.bm-auth-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 8px 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+.bm-auth-check input {
+    margin: 2px 0 0;
+    flex: none;
+    width: auto;
+    cursor: pointer;
+}
+
+.bm-auth-error {
+    margin: 6px 0;
+    font-size: 0.8rem;
+    color: #ff6b6b;
+}
