@@ -1,15 +1,16 @@
 name: Deploy
 
-# main 에 푸시되면 서버(Oracle Cloud)에 바로 반영한다.
-# 이 저장소 전용 self-hosted 러너(cc-runner)가 서버에서 직접 실행한다.
+# master 에 푸시되면 서버(Oracle Cloud)에 바로 반영한다.
+# (이 저장소만 기본 브랜치가 master 다 — 다른 저장소들과 다르니 주의)
+# 이 저장소 전용 self-hosted 러너(bm-runner)가 서버에서 직접 실행한다.
 on:
   push:
-    branches: [main]
+    branches: [master]
     # 문서만 고친 푸시로 웹루트를 다시 밀고 백엔드를 재시작하지 않는다.
     # scripts/deploy.sh 가 *.md 를 웹루트에서 제외하므로 문서는 배포 대상이
     # 아니고, 백엔드도 .md 를 읽지 않는다. 코드와 문서를 같이 담은 푸시는
     # 그대로 배포되고, 문서만 담은 푸시는 다음 배포의
-    # git reset --hard origin/main 때 함께 따라온다.
+    # git reset --hard origin/master 때 함께 따라온다.
     paths-ignore:
       - '**.md'
   # 실패했을 때 코드 변경 없이 다시 돌릴 수 있도록 수동 실행도 열어둔다.
