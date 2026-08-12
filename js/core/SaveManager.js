@@ -1,4 +1,5 @@
 import { queuePush, deleteRemote } from './cloud.js';
+import { debugLog } from './debug.js';
 
 /**
  * 세이브 슬롯 저장소.
@@ -19,7 +20,7 @@ export class SaveManager {
             localStorage.setItem(key, serialized);
             // 로그인 상태면 같은 저장본을 서버에도 올린다(전송은 cloud.js 가 몰아서 한다).
             queuePush(slotId, serialized);
-            console.log(`Game saved to slot ${slotId}`);
+            debugLog(`Game saved to slot ${slotId}`);
             return true;
         } catch (e) {
             console.error("Save failed:", e);

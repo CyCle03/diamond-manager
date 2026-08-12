@@ -1,4 +1,5 @@
 import { Player } from './Player.js';
+import { debugLog } from './debug.js';
 import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
 import { SaveManager } from './SaveManager.js';
@@ -114,7 +115,7 @@ export class Game {
         // Auto-Load Check
         const lastSlot = SaveManager.getLastUsedSlot();
         if (lastSlot && SaveManager.exists(lastSlot)) {
-            console.log("Auto-loading slot", lastSlot);
+            debugLog("Auto-loading slot", lastSlot);
             this.startGame(lastSlot, null, false);
         } else {
             // Show Start Screen (already initialized)
@@ -1156,7 +1157,7 @@ export class Game {
     }
 
     renderRotation() {
-        console.log('Rendering Rotation', this.rotation);
+        debugLog('Rendering Rotation', this.rotation);
         const container = document.getElementById('rotation-slots');
         if (!container) return;
         container.innerHTML = '';
@@ -1297,7 +1298,7 @@ export class Game {
                 const role = (emptyIndex === 8) ? 'DH' : player.position;
                 this.lineup[emptyIndex] = { player, role };
             } else {
-                console.log("Lineup full!");
+                debugLog("Lineup full!");
                 return;
             }
         }
