@@ -65,6 +65,11 @@ const DICT = {
     'nav.stats': 'STATS',
     'nav.match': 'MATCH',
     'nav.options': 'OPTIONS',
+    'hdr.rank': 'RANK: {rank}',
+    'hdr.rankNone': 'RANK: --',
+    'hdr.fortyMan': '40-MAN: {count}/{max}',
+    'hdr.waivers': 'WAIVERS: {count}',
+    'hdr.tx': 'TX: {count}',
 
     // ── 홈 ──
     'home.seasonSummary': 'SEASON SUMMARY',
@@ -395,6 +400,11 @@ const DICT = {
     'nav.stats': '기록',
     'nav.match': '경기',
     'nav.options': '설정',
+    'hdr.rank': '순위: {rank}',
+    'hdr.rankNone': '순위: --',
+    'hdr.fortyMan': '40인: {count}/{max}',
+    'hdr.waivers': '웨이버: {count}',
+    'hdr.tx': '트랜잭션: {count}',
 
     // ── 홈 ──
     'home.seasonSummary': '시즌 요약',
@@ -802,6 +812,20 @@ const ROLE_KO = {
 export function tRole(role) {
   if (lang !== 'ko' || !role) return role;
   return ROLE_KO[role] || role;
+}
+
+/**
+ * 순위 표기. 영어는 서수(1st·2nd·3rd), 한국어는 "3위" 처럼 뒤에 붙는다.
+ * 언어마다 붙는 자리가 달라 사전 문구로는 깔끔하게 안 나와서 함수로 둔다.
+ */
+export function tOrdinal(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return String(n);
+  if (lang === 'ko') return `${num}위`;
+  const rem100 = num % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${num}th`;
+  const suffix = { 1: 'st', 2: 'nd', 3: 'rd' }[num % 10] || 'th';
+  return `${num}${suffix}`;
 }
 
 /** 인증 서버가 준 한국어 문구를 현재 언어로 옮긴다. */

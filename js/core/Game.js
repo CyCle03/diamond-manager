@@ -3,7 +3,7 @@ import { debugLog } from './debug.js';
 import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
 import { SaveManager } from './SaveManager.js';
-import { t, tTx, tRole, escapeHtml, applyI18n, toggleLang } from './i18n.js';
+import { t, tTx, tRole, tOrdinal, escapeHtml, applyI18n, toggleLang } from './i18n.js';
 
 export class Game {
     constructor(rules) {
@@ -570,6 +570,8 @@ export class Game {
      */
     refreshLanguage() {
         this.updateStartScreenUI();
+        // 헤더는 리그가 없어도(시즌 전) 글자가 있으므로 먼저 갱신한다.
+        this.updateHeaderIndicators();
         if (!this.league) return;
         const redraws = [
             () => this.updateBudgetUI(),
@@ -4304,14 +4306,34 @@ export class Game {
         if (tradeTab) tradeTab.title = tradeDeadlinePassed ? t('trade.deadlinePassed') : '';
     }
 
+    /**
+     * 순위표에서 우리 팀이 몇 번째인지. 시즌 전이면 null.
+     * 순위표(updateLeagueView)와 같은 getSortedStandings() 순서를 그대로 쓴다 —
+     * 헤더와 표가 다른 등수를 말하면 그게 더 헷갈린다. (그 정렬은 승수만 보므로
+     * 승수가 같은 팀들의 앞뒤는 표에서와 똑같이 임의로 갈린다.)
+     */
+    getPlayerRank() {
+        if (!this.league || typeof this.league.getSortedStandings !== 'function') return null;
+        const sorted = this.league.getSortedStandings();
+        const index = sorted.findIndex(team => team.id === this.playerTeamId);
+        return index === -1 ? null : index + 1;
+    }
+
     updateHeaderIndicators() {
+        const rankEl = document.getElementById('league-rank');
         const fortyEl = document.getElementById('forty-man-indicator');
         const waiverEl = document.getElementById('waiver-indicator');
         const txEl = document.getElementById('transactions-indicator');
-        if (fortyEl) fortyEl.innerText = `40-MAN: ${this.getFortyManCount()}/${this.fortyManLimit}`;
-        if (waiverEl) waiverEl.innerText = `WAIVERS: ${this.league?.waiverWire?.length || 0}`;
+        if (rankEl) {
+            const rank = this.getPlayerRank();
+            rankEl.innerText = rank === null
+                ? t('hdr.rankNone')
+                : t('hdr.rank', { rank: tOrdinal(rank) });
+        }
+        if (fortyEl) fortyEl.innerText = t('hdr.fortyMan', { count: this.getFortyManCount(), max: this.fortyManLimit });
+        if (waiverEl) waiverEl.innerText = t('hdr.waivers', { count: this.league?.waiverWire?.length || 0 });
         const txCount = this.getPlayerTeam()?.transactionsLog?.length || 0;
-        if (txEl) txEl.innerText = `TX: ${txCount}`;
+        if (txEl) txEl.innerText = t('hdr.tx', { count: txCount });
     }
 
     logTransaction(type, player, notes = '') {
