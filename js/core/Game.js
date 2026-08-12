@@ -3,7 +3,7 @@ import { debugLog } from './debug.js';
 import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
 import { SaveManager } from './SaveManager.js';
-import { t, escapeHtml, applyI18n, toggleLang } from './i18n.js';
+import { t, tTx, tRole, escapeHtml, applyI18n, toggleLang } from './i18n.js';
 
 export class Game {
     constructor(rules) {
@@ -151,7 +151,7 @@ export class Game {
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-btn';
             deleteBtn.innerHTML = '&times;';
-            deleteBtn.title = 'Delete Save';
+            deleteBtn.title = t('start.deleteSave');
             deleteBtn.style.display = 'none'; // Hidden by default, shown by CSS if populated
 
             deleteBtn.addEventListener('click', (e) => {
@@ -582,6 +582,14 @@ export class Game {
             () => this.renderLineup(),
             () => this.renderPositionRankings(),
             () => this.renderSchedule(),
+            () => this.renderAaaList(),
+            () => this.renderIlList(),
+            () => this.renderOptionsList(),
+            () => this.renderFortyManList(),
+            () => this.renderWaiverList(),
+            () => this.renderScoutingList(),
+            () => this.renderTransactions(),
+            () => this.updateGoalUI(),
         ];
         for (const redraw of redraws) {
             // 한 패널이 실패해도 나머지 화면까지 옛 언어로 남기지는 않는다.
@@ -810,7 +818,7 @@ export class Game {
             this.renderList('#market-list', this.league.freeAgents, true);
         } else {
             const mList = document.querySelector('#market-list');
-            if (mList) mList.innerHTML = '<div style="padding:10px; color:#888;">Start Season first</div>';
+            if (mList) mList.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.startSeasonFirst')}</div>`;
         }
 
         this.renderScoutingList();
@@ -861,7 +869,7 @@ export class Game {
                     });
                 } else {
                     const isInjured = (player.health?.injuryDays || 0) > 0;
-                    const primaryLabel = isInjured ? 'MOVE TO IL' : 'RELEASE';
+                    const primaryLabel = isInjured ? t('act.moveToIl') : t('act.release');
                     const primaryAction = isInjured
                         ? () => this.movePlayerToIL(player, player.health.injuryDays >= 30 ? '60' : '10')
                         : () => {
@@ -870,8 +878,8 @@ export class Game {
                             }
                         };
                     const secondaryLabel = isInjured
-                        ? 'RELEASE'
-                        : (this.aaaActive ? 'SEND TO AAA' : null);
+                        ? t('act.release')
+                        : (this.aaaActive ? t('act.sendToAaa') : null);
                     const secondaryAction = isInjured
                         ? () => {
                             if (confirm(t('dlg.release', { name: player.name }))) {
@@ -933,7 +941,7 @@ export class Game {
             return;
         }
         if (!this.aaaRoster || this.aaaRoster.length === 0) {
-            container.innerHTML = '<div style="padding:10px; color:#888;">No AAA players</div>';
+            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noAaa')}</div>`;
             return;
         }
         this.aaaRoster.forEach(player => {
@@ -960,9 +968,9 @@ export class Game {
             card.addEventListener('click', () => {
                 this.openPlayerModal(player, {
                     showPerformance: true,
-                    actionLabel: 'CALL UP',
+                    actionLabel: t('act.callUp'),
                     action: () => this.callUpPlayerFromAAA(player),
-                    secondaryActionLabel: 'RELEASE',
+                    secondaryActionLabel: t('act.release'),
                     secondaryAction: () => {
                         if (confirm(t('dlg.releaseAaa', { name: player.name }))) {
                             this.releasePlayerFromAAA(player);
@@ -979,7 +987,7 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
         if (!this.ilRoster || this.ilRoster.length === 0) {
-            container.innerHTML = '<div style="padding:10px; color:#888;">No players on IL</div>';
+            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noIl')}</div>`;
             return;
         }
         this.ilRoster.forEach(player => {
@@ -1009,7 +1017,7 @@ export class Game {
             card.addEventListener('click', () => {
                 this.openPlayerModal(player, {
                     showPerformance: true,
-                    actionLabel: 'ACTIVATE',
+                    actionLabel: t('act.activate'),
                     action: () => this.activatePlayerFromIL(player)
                 });
             });
@@ -1023,7 +1031,7 @@ export class Game {
         container.innerHTML = '';
         const players = [...this.roster, ...this.aaaRoster, ...this.ilRoster];
         if (players.length === 0) {
-            container.innerHTML = '<div style="padding:10px; color:#888;">No players available</div>';
+            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noPlayers')}</div>`;
             return;
         }
         players.forEach(player => {
@@ -1053,7 +1061,7 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
         if (!this.fortyManRoster || this.fortyManRoster.length === 0) {
-            container.innerHTML = '<div style="padding:10px; color:#888;">No players on 40-man roster</div>';
+            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noForty')}</div>`;
             return;
         }
 
@@ -1092,7 +1100,7 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
         if (!this.league || !this.league.waiverWire || this.league.waiverWire.length === 0) {
-            container.innerHTML = '<div style="padding:10px; color:#888;">No players on waivers</div>';
+            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noWaivers')}</div>`;
             this.updateHeaderIndicators();
             return;
         }
@@ -1116,7 +1124,7 @@ export class Game {
             `;
             const claimBtn = document.createElement('button');
             claimBtn.className = 'cyber-button compact';
-            claimBtn.innerText = 'CLAIM';
+            claimBtn.innerText = t('act.claim');
             const rosterFull = this.roster.length >= this.activeRosterLimit || this.getFortyManCount() >= this.fortyManLimit;
             const ownWaiver = waiverInfo.originTeamId === this.playerTeamId;
             claimBtn.disabled = rosterFull || ownWaiver;
@@ -1137,8 +1145,8 @@ export class Game {
         if (!container) return;
 
         if (!this.league) {
-            container.innerHTML = '<div style="padding:10px; color:#888;">Start Season first</div>';
-            if (statusEl) statusEl.innerText = 'Start a season to scout';
+            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.startSeasonFirst')}</div>`;
+            if (statusEl) statusEl.innerText = t('empty.startForScout');
             if (scoutBtn) scoutBtn.disabled = true;
             return;
         }
@@ -1163,7 +1171,7 @@ export class Game {
                 const nextReady = Math.min(...this.scoutingQueue.map(entry => entry.gamesRemaining));
                 container.innerHTML = `<div style="padding:10px; color:#888;">Scouting reports ready in ${nextReady} game(s)</div>`;
             } else {
-                container.innerHTML = '<div style="padding:10px; color:#888;">No scouting reports yet</div>';
+                container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noScoutReports')}</div>`;
             }
             return;
         }
@@ -1299,7 +1307,7 @@ export class Game {
 
         const bullpen = this.getBullpenPitchers();
         if (bullpen.length === 0) {
-            container.innerHTML = '<div style="padding:6px; color:#777;">No bullpen pitchers</div>';
+            container.innerHTML = `<div style="padding:6px; color:#777;">${t('empty.noBullpenPitchers')}</div>`;
             return;
         }
 
@@ -1311,8 +1319,9 @@ export class Game {
             const select = document.createElement('select');
             this.bullpenRoles.forEach(role => {
                 const option = document.createElement('option');
+                // 저장되는 값은 영어로 두고(세이브·비교에 쓰인다) 화면 글자만 옮긴다.
                 option.value = role;
-                option.textContent = role;
+                option.textContent = tRole(role);
                 if (player.bullpenRole === role) option.selected = true;
                 select.appendChild(option);
             });
@@ -1499,7 +1508,7 @@ export class Game {
         const bench = this.roster.filter(player => player.position !== 'P' && !lineupIds.has(player.id));
 
         if (bench.length === 0) {
-            container.innerHTML = '<div style="padding:6px; color:#777;">No bench batters</div>';
+            container.innerHTML = `<div style="padding:6px; color:#777;">${t('empty.noBench')}</div>`;
             return;
         }
 
@@ -1563,7 +1572,7 @@ export class Game {
             card.addEventListener('click', () => {
                 this.openPlayerModal(player, {
                     showPerformance: true,
-                    actionLabel: 'RELEASE',
+                    actionLabel: t('act.release'),
                     action: () => {
                         if (confirm(t('dlg.release', { name: player.name }))) {
                             this.releasePlayer(player);
@@ -1722,7 +1731,7 @@ export class Game {
         this.teamBudget -= cost;
         if (salaryCharge > 0) {
             this.teamBudget -= salaryCharge;
-            this.log(`Prorated salary of $${salaryCharge.toLocaleString()} charged for ${player.name}.`);
+            this.log(t('log.proratedSalary', { amount: salaryCharge.toLocaleString(), name: player.name }));
         }
         this.updateBudgetUI();
 
@@ -1909,13 +1918,13 @@ export class Game {
                 this.aaaRoster.push(player);
             }
             if (!options.silent) {
-                this.log(`${player.name} optioned to AAA. Options left: ${player.optionsRemaining}.`);
-                this.logTransaction('OPTION', player, `Options left ${player.optionsRemaining}`);
+                this.log(t('log.optioned', { name: player.name, left: player.optionsRemaining }));
+                this.logTransaction('OPTION', player, t('trade.optionsLeft', { n: player.optionsRemaining }));
             }
         } else if (!skipOptions) {
             this.placePlayerOnWaivers(player);
             if (!options.silent) {
-                this.log(`${player.name} placed on waivers.`);
+                this.log(t('log.waived', { name: player.name }));
                 this.logTransaction('WAIVERS', player);
             }
         } else {
@@ -1962,7 +1971,7 @@ export class Game {
         this.setPlayerRosterStatus(player, 'active');
         this.addToFortyManRoster(player);
         this.roster.push(player);
-        this.log(`${player.name} claimed off waivers.`);
+        this.log(t('log.claimed', { name: player.name }));
         this.logTransaction('CLAIM', player);
         this.renderRosterAndMarket();
         this.saveGame();
@@ -2048,7 +2057,7 @@ export class Game {
         this.addToFortyManRoster(player);
         this.roster.push(player);
         if (!options.silent) {
-            this.log(`${player.name} was called up from AAA.`);
+            this.log(t('log.calledUp', { name: player.name }));
             this.logTransaction('CALL UP', player);
         }
         this.renderRosterAndMarket();
@@ -2064,7 +2073,7 @@ export class Game {
         this.setPlayerRosterStatus(player, 'fa');
         this.removeFromFortyManRoster(player);
         if (!options.silent) {
-            this.log(`${player.name} was released from AAA.`);
+            this.log(t('log.releasedAaa', { name: player.name }));
             this.logTransaction('RELEASE AAA', player);
         }
         this.renderRosterAndMarket();
@@ -2152,7 +2161,7 @@ export class Game {
     ensureFortyManLimit() {
         let count = this.getFortyManCount();
         if (count <= this.fortyManLimit) return;
-        this.log(`40-man roster exceeds limit (${count}/${this.fortyManLimit}).`);
+        this.log(t('log.fortyOver', { count, max: this.fortyManLimit }));
     }
 
     getRosterComplianceIssues(roster) {
@@ -2616,7 +2625,7 @@ export class Game {
         };
         this.postseasonActive = true;
         this.currentPostseasonSeries = null;
-        this.log('Postseason begins!');
+        this.log(t('log.postseasonBegins'));
         this.renderPostseason();
     }
 
@@ -2650,7 +2659,7 @@ export class Game {
         if (winners.length === 1) {
             this.postseason.champion = winners[0];
             this.postseasonActive = false;
-            this.log(`Champion: ${winners[0].name}`);
+            this.log(t('log.champion', { name: winners[0].name }));
             alert(t('dlg.champion', { name: winners[0].name }));
             this.advanceSeason();
             return;
@@ -2668,7 +2677,7 @@ export class Game {
         this.postseason.rounds[roundIndex] = nextRound;
         this.postseason.roundIndex = roundIndex;
         this.currentPostseasonSeries = null;
-        this.log(`Postseason Round ${roundIndex + 1} begins!`);
+        this.log(t('log.postseasonRound', { n: roundIndex + 1 }));
     }
 
     simulatePostseasonRound() {
@@ -2750,7 +2759,7 @@ export class Game {
 
     enterMatchSetup() {
         this.switchView('match');
-        this.log("Enter Match Setup... Set Lineup then Play!");
+        this.log(t('log.enterSetup'));
     }
 
     async startMatch() {
@@ -2764,7 +2773,7 @@ export class Game {
         if (this.postseasonActive) {
             const postseason = this.getPostseasonSeriesForTeam(this.playerTeamId);
             if (!postseason) {
-                this.log("No postseason match scheduled. Simulating remaining series...");
+                this.log(t('log.noPostseasonMatch'));
                 this.simulatePostseasonRound();
                 return;
             }
@@ -2774,7 +2783,7 @@ export class Game {
             const round = this.league.getCurrentRound();
             myMatch = round.find(m => m.home.id === this.playerTeamId || m.away.id === this.playerTeamId);
             if (!myMatch) {
-                this.log("No match scheduled for this round.");
+                this.log(t('log.noMatchThisRound'));
                 return;
             }
         }
@@ -2807,8 +2816,8 @@ export class Game {
         this.isSimPaused = false;
         this.pauseSimResolvers = [];
         this.updateSimControls();
-        document.getElementById('game-status-text').innerText = "PLAY BALL!";
-        this.log(`MATCH STARTING! SP: ${starter.name} vs ${myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name}`);
+        document.getElementById('game-status-text').innerText = t('match.playBallBang');
+        this.log(t('log.matchStartingVs', { starter: starter.name, opponent: myMatch.home.id === this.playerTeamId ? myMatch.away.name : myMatch.home.name }));
 
         // 4. Simulate
         await this.rules.simulateMatch(this, myMatch.home, myMatch.away);
@@ -2845,7 +2854,7 @@ export class Game {
             const prizeMoney = 50000;
             this.teamBudget += prizeMoney;
             this.updateBudgetUI();
-            this.log(`> Your team won! You earned $${prizeMoney.toLocaleString()}!`);
+            this.log(t('log.wonPrize', { amount: prizeMoney.toLocaleString() }));
         }
 
         this.recordTeamGame(myMatch.home.id, myMatch.away.id, homeScore, awayScore);
@@ -2905,7 +2914,7 @@ export class Game {
         this.renderRotation();
         this.renderBullpen();
         if (this.autoClearMatchLog) {
-            this.setMatchLogMessage('Match complete. Ready for next game.');
+            this.setMatchLogMessage(t('match.complete'));
         }
         this.matchCompleted = true;
         this.updateMatchSummary(homeScore, awayScore);
@@ -2918,7 +2927,7 @@ export class Game {
         const currentRound = this.getCurrentPostseasonRound();
         const series = this.currentPostseasonSeries;
         if (!currentRound || !series) {
-            this.log('Postseason state missing.');
+            this.log(t('log.postseasonMissing'));
             this.postseasonActive = false;
             return;
         }
@@ -2979,7 +2988,7 @@ export class Game {
         this.renderRotation();
         this.renderBullpen();
         if (this.autoClearMatchLog) {
-            this.setMatchLogMessage('Match complete. Ready for next game.');
+            this.setMatchLogMessage(t('match.complete'));
         }
         this.matchCompleted = true;
         this.updateMatchSummary(homeScore, awayScore);
@@ -2993,7 +3002,7 @@ export class Game {
         this.saveGame();
 
         if (seriesCompleted) {
-            this.log(`Series update: ${series.home.name} ${series.winsHome} - ${series.away.name} ${series.winsAway}`);
+            this.log(t('log.seriesUpdate', { home: series.home.name, winsHome: series.winsHome, away: series.away.name, winsAway: series.winsAway }));
         }
     }
 
@@ -3013,7 +3022,7 @@ export class Game {
         }
 
         this.teamBudget -= totalSalaries;
-        this.log(`Annual salaries of $${totalSalaries.toLocaleString()} deducted.`);
+        this.log(t('log.salariesDeducted', { amount: totalSalaries.toLocaleString() }));
         this.updateBudgetUI();
 
         this.incrementServiceTime();
@@ -3097,7 +3106,7 @@ export class Game {
         }
         const playBtn = document.getElementById('play-match-btn-league');
         if (playBtn) {
-            playBtn.innerText = this.postseasonActive ? 'POSTSEASON GAME' : 'ENTER MATCH';
+            playBtn.innerText = this.postseasonActive ? t('league.postseasonGame') : t('league.enterMatch');
         }
 
         const deadlineEl = document.getElementById('trade-deadline-status');
@@ -3133,7 +3142,7 @@ export class Game {
         const activeEl = document.getElementById('home-active-count');
         const ilEl = document.getElementById('home-il-count');
         const optionsEl = document.getElementById('home-options-count');
-        if (teamNameEl) teamNameEl.innerText = this.teamName || 'Your Franchise HQ';
+        if (teamNameEl) teamNameEl.innerText = this.teamName || t('home.hq');
         if (!this.league) {
             if (seasonEl) seasonEl.innerText = 'SEASON 1 (Not Started)';
             if (recordEl) recordEl.innerText = 'Record: 0-0';
@@ -3199,7 +3208,7 @@ export class Game {
         const select = document.getElementById('schedule-round-select');
         if (!list || !select) return;
         if (!this.league || !this.league.schedule || this.league.schedule.length === 0) {
-            list.innerHTML = '<div class="schedule-row">Start season to view schedule.</div>';
+            list.innerHTML = `<div class="schedule-row">${t('empty.startForSchedule')}</div>`;
             select.innerHTML = '';
             return;
         }
@@ -3247,11 +3256,11 @@ export class Game {
             if (filterMyTeam && !isPlayerMatch) return;
             row.className = `schedule-row ${isPlayerMatch ? 'player-team' : ''}`;
             const result = getMatchResult(match.home.id, match.away.id);
-            let statusText = 'UPCOMING';
+            let statusText = t('sched.upcoming');
             if (roundNumber < currentRoundNumber) {
-                statusText = result ? `FINAL ${result.awayRuns}-${result.homeRuns}` : 'COMPLETED';
+                statusText = result ? `FINAL ${result.awayRuns}-${result.homeRuns}` : t('sched.completed');
             } else if (roundNumber === currentRoundNumber) {
-                statusText = isPlayerMatch ? 'NEXT' : 'TODAY';
+                statusText = isPlayerMatch ? 'NEXT' : t('sched.today');
             }
             if (result?.matchLog) row.classList.add('clickable');
             row.innerHTML = `
@@ -3318,7 +3327,7 @@ export class Game {
                     </table>
                 `;
             } else {
-                lineScoreEl.innerHTML = '<div class="subtext">No line score available.</div>';
+                lineScoreEl.innerHTML = `<div class="subtext">${t('empty.noLineScore')}</div>`;
             }
         }
         bodyEl.innerHTML = '';
@@ -3330,7 +3339,7 @@ export class Game {
                 bodyEl.appendChild(row);
             });
         } else {
-            bodyEl.innerHTML = '<div class="log-entry">No detailed log available.</div>';
+            bodyEl.innerHTML = `<div class="log-entry">${t('empty.noDetailLog')}</div>`;
         }
         const close = () => overlay.classList.add('hidden');
         if (closeBtn) closeBtn.onclick = close;
@@ -3357,9 +3366,9 @@ export class Game {
                 const outcome = isPlayerHome
                     ? (result.homeRuns >= result.awayRuns ? 'W' : 'L')
                     : (result.awayRuns >= result.homeRuns ? 'W' : 'L');
-                this.log(`> Result: ${outcome} (summary only)`);
+                this.log(t('log.resultSummary', { outcome }));
             } else {
-                this.log('> Result: AI game (summary only)');
+                this.log(t('log.resultAi'));
             }
         }
     }
@@ -3368,7 +3377,7 @@ export class Game {
         const container = document.getElementById('position-rankings');
         if (!container) return;
         if (!this.league) {
-            container.innerHTML = '<div class="empty-slot">Start Season to view rankings</div>';
+            container.innerHTML = `<div class="empty-slot">${t('dugout.startForRanks')}</div>`;
             return;
         }
 
@@ -3425,9 +3434,9 @@ export class Game {
         const totalGames = this.league.schedule.length || 14;
         const winTarget = Math.max(8, Math.round(totalGames * 0.6));
         this.seasonGoals = [
-            { id: 'wins', label: `Win ${winTarget} games`, target: winTarget, current: 0, reward: 250000, comparator: '>=', achieved: false, claimed: false },
-            { id: 'ops', label: 'Team OPS ≥ .780', target: 0.78, current: 0, reward: 150000, comparator: '>=', achieved: false, claimed: false },
-            { id: 'era', label: 'Team ERA ≤ 4.20', target: 4.2, current: 99, reward: 150000, comparator: '<=', achieved: false, claimed: false }
+            { id: 'wins', label: t('goal.wins', { n: winTarget }), target: winTarget, current: 0, reward: 250000, comparator: '>=', achieved: false, claimed: false },
+            { id: 'ops', label: t('goal.ops'), target: 0.78, current: 0, reward: 150000, comparator: '>=', achieved: false, claimed: false },
+            { id: 'era', label: t('goal.era'), target: 4.2, current: 99, reward: 150000, comparator: '<=', achieved: false, claimed: false }
         ];
     }
 
@@ -3458,7 +3467,7 @@ export class Game {
                 goal.claimed = true;
                 this.teamBudget += goal.reward;
                 this.updateBudgetUI();
-                this.log(`Goal achieved: ${goal.label} (+$${goal.reward.toLocaleString()})`);
+                this.log(t('log.goalAchieved', { label: goal.label, reward: goal.reward.toLocaleString() }));
             }
         });
         this.saveGame();
@@ -3469,7 +3478,7 @@ export class Game {
         if (!list) return;
         list.innerHTML = '';
         if (!this.seasonGoals || this.seasonGoals.length === 0) {
-            list.innerHTML = '<div style="padding:8px; color:#777;">No goals yet</div>';
+            list.innerHTML = `<div style="padding:8px; color:#777;">${t('empty.noGoals')}</div>`;
             return;
         }
         this.seasonGoals.forEach(goal => {
@@ -3618,8 +3627,8 @@ export class Game {
         this.updateBasesDisplay({ first: null, second: null, third: null });
 
         // Reset game status text and log
-        document.getElementById('game-status-text').innerText = 'WAITING FOR MATCH...';
-        this.setMatchLogMessage('Set your lineup and click "PLAY BALL" to start.');
+        document.getElementById('game-status-text').innerText = t('match.waiting');
+        this.setMatchLogMessage(t('match.setLineupHint'));
 
         // Reset matchup display
         this.updateMatchupDisplay({ name: '---' }, { name: '---' }, { name: '---' });
@@ -3931,24 +3940,24 @@ export class Game {
         const modeDisplay = document.getElementById('view-mode-display');
         if (modeDisplay) {
             const labels = {
-                home: 'HOME VIEW',
-                league: 'LEAGUE VIEW',
-                team: 'DUGOUT VIEW',
-                roster: 'ROSTER VIEW',
-                market: 'MARKET VIEW',
-                stats: 'STATS VIEW',
-                match: 'MATCH VIEW'
+                home: t('view.home'),
+                league: t('view.league'),
+                team: t('view.dugout'),
+                roster: t('view.roster'),
+                market: t('view.market'),
+                stats: t('view.stats'),
+                match: t('view.match')
             };
-            modeDisplay.innerText = labels[mode] || 'DUGOUT VIEW';
+            modeDisplay.innerText = labels[mode] || t('view.dugout');
         }
         const rosterTitle = document.getElementById('roster-panel-title');
         if (rosterTitle) {
             if (mode === 'market') {
-                rosterTitle.innerText = 'MARKET HUB';
+                rosterTitle.innerText = t('view.marketHub');
             } else if (mode === 'roster') {
-                rosterTitle.innerText = 'ROSTER HUB';
+                rosterTitle.innerText = t('view.rosterHub');
             } else {
-                rosterTitle.innerText = 'ROSTER / MARKET';
+                rosterTitle.innerText = t('view.rosterMarket');
             }
         }
 
@@ -4292,7 +4301,7 @@ export class Game {
         if (scoutSection) scoutSection.classList.toggle('active', this.marketTab === 'scout');
         if (waiverSection) waiverSection.classList.toggle('active', this.marketTab === 'waivers');
         if (tradeTab) tradeTab.disabled = tradeDeadlinePassed;
-        if (tradeTab) tradeTab.title = tradeDeadlinePassed ? 'Trade deadline has passed.' : '';
+        if (tradeTab) tradeTab.title = tradeDeadlinePassed ? t('trade.deadlinePassed') : '';
     }
 
     updateHeaderIndicators() {
@@ -4330,7 +4339,7 @@ export class Game {
         if (!list) return;
         const team = this.getPlayerTeam();
         if (!team || !team.transactionsLog || team.transactionsLog.length === 0) {
-            list.innerHTML = '<div class="recent-game-row">No transactions yet.</div>';
+            list.innerHTML = `<div class="recent-game-row">${t('empty.noTransactions')}</div>`;
             return;
         }
         const recent = [...team.transactionsLog].slice(-12).reverse();
@@ -4340,7 +4349,7 @@ export class Game {
             row.className = 'recent-game-row';
             const detail = entry.notes ? ` • ${entry.notes}` : '';
             row.innerHTML = `
-                <span>R${entry.round} ${entry.type}</span>
+                <span>R${entry.round} ${tTx(entry.type)}</span>
                 <span>${entry.playerName}${detail}</span>
             `;
             list.appendChild(row);
@@ -4368,7 +4377,7 @@ export class Game {
             teamSelect.innerHTML = '';
             const opt = document.createElement('option');
             opt.value = '';
-            opt.textContent = 'Start season first';
+            opt.textContent = t('trade.startSeasonFirst');
             teamSelect.appendChild(opt);
             playerSelect.innerHTML = '';
             return;
@@ -4377,10 +4386,10 @@ export class Game {
         const deadlinePassed = this.isTradeDeadlinePassed();
         if (deadlinePassed) {
             if (tradeBtn) tradeBtn.disabled = true;
-            if (status) status.innerText = 'Trade deadline has passed.';
+            if (status) status.innerText = t('trade.deadlinePassed');
         } else {
             if (tradeBtn) tradeBtn.disabled = false;
-            if (status) status.innerText = 'Pick a team and players to trade.';
+            if (status) status.innerText = t('trade.pickTeam');
         }
         if (teamSelect) teamSelect.disabled = deadlinePassed;
         if (playerSelect) playerSelect.disabled = deadlinePassed;
@@ -4431,7 +4440,7 @@ export class Game {
         if (!teamSelect || !giveSelect || !getSelect || !cashInput) return;
 
         if (this.isTradeDeadlinePassed()) {
-            if (status) status.innerText = 'Trade deadline has passed.';
+            if (status) status.innerText = t('trade.deadlinePassed');
             return;
         }
 
@@ -4444,7 +4453,7 @@ export class Game {
 
         const cash = Math.max(0, parseInt(cashInput.value, 10) || 0);
         if (cash > this.teamBudget) {
-            if (status) status.innerText = 'Not enough budget for cash add-on.';
+            if (status) status.innerText = t('trade.noCash');
             return;
         }
 
@@ -4460,19 +4469,19 @@ export class Game {
         }
 
         if (!accepted) {
-            if (status) status.innerText = 'Trade rejected by the other team.';
+            if (status) status.innerText = t('trade.rejected');
             return;
         }
 
         this.teamBudget -= cash;
         this.updateBudgetUI();
         this.swapPlayersBetweenTeams(team, givePlayer, getPlayer);
-        if (status) status.innerText = 'Trade accepted!';
+        if (status) status.innerText = t('trade.accepted');
         this.renderRosterAndMarket();
         this.renderLineup();
         this.renderRotation();
-        this.logTransaction('TRADE', givePlayer, `Sent to ${team.name}`);
-        this.logTransaction('TRADE', getPlayer, `Acquired from ${team.name}`);
+        this.logTransaction('TRADE', givePlayer, t('trade.sentTo', { team: team.name }));
+        this.logTransaction('TRADE', getPlayer, t('trade.acquiredFrom', { team: team.name }));
         this.saveGame();
     }
 
@@ -4685,7 +4694,7 @@ export class Game {
         if (pauseBtn) {
             pauseBtn.disabled = !enabled || this.simulationMode !== 'auto';
             pauseBtn.classList.toggle('active', this.isSimPaused);
-            pauseBtn.innerText = this.isSimPaused ? 'RESUME' : 'PAUSE';
+            pauseBtn.innerText = this.isSimPaused ? t('act.resume') : t('act.pause');
         }
         this.updatePlayBallButton();
         if (autoViewSelect) {
@@ -4765,7 +4774,7 @@ export class Game {
         if (!staminaEl) return;
         const pitcher = this.getCurrentPlayerPitcher();
         if (!pitcher) {
-            staminaEl.innerText = 'PITCHER STAMINA: --';
+            staminaEl.innerText = t('match.staminaNone');
             return;
         }
         const { current, max, ratio } = this.getPitcherStaminaValues(pitcher);
@@ -4801,7 +4810,7 @@ export class Game {
             playBtn.innerText = 'NEXT';
         } else {
             playBtn.disabled = true;
-            playBtn.innerText = this.isSimPaused ? 'RESUME' : 'AUTO';
+            playBtn.innerText = this.isSimPaused ? t('act.resume') : t('match.auto');
         }
     }
 
@@ -5140,7 +5149,7 @@ export class Game {
             const minDays = longInjury ? 30 : 7;
             const maxDays = longInjury ? 60 : 21;
             player.health.injuryDays = minDays + Math.floor(Math.random() * (maxDays - minDays + 1));
-            this.log(`${player.name} is injured (${player.health.injuryDays} games).`, { highlight: true });
+            this.log(t('log.injured', { name: player.name, days: player.health.injuryDays }), { highlight: true });
         }
     }
 
@@ -5173,7 +5182,7 @@ export class Game {
         });
         if (completed.length > 0) {
             this.scoutingPool = [...this.scoutingPool, ...completed];
-            this.log(`Scouting reports ready: ${completed.length} prospects added.`);
+            this.log(t('log.scoutingReady', { n: completed.length }));
         }
         this.renderScoutingList();
         this.saveGame();
@@ -5193,7 +5202,7 @@ export class Game {
         if (bullpen.length === 0) {
             const option = document.createElement('option');
             option.value = '';
-            option.textContent = 'No bullpen available';
+            option.textContent = t('empty.noBullpenAvailable');
             select.appendChild(option);
         }
     }
@@ -5276,7 +5285,7 @@ export class Game {
             this.pitcherStamina.set(pitcher.id, max);
         }
         this.updatePitcherStaminaUI();
-        this.log(`Pitching change: ${pitcher.name} enters.`);
+        this.log(t('log.pitchingChange', { name: pitcher.name }));
     }
 
     substitutePitcherForTeam(team, pitcher) {
@@ -5289,7 +5298,7 @@ export class Game {
         if (this.currentMatch && (team.id === this.playerTeamId)) {
             this.updatePitcherStaminaUI();
         }
-        this.log(`Pitching change: ${pitcher.name} enters.`);
+        this.log(t('log.pitchingChange', { name: pitcher.name }));
     }
 
     buildPlayerTooltip(player, options = {}) {
@@ -5354,7 +5363,7 @@ export class Game {
         const perfHtml = options.showPerformance
             ? `
             <div class="modal-section">
-                <div class="modal-section-title">Current Season</div>
+                <div class="modal-section-title">${t('card.currentSeason')}</div>
                 <div class="season-line">BAT ${this.formatBattingLine(current)}</div>
                 <div class="season-line">PIT ${this.formatPitchingLine(current)}</div>
                 <div class="season-line">G ${current.games} • PA ${current.plateAppearances} • HR ${current.homeRuns} • BB ${current.walks} • HBP ${current.hitByPitch} • K ${current.strikeouts || 0}</div>
@@ -5365,20 +5374,20 @@ export class Game {
             : '';
 
         bodyEl.innerHTML = `
-            <div class="stat-label">Position</div><div class="stat-value">${player.position}</div>
-            <div class="stat-label">Age</div><div class="stat-value">${player.age}</div>
-            <div class="stat-label">Overall</div><div class="stat-value">${stats.overall}</div>
-            <div class="stat-label">Contact</div><div class="stat-value">${stats.contact}</div>
-            <div class="stat-label">Power</div><div class="stat-value">${stats.power}</div>
-            <div class="stat-label">Speed</div><div class="stat-value">${stats.speed}</div>
-            <div class="stat-label">Defense</div><div class="stat-value">${stats.defense}</div>
-            <div class="stat-label">Pitching</div><div class="stat-value">${stats.pitching}</div>
-            <div class="stat-label">Stamina</div><div class="stat-value">${staminaDisplay}</div>
-            <div class="stat-label">Fatigue</div><div class="stat-value">${Math.round(player.health?.fatigue || 0)}</div>
-            <div class="stat-label">Injury</div><div class="stat-value">${player.health?.injuryDays || 0} days</div>
-            <div class="stat-label">Options</div><div class="stat-value">${typeof player.optionsRemaining === 'number' ? player.optionsRemaining : 0}</div>
-            <div class="stat-label">Salary</div><div class="stat-value">$${stats.salary.toLocaleString()}</div>
-            <div class="stat-label">Signing Bonus</div><div class="stat-value">$${stats.signingBonus.toLocaleString()}</div>
+            <div class="stat-label">${t('card.position')}</div><div class="stat-value">${player.position}</div>
+            <div class="stat-label">${t('card.age')}</div><div class="stat-value">${player.age}</div>
+            <div class="stat-label">${t('card.overall')}</div><div class="stat-value">${stats.overall}</div>
+            <div class="stat-label">${t('card.contact')}</div><div class="stat-value">${stats.contact}</div>
+            <div class="stat-label">${t('card.power')}</div><div class="stat-value">${stats.power}</div>
+            <div class="stat-label">${t('card.speed')}</div><div class="stat-value">${stats.speed}</div>
+            <div class="stat-label">${t('card.defense')}</div><div class="stat-value">${stats.defense}</div>
+            <div class="stat-label">${t('card.pitching')}</div><div class="stat-value">${stats.pitching}</div>
+            <div class="stat-label">${t('card.stamina')}</div><div class="stat-value">${staminaDisplay}</div>
+            <div class="stat-label">${t('card.fatigue')}</div><div class="stat-value">${Math.round(player.health?.fatigue || 0)}</div>
+            <div class="stat-label">${t('card.injury')}</div><div class="stat-value">${t('card.days', { n: player.health?.injuryDays || 0 })}</div>
+            <div class="stat-label">${t('card.options')}</div><div class="stat-value">${typeof player.optionsRemaining === 'number' ? player.optionsRemaining : 0}</div>
+            <div class="stat-label">${t('card.salary')}</div><div class="stat-value">$${stats.salary.toLocaleString()}</div>
+            <div class="stat-label">${t('card.signingBonus')}</div><div class="stat-value">$${stats.signingBonus.toLocaleString()}</div>
             ${perfHtml}
         `;
 
@@ -5584,11 +5593,11 @@ export class Game {
         }).join('');
         return `
             <div class="modal-section">
-                <div class="modal-section-title">Season History</div>
+                <div class="modal-section-title">${t('card.seasonHistory')}</div>
                 <table class="season-table">
                     <thead>
                         <tr>
-                            <th>Season</th>
+                            <th>${t('card.season')}</th>
                             <th>AVG</th>
                             <th>OPS</th>
                             <th>HR</th>
@@ -5993,7 +6002,7 @@ export class Game {
         if (!chart) return;
         const teamStats = this.teamSeasonStats[this.playerTeamId];
         if (!teamStats || teamStats.games === 0) {
-            chart.innerText = 'No games played yet.';
+            chart.innerText = t('empty.noGames');
             return;
         }
 
@@ -6024,7 +6033,7 @@ export class Game {
         if (!list) return;
         const teamStats = this.teamSeasonStats[this.playerTeamId];
         if (!teamStats || !teamStats.gameLog || teamStats.gameLog.length === 0) {
-            list.innerHTML = '<div class="recent-game-row">No games played yet.</div>';
+            list.innerHTML = `<div class="recent-game-row">${t('empty.noGames')}</div>`;
             return;
         }
         const recent = [...teamStats.gameLog].slice(-8).reverse();
@@ -6280,7 +6289,7 @@ export class Game {
         });
         this.renderScoutingList();
         this.saveGame();
-        this.log(`Scouting started. Reports ready in ${this.scoutingLeadTimeGames} games.`);
+        this.log(t('log.scoutingStarted', { n: this.scoutingLeadTimeGames }));
     }
 
     startDraft() {
@@ -6318,7 +6327,7 @@ export class Game {
 
         draftArea.style.display = 'block';
         if (this.draftOrder.length === 0) {
-            if (statusEl) statusEl.innerText = 'Draft order unavailable.';
+            if (statusEl) statusEl.innerText = t('draft.orderUnavailable');
             if (listEl) listEl.innerHTML = '';
             return;
         }
@@ -6340,7 +6349,7 @@ export class Game {
             const sorted = [...this.draftPool].sort((a, b) => b.stats.overall - a.stats.overall);
             const preview = sorted.slice(0, 12);
             if (preview.length === 0) {
-                listEl.innerHTML = '<div style="padding:10px; color:#888;">No prospects left</div>';
+                listEl.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noProspects')}</div>`;
             } else {
                 preview.forEach(player => {
                     const card = document.createElement('div');
@@ -6373,7 +6382,7 @@ export class Game {
                         card.addEventListener('click', () => {
                             this.openPlayerModal(player, {
                                 showPerformance: false,
-                                actionLabel: 'DRAFT',
+                                actionLabel: t('act.draft'),
                                 action: () => this.draftPlayer(player.id)
                             });
                         });
@@ -6491,7 +6500,7 @@ export class Game {
             this.setPlayerRosterStatus(player, 'active');
             this.addToFortyManRoster(player);
             this.roster.push(player);
-            this.log(`Drafted ${player.name} (${player.position}).`);
+            this.log(t('log.drafted', { name: player.name, pos: player.position }));
         } else {
             if (currentTeam.roster.length < this.draftRosterLimit) {
                 player.rosterStatus = 'active';
@@ -6501,7 +6510,7 @@ export class Game {
                 }
             }
             if (!isAuto) {
-                this.log(`${currentTeam.name} drafted ${player.name}.`);
+                this.log(t('log.draftedBy', { team: currentTeam.name, name: player.name }));
             }
         }
 
