@@ -17,6 +17,7 @@
  */
 
 import { SaveManager } from './SaveManager.js';
+import { t, translateServerError } from './i18n.js';
 
 const AUTH_ORIGIN = 'https://auth.elcherlab.com';
 const SAVE_PREFIX = 'diamond_manager_save_';
@@ -38,7 +39,7 @@ async function api(path, options) {
     ...options,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `요청 실패 (${res.status})`);
+  if (!res.ok) throw new Error(translateServerError(data.error) || t('account.errRequest', { status: res.status }));
   return data;
 }
 
@@ -50,7 +51,7 @@ async function authApi(path, body) {
     credentials: 'include',
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || '요청을 처리할 수 없습니다.');
+  if (!res.ok) throw new Error(translateServerError(data.error) || t('account.errGeneric'));
   return data;
 }
 
@@ -185,11 +186,11 @@ export function renderAccount() {
   if (!status || !form || !logoutBtn) return;
 
   if (session.loggedIn) {
-    status.textContent = `${session.username} 으로 로그인됨 — 세이브가 서버에 저장됩니다.`;
+    status.textContent = t('account.loggedIn', { user: session.username });
     form.hidden = true;
     logoutBtn.hidden = false;
   } else {
-    status.textContent = '로그인하지 않았습니다. 세이브는 이 브라우저에만 저장됩니다.';
+    status.textContent = t('account.loggedOut');
     form.hidden = false;
     logoutBtn.hidden = true;
   }
@@ -204,9 +205,9 @@ async function submitAuth(mode) {
 
   const username = userEl.value.trim();
   const password = passEl.value;
-  if (!username || !password) return setAuthError('아이디와 비밀번호를 입력하세요.');
+  if (!username || !password) return setAuthError(t('account.errCredentials'));
   if (mode === 'signup' && !(ageEl && ageEl.checked)) {
-    return setAuthError('만 14세 이상 확인과 약관 동의에 체크해 주세요.');
+    return setAuthError(t('account.errConsent'));
   }
 
   setAuthError('');
@@ -237,5 +238,8 @@ export function wireAccountUI() {
     }
     location.reload();
   });
+  // 상태 줄과 오류 문구는 이 파일이 직접 쓰므로 applyI18n 이 건드리지 않는다.
+  // 언어가 바뀌면 여기서 다시 쓴다.
+  document.addEventListener('bm:langchange', () => renderAccount());
   renderAccount();
 }

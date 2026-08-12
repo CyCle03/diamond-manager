@@ -3,6 +3,7 @@ import { debugLog } from './debug.js';
 import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
 import { SaveManager } from './SaveManager.js';
+import { t, escapeHtml, applyI18n, toggleLang } from './i18n.js';
 
 export class Game {
     constructor(rules) {
@@ -213,12 +214,17 @@ export class Game {
             const deleteBtn = slot.querySelector('.delete-btn');
 
             if (meta) {
-                infoDiv.innerHTML = `${meta.teamName}<br>Season ${meta.season}<br>Round ${meta.round}`;
+                infoDiv.innerHTML = t('start.slotSaved', {
+                    // 사전 문구에 <br> 이 있어 innerHTML 로 넣는다 — 팀 이름은 사용자 입력이다.
+                    team: escapeHtml(meta.teamName),
+                    season: meta.season,
+                    round: meta.round
+                });
                 infoDiv.classList.remove('slot-empty');
                 slot.classList.add('populated');
                 if (deleteBtn) deleteBtn.style.display = 'block';
             } else {
-                infoDiv.innerHTML = "Empty - Create New";
+                infoDiv.innerHTML = t('start.slotEmpty');
                 infoDiv.classList.add('slot-empty');
                 slot.classList.remove('populated');
                 if (deleteBtn) deleteBtn.style.display = 'none';
@@ -247,8 +253,8 @@ export class Game {
         autoManage.disabled = !isActive;
         autoPromote.disabled = !isActive;
         statusEl.innerText = isActive
-            ? `AAA ACTIVE (Season ${season})`
-            : `AAA unlocks in Season ${this.aaaEnabledSeason}`;
+            ? t('start.aaaActive', { season })
+            : t('start.aaaLocked', { season: this.aaaEnabledSeason });
     }
 
     updateMatchOptionsUI() {
@@ -544,7 +550,52 @@ export class Game {
         }
     }
 
+    /**
+     * 언어 토글 두 개(헤더, 시작 화면)를 연결하고, 언어가 바뀌면 다시 그린다.
+     * 시작 화면이 전체를 덮기 때문에 버튼이 두 곳에 있다.
+     */
+    initLanguageUI() {
+        ['lang-btn', 'lang-btn-start'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', () => toggleLang());
+        });
+        document.addEventListener('bm:langchange', () => this.refreshLanguage());
+        applyI18n(document);
+    }
+
+    /**
+     * 언어가 바뀐 뒤 화면을 다시 칠한다.
+     * 경기 화면은 건드리지 않는다 — resetMatchView() 계열을 부르면 진행 중인
+     * 경기가 날아간다. 다음 이닝 갱신 때 자연스럽게 새 언어로 그려진다.
+     */
+    refreshLanguage() {
+        this.updateStartScreenUI();
+        if (!this.league) return;
+        const redraws = [
+            () => this.updateBudgetUI(),
+            () => this.updateHomeView(),
+            () => this.updateLeagueView(),
+            () => this.renderRosterAndMarket(),
+            () => this.renderRotation(),
+            () => this.renderBullpen(),
+            () => this.renderBench(),
+            () => this.renderLineup(),
+            () => this.renderPositionRankings(),
+            () => this.renderSchedule(),
+        ];
+        for (const redraw of redraws) {
+            // 한 패널이 실패해도 나머지 화면까지 옛 언어로 남기지는 않는다.
+            try {
+                redraw();
+            } catch (e) {
+                debugLog('[i18n] 다시 그리기 실패', e);
+            }
+        }
+    }
+
     initUI() {
+        this.initLanguageUI();
+
         // --- VIEW NAVIGATION ---
         const viewLeagueBtn = document.getElementById('view-league-btn');
         const viewTeamBtn = document.getElementById('view-team-btn');

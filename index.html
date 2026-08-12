@@ -18,12 +18,16 @@
     <!-- START SCREEN OVERLAY -->
     <div id="start-screen-overlay">
         <div class="start-content">
-            <button id="close-options-btn"
+            <button id="close-options-btn" data-i18n-aria="start.close"
                 style="position: absolute; top: 10px; right: 10px; background: transparent; border: none; color: #666; font-size: 1.5rem; cursor: pointer; display: none;">&times;</button>
+            <!-- 시작 화면이 전체를 덮으므로 헤더의 토글이 가려진다. 처음 들어온
+                 사람이 언어를 바꿀 곳은 여기뿐이라 하나 더 둔다(js/core/i18n.js). -->
+            <button type="button" id="lang-btn-start" class="menu-btn lang-btn" data-i18n="lang.other"
+                data-i18n-title="lang.switchTitle"></button>
             <div class="start-title">DIAMOND MANAGER</div>
 
             <div class="input-group">
-                <label>TEAM NAME</label>
+                <label data-i18n="start.teamName">TEAM NAME</label>
                 <input type="text" id="team-name-input" value="Cyber Nine" maxlength="15">
             </div>
 
@@ -31,60 +35,67 @@
                  올라가 다른 기기에서 이어서 할 수 있다. 로그인하지 않으면 지금까지처럼
                  이 브라우저에만 저장된다. 인라인 핸들러는 쓰지 않는다(CSP). -->
             <div class="input-group">
-                <label>ACCOUNT — elcherlab 통합 로그인</label>
-                <div id="bm-account-status" class="subtext">확인 중…</div>
+                <label data-i18n="account.title">ACCOUNT — elcherlab single sign-on</label>
+                <!-- 이 줄은 renderAccount() 가 로그인 상태에 따라 다시 쓴다.
+                     data-i18n 을 붙이면 언어 전환 때 "Checking…" 으로 되돌아간다. -->
+                <div id="bm-account-status" class="subtext">Checking…</div>
 
                 <div id="bm-auth-form" hidden>
                     <input type="text" id="bm-auth-user" autocomplete="username"
-                        placeholder="아이디 (영문·숫자·밑줄 3~20자)" maxlength="20">
+                        data-i18n-ph="account.idPlaceholder" maxlength="20">
                     <input type="password" id="bm-auth-pass" autocomplete="current-password"
-                        placeholder="비밀번호 (6자 이상)">
+                        data-i18n-ph="account.pwPlaceholder">
                     <label class="bm-auth-check">
                         <input type="checkbox" id="bm-auth-age">
-                        <span>만 14세 이상이며,
-                            <a href="https://elcherlab.com/terms.html" target="_blank" rel="noopener">이용약관</a>과
-                            <a href="https://elcherlab.com/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>에
-                            동의합니다. (가입할 때만 필요)</span>
+                        <span data-i18n-html="account.consent"></span>
                     </label>
                     <p id="bm-auth-error" class="bm-auth-error" hidden></p>
                     <div class="options-row">
-                        <button type="button" id="bm-login-btn" class="menu-btn">LOG IN</button>
-                        <button type="button" id="bm-signup-btn" class="menu-btn">SIGN UP</button>
+                        <button type="button" id="bm-login-btn" class="menu-btn" data-i18n="account.login">LOG
+                            IN</button>
+                        <button type="button" id="bm-signup-btn" class="menu-btn" data-i18n="account.signup">SIGN
+                            UP</button>
                     </div>
                 </div>
 
-                <button type="button" id="bm-logout-btn" class="menu-btn" hidden>LOG OUT</button>
+                <button type="button" id="bm-logout-btn" class="menu-btn" hidden data-i18n="account.logout">LOG
+                    OUT</button>
             </div>
 
             <div class="input-group">
-                <label>SELECT SAVE SLOT</label>
+                <label data-i18n="start.selectSlot">SELECT SAVE SLOT</label>
                 <div class="save-slots">
                     <div class="save-slot-card" id="slot-1" data-slot="1">
-                        <h3>SLOT 1</h3>
+                        <h3 data-i18n="start.slot" data-i18n-vars='{"n":1}'>SLOT 1</h3>
                         <div class="slot-info slot-empty">Empty</div>
                     </div>
                     <div class="save-slot-card" id="slot-2" data-slot="2">
-                        <h3>SLOT 2</h3>
+                        <h3 data-i18n="start.slot" data-i18n-vars='{"n":2}'>SLOT 2</h3>
                         <div class="slot-info slot-empty">Empty</div>
                     </div>
                     <div class="save-slot-card" id="slot-3" data-slot="3">
-                        <h3>SLOT 3</h3>
+                        <h3 data-i18n="start.slot" data-i18n-vars='{"n":3}'>SLOT 3</h3>
                         <div class="slot-info slot-empty">Empty</div>
                     </div>
                 </div>
             </div>
             <div class="input-group" id="aaa-options">
-                <label>AAA SETTINGS</label>
+                <label data-i18n="start.aaaSettings">AAA SETTINGS</label>
                 <div class="options-row">
-                    <label><input type="checkbox" id="aaa-auto-manage"> Auto AAA management</label>
-                    <label><input type="checkbox" id="aaa-auto-promote"> Auto promote/demote</label>
+                    <label><input type="checkbox" id="aaa-auto-manage"> <span data-i18n="start.autoAaa">Auto AAA
+                            management</span></label>
+                    <label><input type="checkbox" id="aaa-auto-promote"> <span data-i18n="start.autoPromote">Auto
+                            promote/demote</span></label>
                 </div>
+                <!-- 이 줄은 updateAaaOptionsUI() 가 시즌에 따라 다시 쓴다.
+                     data-i18n 을 붙이면 언어 전환 때 그 내용을 덮어쓰므로 붙이지 않는다. -->
                 <div id="aaa-status" class="subtext">AAA unlocks in Season 3</div>
             </div>
             <div class="input-group" id="match-options">
-                <label>MATCH SETTINGS</label>
+                <label data-i18n="start.matchSettings">MATCH SETTINGS</label>
                 <div class="options-row">
-                    <label><input type="checkbox" id="match-log-auto-clear"> Auto clear match log after game</label>
+                    <label><input type="checkbox" id="match-log-auto-clear"> <span data-i18n="start.autoClearLog">Auto
+                            clear match log after game</span></label>
                 </div>
             </div>
         </div>
@@ -103,6 +114,8 @@
                 <button id="view-stats-btn" class="nav-btn">STATS</button>
                 <button id="view-match-btn" class="nav-btn">MATCH</button>
                 <div style="width: 1px; background: #333; height: 20px; margin: 0 5px;"></div>
+                <button id="lang-btn" class="nav-btn" data-i18n="lang.other"
+                    data-i18n-title="lang.switchTitle"></button>
                 <button id="options-btn" class="nav-btn" style="border-color:#444; color:#666;">OPTIONS</button>
             </div>
             <div class="header-status">
