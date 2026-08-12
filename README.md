@@ -1,142 +1,13 @@
-# ⚾ Diamond Manager (Web Baseball Manager)
+**한국어** | [English](README.en.md)
 
-[![Play Game](https://img.shields.io/badge/Play-Diamond%20Manager-2ea44f?style=for-the-badge&logo=github)](https://bm.elcherlab.com/)
+# ⚾ 다이아몬드 매니저 (웹 야구 매니저)
 
-A web-based Baseball Manager game where you build your roster, manage your lineup and pitching rotation, and compete in a simulated league.
-
-## 🚀 How to Run Locally
-
-You can use any static file server. Choose one:
-
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/CyCle03/diamond-manager.git
-    ```
-2.  Navigate to the directory:
-    ```bash
-    cd diamond-manager
-    ```
-3.  Start a local server (Modules/CORS requires a server):
-    ```bash
-    # Python 3
-    python3 -m http.server 8000
-    ```
-    ```bash
-    # Node.js (no install)
-    npx serve .
-    ```
-    ```bash
-    # PHP
-    php -S localhost:8000
-    ```
-4.  Open `http://localhost:8000` in your browser.
-
-## 🎮 Features
-
-*   **League System**: Compete in a full season against 7 AI teams with last-5 and streak indicators.
-*   **Deeper Simulation**:
-    *   **Player Development**: Players age each season. Their stats will progress or regress based on their age, with young players improving and older players declining.
-    *   **Team Finances**: Manage a team budget. Signing players from the free agent market costs money, so spend wisely.
-    *   **Expanded Player Stats**: Players have `Age` and `Defense` stats, providing more strategic depth.
-*   **Team Management (Dashboard)**:
-    *   **Strategic Auto-Lineup**: Automatically selects the best defensive players and orders the batting lineup based on stats (Speed #1, Power #4, etc.).
-    *   **Flexible Lineup**: Drag-and-drop players to any slot. Use the dropdown menu to assign any defensive position (e.g., Catcher batting cleanup).
-    *   **Pitching Rotation**: Manage a 4-6 man rotation with full drag-and-drop support for reordering starters.
-    *   **Roster & Market**: Sign free agents from a dynamic market to manage your 25-man squad, keeping an eye on your budget.
-    *   **Position Rankings**: View your team’s league rank by position in the Dugout.
-*   **Scouting & Draft**: Spend budget to scout prospects during the season, then draft players in a 5-round offseason draft.
-*   **Scouting Lead Time**: Scouting reports now arrive after a short delay (a few games), not instantly.
-*   **Team Stats**: Compare league-wide team rankings (AVG/OPS/ERA/WHIP, Runs, RA, RA/G, RA9) and run trends.
-*   **Player Rankings**: View your team's batter/pitcher leaderboards.
-*   **Bullpen Roles & Stamina**: Assign bullpen roles and manage pitcher stamina with in-game substitutions.
-*   **Performance-Based Training**: Player attributes adjust based on seasonal performance plus end-of-season training.
-*   **Injuries & Fatigue**: Players accumulate fatigue and can miss games when injured.
-*   **Goals & Rewards**: Complete season goals for budget bonuses.
-*   **Trades**: Propose player-for-player trades with AI teams (optional cash add-on).
-*   **Trade Deadline**: Trades are disabled after the mid-season deadline.
-*   **Postseason**: Top 4 teams advance to a bracket-style postseason.
-*   **Injured List (IL)**: Move injured players to IL and activate them when healthy.
-*   **40-Man Roster**: Organization roster cap shared across Active/AAA/IL (10-day).
-*   **Options & Waivers**: Demotions use options; no options triggers waivers.
-*   **MLB-Style Rosters**: 26-man active roster with pitcher limits and position minimums.
-*   **AAA System (Season 3)**: AAA roster unlocks with optional auto management and auto call-ups.
-*   **Draft Need Button**: Draft by team needs and weak league position ranks.
-*   **Save System**: Saves on key actions (sign/release, match results, season advance). Use the **Options** menu to switch save slots or delete data.
-*   **Match Simulation**: Watch play-by-play visual simulations of your games.
-
-## 🕹️ Controls
-
-*   **Lineup**: Drag players from Roster to Lineup. Drag within Lineup to swap.
-*   **Position Change**: Click the green dropdown (e.g., "SS") next to a player in the lineup to change their defensive role.
-*   **Rotation**: Drag Pitchers from Roster/Lineup to Rotation slots. Drag within Rotation to swap order.
-*   **Options**: Click the **OPTIONS** button in the header to manage save data.
-*   **Injured List**: Use the **IL** tab to stash injured players and activate them after recovery.
-*   **Scout**: Click **SCOUT** in the Roster/Market panel to find new prospects.
-*   **Draft**: Use the Draft Room in the League panel to make your picks.
-*   **Match Pace**:
-    *   **AUTO**: Simulates automatically (choose Pitch-by-Pitch or Batter-by-Batter).
-    *   **PITCH**: Step through each pitch event.
-    *   **BATTER**: Step through each batter outcome.
-*   **Next Game**: Click **NEXT GAME** in Match to start the next scheduled game immediately.
-*   **Stats**: Open **STATS** in the header to view team rankings.
-*   **Pitching Change**: Use the Bullpen dropdown in Match to swap pitchers.
-*   **Auto Bullpen**: Toggle **AUTO BP** to automatically swap pitchers when stamina dips.
-*   **Match Log**: Toggle **Auto clear match log after game** in **Options** to reset the log at game end.
-
-## 🛠️ Tech Stack
-
-*   **Core**: Vanilla JavaScript (ES6+), Modular architecture using ES6 Modules (Core, Rules)
-*   **UI**: HTML5, CSS3 (Grid/Flexbox), Custom "Cyber/Sports" Theme.
-
-## 💾 Save Data
-
-*   Save files live in browser `localStorage` per slot.
-*   Use the in-game **Options** menu to switch slots or delete saves.
-*   Clearing site data in your browser will remove saves.
-
-## 🧭 Project Structure
-
-*   **index.html**: UI shell and layout for league/team/match views.
-*   **js/main.js**: Bootstraps the game with the baseball ruleset.
-*   **js/core/Game.js**: Game state, UI orchestration, season flow, and save hooks.
-*   **js/core/League.js**: Schedule generation and standings tracking.
-*   **js/core/Player*.js**: Player data model and roster generation.
-*   **js/rules/BaseballRules.js**: Lineup validation and match simulation.
-
-## 🔁 Game Flow
-
-*   Pick a save slot or start a new team from the start screen.
-*   Set your lineup and rotation, then start the season.
-*   Enter a match to simulate play-by-play and advance the league.
-*   After the season ends, draft new prospects over 5 rounds.
-
-## 🧾 Roster Rules
-
-*   26-man active roster.
-*   Pitchers: 9-13 on active roster.
-*   Minimums: C (2), 1B/2B/3B/SS (1 each), OF (4).
-
-## 🧑‍🌾 AAA (Season 3)
-
-*   AAA unlocks automatically in Season 3.
-*   Defaults to auto management; manual control is available in **Options**.
-*   Auto promotions/demotions can be toggled independently.
-
-## 📸 Screenshots
-
-| Title Screen | Team Management | Match Simulation |
-| --- | --- | --- |
-| ![Title Screen](./assets/screenshots/title-screen.png) | ![Team Management](./assets/screenshots/team-management.png) | ![Match Simulation](./assets/screenshots/match-simulation.png) |
-
-| League Overview | Draft Room | Stats & Rankings |
-| --- | --- | --- |
-| ![League Overview](./assets/screenshots/league-overview.png) | ![Draft Room](./assets/screenshots/draft-room.png) | ![Stats & Rankings](./assets/screenshots/stats-rankings.png) |
-
----
-
-## ⚾ 다이아몬드 매니저 (웹 야구 매니저)
+[![게임 하기](https://img.shields.io/badge/Play-Diamond%20Manager-2ea44f?style=for-the-badge&logo=github)](https://bm.elcherlab.com/)
 
 라인업과 로테이션을 구성하고, 리그를 시뮬레이션하며 시즌을 운영하는 웹 야구 매니저 게임입니다.
+
+화면 언어는 **영어와 한국어**를 지원합니다. 헤더(또는 시작 화면)의 언어 버튼으로 바꾸며,
+선택은 이 브라우저에 저장됩니다. `?lang=en` / `?lang=ko` 로 열어도 됩니다.
 
 ## 🚀 로컬 실행 방법
 
@@ -168,8 +39,11 @@ You can use any static file server. Choose one:
 ## 🎮 주요 기능
 
 *   **리그 시스템**: 7개의 AI 팀과 시즌을 진행하며 최근 5경기/연속 승패를 확인합니다.
-*   **선수 성장**: 시즌마다 나이에 따라 능력치가 성장/하락합니다.
+*   **선수 성장**: 시즌마다 나이에 따라 능력치가 성장/하락합니다. 어린 선수는 성장하고 노장은 하락합니다.
 *   **팀 재정**: 예산으로 FA/스카우트 선수 영입을 관리합니다.
+*   **전략적 자동 라인업**: 수비를 고려해 최적 선수를 뽑고 타순을 능력치 기준으로 배치합니다(1번 주루, 4번 파워 등).
+*   **자유로운 라인업**: 드래그 앤 드롭으로 어느 자리든 배치하고, 드롭다운으로 수비 위치를 지정합니다(포수 4번 타자 같은 것도 가능).
+*   **선발 로테이션**: 4~6인 로테이션을 드래그로 순서까지 조정합니다.
 *   **스카우트 & 드래프트**: 시즌 중 스카우트, 시즌 종료 후 5라운드 드래프트 진행.
 *   **스카우트 소요 시간**: 스카우트 결과는 즉시가 아니라 몇 경기 후 도착합니다.
 *   **포지션 순위**: DUGOUT에서 포지션별 리그 순위를 확인할 수 있습니다.
@@ -180,7 +54,7 @@ You can use any static file server. Choose one:
 *   **성적 기반 성장**: 시즌 성적과 훈련에 따라 능력치가 변화합니다.
 *   **부상 & 피로**: 선수 피로 누적과 부상으로 결장이 발생합니다.
 *   **목표 & 보상**: 시즌 목표 달성 시 예산 보상을 받습니다.
-*   **트레이드**: AI 팀과 선수 트레이드를 제안할 수 있습니다.
+*   **트레이드**: AI 팀과 선수 트레이드를 제안할 수 있습니다(현금 추가 가능).
 *   **트레이드 마감일**: 시즌 중반 이후 트레이드가 제한됩니다.
 *   **포스트시즌**: 상위 4팀이 브래킷 방식으로 진출합니다.
 *   **부상자 명단(IL)**: 부상 선수를 IL로 이동하고 회복 후 복귀시킬 수 있습니다.
@@ -189,12 +63,17 @@ You can use any static file server. Choose one:
 *   **MLB 스타일 로스터**: 26인 액티브 로스터, 투수 제한 및 포지션 최소 인원 적용.
 *   **AAA 시스템 (시즌 3)**: AAA 로스터가 열리며 자동/수동 관리 옵션 제공.
 *   **DRAFT NEED 버튼**: 팀 필요와 리그 포지션 약점을 반영한 자동 픽.
+*   **세이브**: 주요 행동(영입/방출, 경기 결과, 시즌 진행)마다 저장됩니다. **OPTIONS** 메뉴에서 슬롯 전환·삭제가 가능합니다.
+*   **경기 시뮬레이션**: 플레이 단위로 진행되는 경기 화면을 볼 수 있습니다.
 
 ## 🕹️ 조작
 
-*   **라인업/로테이션**: 드래그 앤 드롭으로 배치/교체.
+*   **라인업**: 로스터에서 라인업으로 드래그. 라인업 안에서 드래그하면 자리를 맞바꿉니다.
+*   **수비 위치 변경**: 라인업의 초록 드롭다운("SS" 등)을 눌러 수비 위치를 바꿉니다.
+*   **로테이션**: 투수를 로테이션 칸으로 드래그. 칸끼리 드래그하면 순서가 바뀝니다.
+*   **설정**: 헤더의 **OPTIONS** 버튼에서 세이브 데이터를 관리합니다.
 *   **부상자 명단**: **IL** 탭에서 부상 선수 이동/복귀.
-*   **스카우트**: 오른쪽 패널의 **SCOUT** 버튼으로 유망주 확보.
+*   **스카우트**: 로스터/마켓 패널의 **SCOUT** 버튼으로 유망주 확보.
 *   **드래프트**: League 패널의 Draft Room에서 픽 진행.
 *   **경기 진행 속도**:
     *   **AUTO**: 자동 진행 (Pitch-by-Pitch / Batter-by-Batter 선택)
@@ -205,22 +84,36 @@ You can use any static file server. Choose one:
 *   **투수 교체**: 경기 화면의 Bullpen 선택으로 투수 교체
 *   **불펜 자동 교체**: **AUTO BP** 토글로 체력 낮을 때 자동 교체
 *   **경기 로그**: **Options**에서 **Auto clear match log after game** 옵션으로 종료 시 로그를 초기화합니다.
+*   **언어**: 헤더의 언어 버튼으로 영어/한국어를 전환합니다.
 
-## 📸 스크린샷
+## 🛠️ 기술 스택
 
-| 타이틀 화면 | 팀 관리 | 경기 시뮬레이션 |
-| --- | --- | --- |
-| ![타이틀 화면](./assets/screenshots/title-screen.png) | ![팀 관리](./assets/screenshots/team-management.png) | ![경기 시뮬레이션](./assets/screenshots/match-simulation.png) |
-
-| 리그 개요 | 드래프트 룸 | 스탯 & 순위 |
-| --- | --- | --- |
-| ![리그 개요](./assets/screenshots/league-overview.png) | ![드래프트 룸](./assets/screenshots/draft-room.png) | ![스탯 & 순위](./assets/screenshots/stats-rankings.png) |
+*   **코어**: 바닐라 자바스크립트(ES6+), ES6 모듈 기반 구조(Core, Rules)
+*   **UI**: HTML5, CSS3(Grid/Flexbox), 자체 "사이버/스포츠" 테마
 
 ## 💾 데이터/세이브
 
 *   세이브 데이터는 브라우저 `localStorage`에 슬롯별로 저장됩니다.
 *   **Options** 메뉴에서 슬롯 전환/삭제가 가능합니다.
 *   브라우저 사이트 데이터를 삭제하면 세이브도 함께 삭제됩니다.
+*   elcherlab 계정으로 로그인하면 같은 세이브가 서버에도 올라가 다른 기기에서 이어서 할 수 있습니다.
+
+## 🧭 프로젝트 구조
+
+*   **index.html**: 리그/팀/경기 화면의 UI 뼈대와 레이아웃.
+*   **js/main.js**: 야구 규칙셋으로 게임을 부팅합니다.
+*   **js/core/Game.js**: 게임 상태, UI 오케스트레이션, 시즌 흐름, 저장 훅.
+*   **js/core/League.js**: 일정 생성과 순위 관리.
+*   **js/core/Player*.js**: 선수 데이터 모델과 로스터 생성.
+*   **js/core/i18n.js**: 영어/한국어 사전과 언어 전환.
+*   **js/rules/BaseballRules.js**: 라인업 검증과 경기 시뮬레이션.
+
+## 🔁 게임 흐름
+
+*   시작 화면에서 세이브 슬롯을 고르거나 새 팀을 만듭니다.
+*   라인업과 로테이션을 짠 뒤 시즌을 시작합니다.
+*   경기에 입장해 플레이 단위로 시뮬레이션하고 리그를 진행합니다.
+*   시즌이 끝나면 5라운드 드래프트로 새 유망주를 지명합니다.
 
 ## 🧾 로스터 규정
 
@@ -233,3 +126,13 @@ You can use any static file server. Choose one:
 *   시즌 3에 AAA가 자동 활성화됩니다.
 *   기본은 자동 관리이며 **Options**에서 수동 전환 가능합니다.
 *   승격/강등 자동화는 별도로 켜고 끌 수 있습니다.
+
+## 📸 스크린샷
+
+| 타이틀 화면 | 팀 관리 | 경기 시뮬레이션 |
+| --- | --- | --- |
+| ![타이틀 화면](./assets/screenshots/title-screen.png) | ![팀 관리](./assets/screenshots/team-management.png) | ![경기 시뮬레이션](./assets/screenshots/match-simulation.png) |
+
+| 리그 개요 | 드래프트 룸 | 스탯 & 순위 |
+| --- | --- | --- |
+| ![리그 개요](./assets/screenshots/league-overview.png) | ![드래프트 룸](./assets/screenshots/draft-room.png) | ![스탯 & 순위](./assets/screenshots/stats-rankings.png) |
