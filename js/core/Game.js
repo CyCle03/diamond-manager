@@ -140,7 +140,7 @@ export class Game {
                     this.startGame(slotId, null, false);
                 } else {
                     if (!teamNameInput) {
-                        alert("Please enter a Team Name!");
+                        alert(t('dlg.enterTeamName'));
                         return;
                     }
                     this.startGame(slotId, teamNameInput, true);
@@ -157,7 +157,7 @@ export class Game {
             deleteBtn.addEventListener('click', (e) => {
                 e.stopPropagation(); // Don't trigger slot click
                 const slotId = parseInt(slot.dataset.slot);
-                if (confirm(`Delete Save Slot ${slotId}? This cannot be undone.`)) {
+                if (confirm(t('dlg.deleteSlot', { slot: slotId }))) {
                     SaveManager.delete(slotId);
                     this.updateStartScreenUI();
                 }
@@ -428,7 +428,7 @@ export class Game {
     loadGame(slotId) {
         const data = SaveManager.load(slotId);
         if (!data) {
-            alert("Failed to load save data!");
+            alert(t('dlg.loadFailed'));
             return;
         }
 
@@ -854,7 +854,7 @@ export class Game {
                         showPerformance: false,
                         actionLabel: 'SIGN',
                         action: () => {
-                            if (confirm(`Sign Free Agent ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
+                            if (confirm(t('dlg.signFa', { name: player.name, amount: player.stats.signingBonus.toLocaleString() }))) {
                                 this.signFreeAgent(player);
                             }
                         }
@@ -865,7 +865,7 @@ export class Game {
                     const primaryAction = isInjured
                         ? () => this.movePlayerToIL(player, player.health.injuryDays >= 30 ? '60' : '10')
                         : () => {
-                            if (confirm(`Release ${player.name}?`)) {
+                            if (confirm(t('dlg.release', { name: player.name }))) {
                                 this.releasePlayer(player);
                             }
                         };
@@ -874,7 +874,7 @@ export class Game {
                         : (this.aaaActive ? 'SEND TO AAA' : null);
                     const secondaryAction = isInjured
                         ? () => {
-                            if (confirm(`Release ${player.name}?`)) {
+                            if (confirm(t('dlg.release', { name: player.name }))) {
                                 this.releasePlayer(player);
                             }
                         }
@@ -964,7 +964,7 @@ export class Game {
                     action: () => this.callUpPlayerFromAAA(player),
                     secondaryActionLabel: 'RELEASE',
                     secondaryAction: () => {
-                        if (confirm(`Release ${player.name} from AAA?`)) {
+                        if (confirm(t('dlg.releaseAaa', { name: player.name }))) {
                             this.releasePlayerFromAAA(player);
                         }
                     }
@@ -1196,7 +1196,7 @@ export class Game {
                     showPerformance: false,
                     actionLabel: 'SIGN',
                     action: () => {
-                        if (confirm(`Sign Scouted Player ${player.name} for $${player.stats.signingBonus.toLocaleString()}?`)) {
+                        if (confirm(t('dlg.signScouted', { name: player.name, amount: player.stats.signingBonus.toLocaleString() }))) {
                             this.signScoutedPlayer(player);
                         }
                     }
@@ -1234,13 +1234,13 @@ export class Game {
                     const player = this.roster.find(pl => pl.id === data.playerId);
                     if (player && player.position === 'P') {
                         if (player.health?.injuryDays > 0) {
-                            alert(`${player.name} is injured and cannot pitch.`);
+                            alert(t('dlg.injuredCannotPitch', { name: player.name }));
                             return;
                         }
                         this.rotation[i] = player;
                         this.renderRotation();
                     } else {
-                        alert("Only Pitchers in Rotation!");
+                        alert(t('dlg.onlyPitchers'));
                     }
                 } else if (data.source === 'rotation') {
                     // Swap Logic
@@ -1337,7 +1337,7 @@ export class Game {
 
     addToLineup(player) {
         if (player.health?.injuryDays > 0) {
-            alert(`${player.name} is injured and cannot be added to the lineup.`);
+            alert(t('dlg.injuredCannotLineup', { name: player.name }));
             return;
         }
         if (player.position === 'P') {
@@ -1565,7 +1565,7 @@ export class Game {
                     showPerformance: true,
                     actionLabel: 'RELEASE',
                     action: () => {
-                        if (confirm(`Release ${player.name}?`)) {
+                        if (confirm(t('dlg.release', { name: player.name }))) {
                             this.releasePlayer(player);
                         }
                     }
@@ -1588,21 +1588,21 @@ export class Game {
     validateLineup() {
         const compliance = this.isRosterCompliant(this.roster);
         if (!compliance.ok) {
-            alert(`Roster not MLB compliant: ${compliance.issues.join(' ')}`);
+            alert(t('dlg.notCompliant', { issues: compliance.issues.join(' ') }));
             return false;
         }
         const starter = this.rotation[this.currentRotationIndex];
         if (!starter) {
-            alert(`No Starting Pitcher set for slot SP${this.currentRotationIndex + 1}!`);
+            alert(t('dlg.noStarter', { n: this.currentRotationIndex + 1 }));
             return false;
         }
         if (starter.health?.injuryDays > 0) {
-            alert(`${starter.name} is injured and cannot start.`);
+            alert(t('dlg.starterInjured', { name: starter.name }));
             return false;
         }
         const injured = this.lineup.find(slot => slot && slot.player && slot.player.health?.injuryDays > 0);
         if (injured) {
-            alert(`${injured.player.name} is injured and cannot play.`);
+            alert(t('dlg.playerInjured', { name: injured.player.name }));
             return false;
         }
         return this.rules.validateLineup(this.lineup, { pitcher: starter });
@@ -1631,7 +1631,7 @@ export class Game {
 
                     if (player) {
                         if (player.health?.injuryDays > 0) {
-                            alert(`${player.name} is injured and cannot be added to the lineup.`);
+                            alert(t('dlg.injuredCannotLineup', { name: player.name }));
                             return;
                         }
                         // When dropping from roster, default role is primary relative to slot
@@ -1699,15 +1699,15 @@ export class Game {
 
     signFreeAgent(player) {
         if (this.roster.length >= this.activeRosterLimit) {
-            alert(`Roster is full (Max ${this.activeRosterLimit})!`);
+            alert(t('dlg.rosterFull', { max: this.activeRosterLimit }));
             return;
         }
         if (this.getFortyManCount() >= this.fortyManLimit) {
-            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
+            alert(t('dlg.fortyFull', { max: this.fortyManLimit }));
             return;
         }
         if (!this.canAddPlayerToRoster(player)) {
-            alert("Roster limit reached for this position (pitchers max 13).");
+            alert(t('dlg.positionLimit'));
             return;
         }
 
@@ -1715,7 +1715,7 @@ export class Game {
         const salaryCharge = this.getProratedSalaryCharge(player.stats.salary || 0);
         const totalCharge = cost + salaryCharge;
         if (this.teamBudget < totalCharge) {
-            alert("Not enough budget to sign this player!");
+            alert(t('dlg.notEnoughBudget'));
             return;
         }
 
@@ -1732,7 +1732,7 @@ export class Game {
         this.addToFortyManRoster(player);
         this.roster.push(player);
         this.league.freeAgents = this.league.freeAgents.filter(p => p.id !== player.id);
-        alert(`Signed ${player.name}!`);
+        alert(t('dlg.signed', { name: player.name }));
         this.ensureRosterCompliance();
         this.renderRosterAndMarket();
         this.logTransaction('SIGN FA', player, `$${player.stats.signingBonus.toLocaleString()}`);
@@ -1741,21 +1741,21 @@ export class Game {
 
     signScoutedPlayer(player) {
         if (this.roster.length >= this.activeRosterLimit) {
-            alert(`Roster is full (Max ${this.activeRosterLimit})!`);
+            alert(t('dlg.rosterFull', { max: this.activeRosterLimit }));
             return;
         }
         if (this.getFortyManCount() >= this.fortyManLimit) {
-            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
+            alert(t('dlg.fortyFull', { max: this.fortyManLimit }));
             return;
         }
         if (!this.canAddPlayerToRoster(player)) {
-            alert("Roster limit reached for this position (pitchers max 13).");
+            alert(t('dlg.positionLimit'));
             return;
         }
 
         const cost = player.stats.signingBonus;
         if (this.teamBudget < cost) {
-            alert("Not enough budget to sign this player!");
+            alert(t('dlg.notEnoughBudget'));
             return;
         }
 
@@ -1767,7 +1767,7 @@ export class Game {
         this.addToFortyManRoster(player);
         this.roster.push(player);
         this.scoutingPool = this.scoutingPool.filter(p => p.id !== player.id);
-        alert(`Signed ${player.name}!`);
+        alert(t('dlg.signed', { name: player.name }));
         this.ensureRosterCompliance();
         this.renderRosterAndMarket();
         this.logTransaction('SIGN SCOUT', player, `$${player.stats.signingBonus.toLocaleString()}`);
@@ -1778,7 +1778,7 @@ export class Game {
         if (!this.releasePlayerFromTeam(this.getPlayerTeam(), player, { enforceMinRoster: true })) {
             return;
         }
-        alert(`Released ${player.name}.`);
+        alert(t('dlg.released', { name: player.name }));
 
         // Re-render UI
         this.renderRosterAndMarket();
@@ -1795,7 +1795,7 @@ export class Game {
         const enforceMinRoster = !!options.enforceMinRoster;
         const addToFreeAgents = options.addToFreeAgents !== false;
         if (team.id === this.playerTeamId && enforceMinRoster && this.roster.length <= this.rosterFloor) {
-            alert(`Cannot release player. Roster is at the minimum size of ${this.rosterFloor}.`);
+            alert(t('dlg.cannotReleaseFloor', { floor: this.rosterFloor }));
             return false;
         }
 
@@ -1831,7 +1831,7 @@ export class Game {
         if (!player) return false;
         this.ensurePlayerHealth(player);
         if ((player.health.injuryDays || 0) < this.ilEligibleMinDays) {
-            alert('Player is not injured.');
+            alert(t('dlg.notInjured'));
             return false;
         }
         const removed = this.releasePlayerFromTeam(this.getPlayerTeam(), player, { enforceMinRoster: false, addToFreeAgents: false });
@@ -1857,16 +1857,16 @@ export class Game {
         if (!player) return false;
         this.ensurePlayerHealth(player);
         if (player.health.injuryDays > 0) {
-            alert('Player is still injured.');
+            alert(t('dlg.stillInjured'));
             return false;
         }
         if (this.roster.length >= this.activeRosterLimit) {
-            alert(`Roster is full (Max ${this.activeRosterLimit}).`);
+            alert(t('dlg.rosterFull', { max: this.activeRosterLimit }));
             return false;
         }
         const needsFortyMan = player.ilType === '60' && !(this.fortyManRoster || []).includes(player.id);
         if (needsFortyMan && this.getFortyManCount() >= this.fortyManLimit) {
-            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
+            alert(t('dlg.fortyFull', { max: this.fortyManLimit }));
             return false;
         }
         this.ilRoster = this.ilRoster.filter(p => p.id !== player.id);
@@ -1883,15 +1883,15 @@ export class Game {
 
     sendPlayerToAAA(player, options = {}) {
         if (!this.aaaActive) {
-            alert("AAA is not active yet.");
+            alert(t('dlg.aaaInactive'));
             return false;
         }
         if (this.aaaRoster.length >= this.aaaRosterLimit && !options.allowRelease) {
-            alert("AAA roster is full.");
+            alert(t('dlg.aaaFull'));
             return false;
         }
         if (this.roster.length <= this.rosterFloor && !options.silent) {
-            alert(`Cannot demote below ${this.rosterFloor} players.`);
+            alert(t('dlg.cannotDemote', { floor: this.rosterFloor }));
             return false;
         }
         const removed = this.releasePlayerFromTeam(this.getPlayerTeam(), player, { enforceMinRoster: false, addToFreeAgents: false });
@@ -1950,11 +1950,11 @@ export class Game {
     claimWaiverPlayer(player) {
         if (!this.league || !player) return false;
         if (this.roster.length >= this.activeRosterLimit) {
-            alert(`Roster is full (Max ${this.activeRosterLimit}).`);
+            alert(t('dlg.rosterFull', { max: this.activeRosterLimit }));
             return false;
         }
         if (this.getFortyManCount() >= this.fortyManLimit) {
-            alert(`40-man roster is full (Max ${this.fortyManLimit}).`);
+            alert(t('dlg.fortyFull', { max: this.fortyManLimit }));
             return false;
         }
         this.league.waiverWire = (this.league.waiverWire || []).filter(p => p.id !== player.id);
@@ -2036,11 +2036,11 @@ export class Game {
 
     callUpPlayerFromAAA(player, options = {}) {
         if (this.roster.length >= this.activeRosterLimit) {
-            if (!options.silent) alert(`Roster is full (Max ${this.activeRosterLimit}).`);
+            if (!options.silent) alert(t('dlg.rosterFull', { max: this.activeRosterLimit }));
             return false;
         }
         if (!this.canAddPlayerToRoster(player)) {
-            if (!options.silent) alert("Roster limit reached for this position (pitchers max 13).");
+            if (!options.silent) alert(t('dlg.positionLimit'));
             return false;
         }
         this.aaaRoster = this.aaaRoster.filter(p => p.id !== player.id);
@@ -2651,7 +2651,7 @@ export class Game {
             this.postseason.champion = winners[0];
             this.postseasonActive = false;
             this.log(`Champion: ${winners[0].name}`);
-            alert(`${winners[0].name} wins the championship!`);
+            alert(t('dlg.champion', { name: winners[0].name }));
             this.advanceSeason();
             return;
         }
@@ -3020,7 +3020,7 @@ export class Game {
         this.applyPerformanceTraining();
         this.finalizeSeasonStats(this.league.season);
         
-        alert("SEASON OVER! Proceeding to Off-Season for player development.");
+        alert(t('dlg.seasonOver'));
 
         // Age all players and apply progression/regression
         const allPlayers = [...this.roster, ...this.league.freeAgents];
@@ -6262,12 +6262,12 @@ export class Game {
 
     scoutPlayers() {
         if (!this.league) {
-            alert("Start the season before scouting.");
+            alert(t('dlg.scoutBeforeSeason'));
             return;
         }
 
         if (this.teamBudget < this.scoutCost) {
-            alert("Not enough budget to scout right now.");
+            alert(t('dlg.scoutBudget'));
             return;
         }
 
@@ -6294,7 +6294,7 @@ export class Game {
         const totalPicks = this.draftOrder.length * this.maxDraftRounds;
         this.draftPool = PlayerGenerator.createDraftPool(this.rules, totalPicks);
 
-        alert("Off-season draft has begun!");
+        alert(t('dlg.draftBegun'));
         this.switchView('league');
         this.updateDraftUI();
         this.saveGame();
@@ -6461,7 +6461,7 @@ export class Game {
         if (!this.draftActive) return;
         const currentTeamId = this.draftOrder[this.draftPickIndex];
         if (currentTeamId === this.playerTeamId) {
-            alert("It's your pick. Draft a player first.");
+            alert(t('dlg.yourPick'));
             return;
         }
 
@@ -6481,11 +6481,11 @@ export class Game {
 
         if (currentTeamId === this.playerTeamId) {
             if (this.roster.length >= this.draftRosterLimit) {
-                alert(`Roster is full (Max ${this.draftRosterLimit}). Release a player before drafting.`);
+                alert(t('dlg.draftRosterFull', { max: this.draftRosterLimit }));
                 return;
             }
             if (this.getFortyManCount() >= this.fortyManLimit) {
-                alert(`40-man roster is full (Max ${this.fortyManLimit}). Release a player before drafting.`);
+                alert(t('dlg.draftFortyFull', { max: this.fortyManLimit }));
                 return;
             }
             this.setPlayerRosterStatus(player, 'active');
@@ -6560,6 +6560,6 @@ export class Game {
         this.updateLeagueView();
         this.renderRosterAndMarket();
         this.saveGame();
-        alert(`Season ${this.league.season} is about to begin!`);
+        alert(t('dlg.seasonBegin', { season: this.league.season }));
     }
 }
