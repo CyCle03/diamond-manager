@@ -97,13 +97,23 @@ jobs:
           chmod +x scripts/deploy.sh
           ./scripts/deploy.sh
 
-      - name: 확인
+      # 오리진(Caddy)에 직접 물어본다. 배포가 통제하는 것은 여기까지이고,
+      # 공개 주소로 확인하면 DNS·CDN 사정에 배포 성공 여부가 휘둘린다.
+      # (실제로 서버의 업스트림 리졸버가 옛 NXDOMAIN 을 물고 있어 한 번 겪었다)
+      # 인증서는 이 호스트로 발급돼 있으므로 --resolve 만으로 검증까지 정상이다.
+      - name: 확인 (오리진)
         run: |
           for path in / /js/main.js /js/core/cloud.js /fonts/fonts.css /api/health; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "https://bm.elcherlab.com${path}")
+            code=$(curl -s --resolve bm.elcherlab.com:443:127.0.0.1 -o /dev/null -w '%{http_code}' "https://bm.elcherlab.com${path}")
             echo "  ${path} → ${code}"
             [ "$code" = "200" ] || { echo "확인 실패"; exit 1; }
           done
+
+      # 공개 경로는 참고용으로만 본다. 실패해도 배포를 되돌리지 않는다.
+      - name: 확인 (공개 주소, 참고)
+        continue-on-error: true
+        run: |
+          curl -s -o /dev/null -w "  https://bm.elcherlab.com/ → %{http_code}\n" --max-time 15 "https://bm.elcherlab.com/"
 
       - name: 요약
         if: always()

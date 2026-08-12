@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 다이아몬드 매니저 배포 — 체크아웃(diamond-manager-src) → 웹루트(cyber-clicker)
+# 다이아몬드 매니저 배포 — 체크아웃(diamond-manager-src) → 웹루트(diamond-manager)
 #
 # 저장소를 그대로 웹루트로 쓰지 않는다. 그렇게 하면 README·테스트 러너·
 # 예전 코드(backup/)까지 공개되기 때문이다. elcherlab 에서 이미 두 번
