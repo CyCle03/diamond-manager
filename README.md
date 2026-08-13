@@ -103,10 +103,17 @@
 *   **index.html**: 리그/팀/경기 화면의 UI 뼈대와 레이아웃.
 *   **js/main.js**: 야구 규칙셋으로 게임을 부팅합니다.
 *   **js/core/Game.js**: 게임 상태, UI 오케스트레이션, 시즌 흐름, 저장 훅.
+*   **js/core/GameRules.js**: 규칙셋이 지켜야 할 인터페이스(경기 종목이 바뀌어도 코어는 그대로).
 *   **js/core/League.js**: 일정 생성과 순위 관리.
 *   **js/core/Player*.js**: 선수 데이터 모델과 로스터 생성.
-*   **js/core/i18n.js**: 영어/한국어 사전과 언어 전환.
+*   **js/core/SaveManager.js**: 슬롯별 세이브 읽기/쓰기.
+*   **js/core/cloud.js**: elcherlab 통합 로그인 + 세이브 서버 동기화.
+*   **js/core/i18n.js**: 영어/한국어 사전과 언어 전환(원문은 영어).
+*   **js/core/debug.js**: 개발용 콘솔 도우미.
 *   **js/rules/BaseballRules.js**: 라인업 검증과 경기 시뮬레이션.
+*   **server/**: 세이브 동기화 백엔드(Express · 세션 쿠키 검증).
+*   **scripts/deploy.sh**: 웹루트 갱신 + 백엔드 재시작(러너가 부른다).
+*   **docs/**: MLB 규칙 이식 계획과 수동 스모크 테스트 체크리스트.
 
 ## 🔁 게임 흐름
 
@@ -127,12 +134,3 @@
 *   기본은 자동 관리이며 **Options**에서 수동 전환 가능합니다.
 *   승격/강등 자동화는 별도로 켜고 끌 수 있습니다.
 
-## 📸 스크린샷
-
-| 타이틀 화면 | 팀 관리 | 경기 시뮬레이션 |
-| --- | --- | --- |
-| ![타이틀 화면](./assets/screenshots/title-screen.png) | ![팀 관리](./assets/screenshots/team-management.png) | ![경기 시뮬레이션](./assets/screenshots/match-simulation.png) |
-
-| 리그 개요 | 드래프트 룸 | 스탯 & 순위 |
-| --- | --- | --- |
-| ![리그 개요](./assets/screenshots/league-overview.png) | ![드래프트 룸](./assets/screenshots/draft-room.png) | ![스탯 & 순위](./assets/screenshots/stats-rankings.png) |

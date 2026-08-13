@@ -1408,10 +1408,7 @@ export class Game {
         // --- 3. Sort into Batting Order (Strategy) ---
         // We now have ~9 players in selectedPlayers. Let's order them.
 
-        // Map player IDs to their assigned roles (from Phase 2A/2B)
-        const roleMap = new Map();
-        // RE-REFACTORING PHASE 2 TO STORE ROLES
-        const selectedEntries = []; // Array of { player, role }
+        const selectedEntries = []; // Array of { player, role } — Phase 2A/2B 가 채운다
         const usedIds = new Set();
 
         // Helper: Get Overall Hitting Ability
@@ -4880,19 +4877,7 @@ export class Game {
         const bullpen = this.getBullpenPitchers();
         if (bullpen.length === 0) return;
 
-        const byPitching = [...bullpen].sort((a, b) => b.stats.pitching - a.stats.pitching);
-        const byStamina = [...bullpen].sort((a, b) => (b.stats.stamina || 80) - (a.stats.stamina || 80));
-        const byLowStamina = [...bullpen].sort((a, b) => (a.stats.stamina || 80) - (b.stats.stamina || 80));
         const pool = new Set(bullpen);
-        const pickFrom = (list, predicate = null) => {
-            for (const player of list) {
-                if (pool.has(player) && (!predicate || predicate(player))) {
-                    pool.delete(player);
-                    return player;
-                }
-            }
-            return null;
-        };
 
         const getStamina = (player) => player.stats.stamina || 80;
         const getPitching = (player) => player.stats.pitching || 50;

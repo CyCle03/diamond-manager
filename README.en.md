@@ -107,10 +107,17 @@ You can use any static file server. Choose one:
 *   **index.html**: UI shell and layout for league/team/match views.
 *   **js/main.js**: Bootstraps the game with the baseball ruleset.
 *   **js/core/Game.js**: Game state, UI orchestration, season flow, and save hooks.
+*   **js/core/GameRules.js**: The interface a ruleset must satisfy (swap the sport, keep the core).
 *   **js/core/League.js**: Schedule generation and standings tracking.
-*   **js/core/i18n.js**: English/Korean dictionary and language switching.
 *   **js/core/Player*.js**: Player data model and roster generation.
+*   **js/core/SaveManager.js**: Reads and writes per-slot saves.
+*   **js/core/cloud.js**: elcherlab single sign-on + save sync to the server.
+*   **js/core/i18n.js**: English/Korean dictionary and language switching (English is the source).
+*   **js/core/debug.js**: Console helpers for development.
 *   **js/rules/BaseballRules.js**: Lineup validation and match simulation.
+*   **server/**: Save-sync backend (Express, session cookie verification).
+*   **scripts/deploy.sh**: Refreshes the web root and restarts the backend (run by the runner).
+*   **docs/**: The MLB rules porting plan and a manual smoke-test checklist.
 
 ## 🔁 Game Flow
 
@@ -131,12 +138,3 @@ You can use any static file server. Choose one:
 *   Defaults to auto management; manual control is available in **Options**.
 *   Auto promotions/demotions can be toggled independently.
 
-## 📸 Screenshots
-
-| Title Screen | Team Management | Match Simulation |
-| --- | --- | --- |
-| ![Title Screen](./assets/screenshots/title-screen.png) | ![Team Management](./assets/screenshots/team-management.png) | ![Match Simulation](./assets/screenshots/match-simulation.png) |
-
-| League Overview | Draft Room | Stats & Rankings |
-| --- | --- | --- |
-| ![League Overview](./assets/screenshots/league-overview.png) | ![Draft Room](./assets/screenshots/draft-room.png) | ![Stats & Rankings](./assets/screenshots/stats-rankings.png) |

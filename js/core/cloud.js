@@ -83,6 +83,10 @@ function clearLocalSaves() {
  * 게임 코드는 지금까지처럼 localStorage 만 읽으면 되므로 나머지가 바뀌지 않는다.
  */
 export async function syncBeforeBoot() {
+  // 확인이 끝날 때까지 보이는 문구. 마크업에는 영어가 박혀 있고 data-i18n 을 붙일 수
+  // 없어서(전환 때 로그인 상태 문장이 "Checking…" 으로 되돌아간다) 여기서 한 번 옮긴다.
+  const checking = $('bm-account-status');
+  if (checking) checking.textContent = t('account.checking');
   try {
     const me = await api('/api/me');
     session.loggedIn = !!me.loggedIn;
