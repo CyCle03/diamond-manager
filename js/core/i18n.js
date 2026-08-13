@@ -228,6 +228,7 @@ const DICT = {
     // 이미 세이브에 들어간 줄은 그때의 언어 그대로 남는다. 로그는 완성된
     // 문자열로 저장되므로 소급 번역이 되지 않는다.
     'log.matchStarting': 'MATCH STARTING!',
+    'log.rosterWarning': 'Roster warning: {issues}',
     'log.homePitcher': 'Home Pitcher: {name}',
     'log.awayPitcher': 'Away Pitcher: {name}',
     'log.inningStart': '--- INNING {inning} START ---',
@@ -561,6 +562,7 @@ const DICT = {
 
     // ── 경기 로그 ──
     'log.matchStarting': '경기 시작!',
+    'log.rosterWarning': '로스터 경고: {issues}',
     'log.homePitcher': '홈 선발: {name}',
     'log.awayPitcher': '원정 선발: {name}',
     'log.inningStart': '--- {inning}회 시작 ---',
@@ -745,11 +747,37 @@ export function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * 인자 자리에 **다시 번역해야 하는 값**을 넣을 때 쓴다.
+ *
+ * 경기 로그는 키와 인자를 세이브에 담는데, 인자에 번역 결과를 그대로 넣으면
+ * (`desc: tEvent('Home Run')` → '홈런') 그 자리만 옛 언어로 굳는다. 대신 표시를
+ * 미루는 표식을 넣어 두고 t() 가 그릴 때 푼다.
+ */
+export function ev(desc) {
+  return { $ev: desc };
+}
+
+/** 인자 자리에 들어갈 사전 키. ev() 와 같은 이유로 표시를 미룬다. */
+export function tk(key) {
+  return { $t: key };
+}
+
+function resolveVar(v) {
+  if (v && typeof v === 'object') {
+    if (typeof v.$ev === 'string') return tEvent(v.$ev);
+    if (typeof v.$t === 'string') return t(v.$t);
+  }
+  return v;
+}
+
 /** t('start.slot', { n: 1 }) 처럼 {이름} 자리를 채운다. */
 export function t(key, vars) {
   let s = DICT[lang]?.[key] ?? DICT.en[key] ?? key;
   if (vars) {
-    for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
+    for (const [k, v] of Object.entries(vars)) {
+      s = s.split(`{${k}}`).join(String(resolveVar(v)));
+    }
   }
   return s;
 }
