@@ -95,6 +95,40 @@ You can use any static file server. Choose one:
 *   **Core**: Vanilla JavaScript (ES6+), Modular architecture using ES6 Modules (Core, Rules)
 *   **UI**: HTML5, CSS3 (Grid/Flexbox), Custom "Cyber/Sports" Theme.
 
+## 📱 Screen width (responsive)
+
+`style.css` was written **desktop-only** for a long time. With no media queries at all, the
+header collapsed onto itself on a phone and the multi-column views fell apart. Narrow screens
+are now handled by **a single `@media (max-width: 640px)` block** at the bottom of the file.
+It only overrides things when the screen is narrow, so the grid values on wide screens are
+exactly what they were.
+
+Things to know before touching that block:
+
+*   **Header height and content height are coupled.** `.main-header` is `height: 60px` and
+    `.main-content` is `height: calc(100vh - 70px)`, which assumes those 60px. On narrow screens
+    the header stacks vertically and is no longer 60px, so `.main-content` was changed to take
+    the remaining height from its flex parent instead of a computed value. **If you change the
+    header height, check this pair together.**
+*   **Collapsing to one column is not enough.** Panels carry explicit placements like
+    `grid-column: 4 / span 1`, so changing only `grid-template-columns` to `1fr` makes the
+    browser **create implicit columns** to honour them. The computed value really did come out
+    as `0px 0px 0px 274px`, squashing one panel to 20px. The placement (`grid-column`/`grid-row`)
+    has to be reset to `auto` as well.
+*   **Resetting that placement loses on specificity.** The original rule is
+    `.main-content.team-mode .dugout-panel` (three classes), so `> *` (two) never applies.
+    It has to be `> .panel` to win. Being inside a media query does not raise specificity.
+*   **nowrap the label, wrap the row.** Korean breaks between any two characters, so when space
+    runs short a word like "로스터" splits mid-word — and in the worst case stands up vertically
+    in a 13px-wide box. Give the button itself `white-space: nowrap` and its row
+    `flex-wrap: wrap`, so the whole button moves to the next line instead of the letters.
+
+Verifying means actually opening the screens: pick a save slot, then walk the seven views
+(home, league, dugout, roster, market, stats, match) at 320px and 390px and count three things —
+① horizontal overflow ② elements pushed off-screen ③ labels broken mid-word. Wide tables (the
+860px standings table on the stats screen) sit inside an `overflow-x: auto` wrapper, so being
+scrollable is correct and does not count as a problem.
+
 ## 💾 Save Data
 
 *   Save files live in browser `localStorage` per slot.
@@ -105,7 +139,12 @@ You can use any static file server. Choose one:
 ## 🧭 Project Structure
 
 *   **index.html**: UI shell and layout for league/team/match views.
-*   **js/main.js**: Bootstraps the game with the baseball ruleset.
+*   **js/main.js**: Bootstraps the game with the baseball ruleset. **It calls `applyI18n` and
+    `initLangButtons` first, at boot** — the start screen (slot select / sign-in) already covers
+    the page before `Game` is constructed, so while the dictionary was only applied inside
+    `Game.initUI()` that screen stayed at the English source text in the markup and its language
+    button did nothing. The consent line (14-or-older, terms, privacy), which has no source text
+    in the markup, was simply empty.
 *   **js/core/Game.js**: Game state, UI orchestration, season flow, and save hooks.
 *   **js/core/GameRules.js**: The interface a ruleset must satisfy (swap the sport, keep the core).
 *   **js/core/League.js**: Schedule generation and standings tracking.
@@ -116,6 +155,9 @@ You can use any static file server. Choose one:
     that other origin, and auth allows `Content-Type` only (gm shipped an `X-Lang` header once and
     login broke outright).
 *   **js/core/i18n.js**: English/Korean dictionary and language switching (English is the source).
+    `initLangButtons()` is **safe to call more than once** (`dataset.langBound` guards against
+    double binding) — it runs once at boot and again from `Game.initUI()` after a slot is picked.
+    A double binding would toggle the language twice per click, landing back where it started.
 *   **js/core/debug.js**: Console helpers for development.
 *   **js/rules/BaseballRules.js**: Lineup validation and match simulation.
 *   **server/**: Save-sync backend (Express, session cookie verification).
