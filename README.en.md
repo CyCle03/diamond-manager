@@ -111,12 +111,23 @@ You can use any static file server. Choose one:
 *   **js/core/League.js**: Schedule generation and standings tracking.
 *   **js/core/Player*.js**: Player data model and roster generation.
 *   **js/core/SaveManager.js**: Reads and writes per-slot saves.
-*   **js/core/cloud.js**: elcherlab single sign-on + save sync to the server.
+*   **js/core/cloud.js**: elcherlab single sign-on + save sync to the server. The screen language
+    goes to auth as a query (`?lang=`) — a custom header would trigger a CORS preflight against
+    that other origin, and auth allows `Content-Type` only (gm shipped an `X-Lang` header once and
+    login broke outright).
 *   **js/core/i18n.js**: English/Korean dictionary and language switching (English is the source).
 *   **js/core/debug.js**: Console helpers for development.
 *   **js/rules/BaseballRules.js**: Lineup validation and match simulation.
 *   **server/**: Save-sync backend (Express, session cookie verification).
 *   **scripts/deploy.sh**: Refreshes the web root and restarts the backend (run by the runner).
+*   **scripts/build-favicon.js**: `favicon.svg` → `favicon.ico` (32x32), zlib only, no dependencies.
+    The `.ico` is generated but committed, because there is no build step — if you change the shape,
+    edit `favicon.svg` **and** this script together, re-run it, and commit the result alongside.
+*   **Deploy gates**: push to `master` → **syntax check** (parses every file under `js/` on its own)
+    → module import check → CSP, external-origin and dev-log checks → static deploy → origin verify.
+    The syntax check was added after pet went completely blank from a single unclosed call during
+    its i18n work. The import check only covers three hand-listed modules, so every other file had
+    the same hole.
 *   **docs/**: The MLB rules porting plan and a manual smoke-test checklist.
 
 ## 🔁 Game Flow

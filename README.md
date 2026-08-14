@@ -107,12 +107,21 @@
 *   **js/core/League.js**: 일정 생성과 순위 관리.
 *   **js/core/Player*.js**: 선수 데이터 모델과 로스터 생성.
 *   **js/core/SaveManager.js**: 슬롯별 세이브 읽기/쓰기.
-*   **js/core/cloud.js**: elcherlab 통합 로그인 + 세이브 서버 동기화.
+*   **js/core/cloud.js**: elcherlab 통합 로그인 + 세이브 서버 동기화. auth 에는 화면 언어를
+    쿼리(`?lang=`)로 넘긴다 — 커스텀 헤더를 쓰면 다른 오리진이라 CORS 프리플라이트가 뜨는데
+    auth 는 `Content-Type` 만 허용한다(gm 이 `X-Lang` 을 붙였다가 로그인이 통째로 죽은 적이 있다).
 *   **js/core/i18n.js**: 영어/한국어 사전과 언어 전환(원문은 영어).
 *   **js/core/debug.js**: 개발용 콘솔 도우미.
 *   **js/rules/BaseballRules.js**: 라인업 검증과 경기 시뮬레이션.
 *   **server/**: 세이브 동기화 백엔드(Express · 세션 쿠키 검증).
 *   **scripts/deploy.sh**: 웹루트 갱신 + 백엔드 재시작(러너가 부른다).
+*   **scripts/build-favicon.js**: `favicon.svg` → `favicon.ico`(32x32). 의존성 없이 zlib 만 쓴다.
+    `.ico` 는 생성물이지만 빌드 단계가 없어 저장소에 커밋한다 — 모양을 바꿨으면 `favicon.svg` 와
+    이 스크립트를 **함께** 고치고 다시 돌린 뒤 결과를 같이 커밋할 것.
+*   **배포 관문**: `main`(이 저장소는 `master`) 푸시 → **구문 검사**(`js/` 전체를 파일별로 파싱만
+    해 본다) → 모듈 임포트 확인 → CSP · 외부 출처 · 개발 로그 검사 → 정적 배포 → 오리진 확인.
+    구문 검사는 pet 이 i18n 작업 중 닫히지 않은 호출 하나로 화면이 통째로 죽은 뒤에 넣었다.
+    임포트 확인은 손으로 적은 세 모듈만 보므로 나머지 파일에는 같은 구멍이 남아 있었다.
 *   **docs/**: MLB 규칙 이식 계획과 수동 스모크 테스트 체크리스트.
 
 ## 🔁 게임 흐름
