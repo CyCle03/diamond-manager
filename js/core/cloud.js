@@ -17,7 +17,7 @@
  */
 
 import { SaveManager } from './SaveManager.js';
-import { t, translateServerError } from './i18n.js';
+import { t, translateServerError, getLang } from './i18n.js';
 
 const AUTH_ORIGIN = 'https://auth.elcherlab.com';
 const SAVE_PREFIX = 'diamond_manager_save_';
@@ -44,13 +44,18 @@ async function api(path, options) {
 }
 
 async function authApi(path, body) {
-  const res = await fetch(AUTH_ORIGIN + path, {
+  // 언어는 쿼리로 넘긴다 — auth 가 오류 문구를 그 언어로 내려준다. 헤더로 넘기면
+  // 다른 오리진이라 프리플라이트가 뜨는데 auth 는 Content-Type 만 허용해서 막힌다
+  // (gm 이 X-Lang 을 붙였다가 로그인이 통째로 죽은 적이 있다).
+  const url = AUTH_ORIGIN + path + (path.includes('?') ? '&' : '?') + 'lang=' + getLang();
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
     credentials: 'include',
   });
   const data = await res.json().catch(() => ({}));
+  // auth 가 위 lang 을 보고 맞춰 보낸다. 아래 번역은 옛 auth·캐시된 옛 번들 대비 그물이다.
   if (!res.ok) throw new Error(translateServerError(data.error) || t('account.errGeneric'));
   return data;
 }
