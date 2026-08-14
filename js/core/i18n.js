@@ -687,28 +687,6 @@ const DICT = {
   },
 };
 
-/**
- * 통합 인증 서버(auth.elcherlab.com)는 한국어 문구만 돌려준다. 그 서버를 고치면
- * gm·pc·pet 까지 같이 흔들리므로, 여기서 받은 문구를 영어로 갈아 끼운다.
- * 목록에 없는 문구는 서버가 준 그대로 보여준다 — 빈 화면보다 낫다.
- */
-const SERVER_ERRORS_EN = {
-  '가입 처리 중 오류가 발생했습니다.': 'Something went wrong while signing up.',
-  '로그인 처리 중 오류가 발생했습니다.': 'Something went wrong while signing in.',
-  '로그인이 필요합니다.': 'You need to sign in.',
-  '만 14세 이상인지 확인해 주세요. 만 14세 미만은 가입할 수 없습니다.':
-    'Please confirm you are 14 or older. Under-14s cannot sign up.',
-  '비밀번호가 올바르지 않습니다.': 'That password is not correct.',
-  '비밀번호는 6자 이상이어야 합니다.': 'The password must be at least 6 characters.',
-  '시도가 너무 잦습니다. 잠시 후 다시 시도하세요.':
-    'Too many attempts. Please try again in a moment.',
-  '아이디 또는 비밀번호가 올바르지 않습니다.': 'That ID or password is not correct.',
-  '아이디는 영문·숫자·밑줄 3~20자여야 합니다.':
-    'The ID must be 3-20 characters: letters, digits or underscore.',
-  '아이디와 비밀번호를 입력하세요.': 'Enter your ID and password.',
-  '이미 사용 중인 아이디입니다.': 'That ID is already taken.',
-};
-
 function detect() {
   // 링크로 넘어온 값이 가장 세다 — 영어 랜딩에서 들어온 사람은 영어로 시작한다.
   try {
@@ -854,12 +832,6 @@ export function tOrdinal(n) {
   if (rem100 >= 11 && rem100 <= 13) return `${num}th`;
   const suffix = { 1: 'st', 2: 'nd', 3: 'rd' }[num % 10] || 'th';
   return `${num}${suffix}`;
-}
-
-/** 인증 서버가 준 한국어 문구를 현재 언어로 옮긴다. */
-export function translateServerError(msg) {
-  if (lang === 'ko' || !msg) return msg;
-  return SERVER_ERRORS_EN[msg] || msg;
 }
 
 /**
