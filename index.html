@@ -10,6 +10,11 @@
          적어야 하고, elcherlab 의 CSP(font-src 'self')에도 걸린다. -->
     <link rel="stylesheet" href="fonts/fonts.css">
     <link rel="stylesheet" href="style.css">
+    <!-- 링크를 못 읽는 클라이언트·크롤러는 /favicon.ico 를 그대로 때리므로 둘 다 둔다.
+         .ico 는 생성물 — 모양을 바꾸면 favicon.svg 와 함께 고치고
+         `node scripts/build-favicon.js` 로 다시 만들 것. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32">
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <!-- Map imports for easier module handling if needed, or just rely on relative paths in modules -->
 </head>
 
