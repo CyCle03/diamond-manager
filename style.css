@@ -2365,3 +2365,126 @@ h3 {
     font-size: 0.8rem;
     color: #ff6b6b;
 }
+
+/* ── 좁은 화면 ────────────────────────────────────────────────
+   이 파일에는 원래 미디어 쿼리가 하나도 없었다. 데스크톱 한 벌로만 짜여 있어서
+   폰에서는 헤더가 겹치고 버튼 라벨이 단어 안에서 접혔다. 여기서 처음 갈라진다.
+
+   레이아웃 뼈대(.app-container = 100vh 세로 플렉스, .main-content 가 남은 높이를
+   차지)는 그대로 두고, 폭이 좁을 때만 어긋나는 자리를 바로잡는다. */
+@media (max-width: 640px) {
+    /* 헤더는 height:60px 안에 제목·메뉴·상태 셋을 한 줄로 밀어 넣고 있었다.
+       폰에서는 셋이 60px 에 못 들어가 서로 겹쳐 찍혔다(제목 위에 마켓 버튼과
+       BUDGET 이 포개짐). 세로로 쌓고 높이는 내용에 맡긴다. */
+    .main-header {
+        height: auto;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+
+    .game-title {
+        font-size: 1.5rem;
+        text-align: center;
+        margin: 0;
+    }
+
+    .header-nav {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .header-status {
+        justify-content: center;
+        font-size: 0.95rem;
+    }
+
+    /* 헤더가 더 이상 60px 이 아니므로 계산해 둔 높이를 쓰면 안 된다.
+       부모가 이미 100vh 세로 플렉스라 flex:1 로 남은 높이를 받으면 된다. */
+    .main-content {
+        height: auto;
+        min-height: 0;
+        margin: 8px;
+    }
+
+    /* 라벨을 단어 안에서 쪼개지 않는다. 자리가 모자라면 버튼째 다음 줄로 간다.
+       헤더 메뉴와 로스터 허브 토글이 같은 클래스를 쓴다. */
+    .nav-btn {
+        white-space: nowrap;
+        padding: 5px 10px;
+        font-size: 1.05rem;
+    }
+
+    /* 버튼 줄들은 접히게 둔다. 안 그러면 뒤쪽 버튼이 화면 밖으로 밀린다
+       (로스터 탭의 40인·마켓이 실제로 잘려 있었다). */
+    .roster-nav {
+        flex-wrap: wrap;
+    }
+
+    /* 화면을 여러 칸으로 나누던 모드들을 한 칸으로 세운다.
+       리그는 320px + 1fr + 550px, 경기는 360px + 1fr 이라 폰 폭에는 애초에
+       들어갈 수 없다. 가로로 우겨넣는 대신 세로로 쌓고 스크롤로 본다. */
+    .main-content.league-mode,
+    .main-content.team-mode,
+    .main-content.match-mode {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-auto-rows: minmax(240px, auto);
+        overflow-y: auto;
+    }
+
+    /* 칸을 하나로 줄여도 패널마다 `grid-column: 2` · `4 / span 1` 처럼 자리가
+       박혀 있으면 브라우저가 그 자리를 만들려고 빈 칸을 새로 만든다(실제로
+       `0px 0px 0px 274px` 가 나와 패널 하나가 20px 로 찌부러졌다).
+       배치를 풀어 순서대로 쌓이게 한다.
+       선택자에 `.panel` 을 붙이는 건 멋이 아니라 우선순위 때문이다 — 원래 규칙이
+       `.main-content.team-mode .dugout-panel`(클래스 셋)이라 `> *`(둘)로는 진다. */
+    .main-content.league-mode > .panel,
+    .main-content.team-mode > .panel,
+    .main-content.match-mode > .panel {
+        grid-column: auto;
+        grid-row: auto;
+    }
+
+    /* 더그아웃 안쪽의 3단(타선·불펜·수비)도 같은 이유로 한 단으로 */
+    .main-content.team-mode .dugout-columns {
+        grid-template-columns: 1fr;
+    }
+
+    /* 경기 화면은 [경기장 | 조작·로그] 좌우 분할이라, 폰에서는 오른쪽이 100px 밖에
+       못 받아 그 안의 버튼·검색창이 밖으로 밀렸다. 위아래로 나눈다. */
+    .stadium-body-content {
+        flex-direction: column;
+    }
+
+    .stadium-side {
+        border-left: 0;
+        border-top: 1px solid #333;
+    }
+
+    /* 조작 줄도 접히게 둔다(버튼이 여섯이라 한 줄에 안 들어간다) */
+    .match-control-row,
+    .match-controls {
+        flex-wrap: wrap;
+    }
+
+    /* 일정 줄은 [상대팀 | 결과] 한 줄이라 좁으면 오른쪽 상태 글자가 세로로 눕는다 */
+    .schedule-row {
+        flex-wrap: wrap;
+        gap: 2px 8px;
+    }
+
+    .schedule-row .schedule-status {
+        white-space: nowrap;
+    }
+
+    /* 점수판은 height:100px 한 줄 고정이라 좁으면 안쪽이 찌그러진다 */
+    .scoreboard {
+        height: auto;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px 12px;
+        padding: 8px 12px;
+    }
+}
