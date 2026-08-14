@@ -3,7 +3,7 @@ import { debugLog } from './debug.js';
 import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
 import { SaveManager } from './SaveManager.js';
-import { t, tTx, tRole, tOrdinal, escapeHtml, applyI18n, toggleLang } from './i18n.js';
+import { t, tTx, tRole, tOrdinal, escapeHtml, applyI18n, initLangButtons } from './i18n.js';
 
 export class Game {
     constructor(rules) {
@@ -555,10 +555,9 @@ export class Game {
      * 시작 화면이 전체를 덮기 때문에 버튼이 두 곳에 있다.
      */
     initLanguageUI() {
-        ['lang-btn', 'lang-btn-start'].forEach(id => {
-            const btn = document.getElementById(id);
-            if (btn) btn.addEventListener('click', () => toggleLang());
-        });
+        // 버튼 연결과 사전 적용은 부팅 때(main.js) 이미 한 번 끝났다 —
+        // 시작 화면이 슬롯 선택 전에 뜨기 때문이다. 여기서는 다시 불러도 안전하다.
+        initLangButtons();
         document.addEventListener('bm:langchange', () => this.refreshLanguage());
         applyI18n(document);
     }

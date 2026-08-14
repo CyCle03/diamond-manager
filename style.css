@@ -2161,11 +2161,40 @@ h3 {
     border-color: var(--accent-green);
 }
 
+/*
+ * 모바일에서 시작 화면이 화면 밖으로 잘리던 것을 막는다.
+ *
+ * 이 파일은 대부분 content-box 라서 width 에 padding 이 그대로 얹힌다.
+ *   #team-name-input : width 300 + 좌우 padding 40 = 342px  → 320px 화면보다 넓었다
+ *   .start-content   : width 90% 에 padding 30 이 더해져 오버레이 밖으로 밀렸다
+ * 그 결과 팀명 입력칸·로그인/가입 버튼·세 번째 슬롯이 오른쪽에서 잘려 나갔다.
+ * 시작 화면은 게임에 들어가는 유일한 문이라 여기가 잘리면 모바일에서 못 들어간다.
+ *
+ * 폭을 줄이는 대신 padding 을 폭 안에 넣고(border-box), 슬롯은 접히게 둔다.
+ */
+.start-content {
+    box-sizing: border-box;
+    /* 좁은 화면에서는 30px 이 과하다 — 폭이 줄수록 같이 준다 */
+    padding: clamp(16px, 5vw, 30px);
+}
+
+#team-name-input {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+.save-slot-card {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
 .save-slots {
     display: flex;
     gap: 20px;
     justify-content: center;
     margin-top: 20px;
+    /* 셋이 한 줄에 못 들어가면 잘리지 말고 접힌다 */
+    flex-wrap: wrap;
 }
 
 .save-slot-card {
@@ -2323,6 +2352,12 @@ h3 {
     flex: none;
     width: auto;
     cursor: pointer;
+}
+
+/* 약관·방침 링크. 사전 안의 <a> 라 마크업에 클래스를 붙일 수 없어 자손 선택자로 잡는다.
+   어두운 판 위에서 브라우저 기본 파랑/보라는 거의 안 읽힌다. */
+.bm-auth-check a {
+    color: var(--accent-green);
 }
 
 .bm-auth-error {

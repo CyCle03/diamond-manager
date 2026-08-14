@@ -873,6 +873,26 @@ export function setLang(next) {
   document.dispatchEvent(new CustomEvent('bm:langchange', { detail: { lang } }));
 }
 
+/**
+ * 언어 토글 버튼(헤더 · 시작 화면)을 연결한다. **여러 번 불러도 안전하다.**
+ *
+ * 시작 화면은 슬롯을 고르기 전에 뜨는데, 예전에는 이 연결과 applyI18n 이 모두
+ * Game.initUI() 안에 있었다. 그 함수는 슬롯을 고른 뒤에야 도는 탓에 시작 화면에서는
+ *   - 사전이 한 번도 적용되지 않아 마크업의 영어 원문이 그대로 남았고,
+ *   - 동의 문구(account.consent)는 마크업에 원문이 없어 **아예 비어 있었으며**,
+ *   - 언어 버튼은 라벨도 빈 채로 눌러도 아무 일이 없었다.
+ * 그래서 부팅 때(main.js) 한 번, Game.initUI() 에서 다시 한 번 불러도 되도록
+ * 이미 연결한 버튼은 건너뛴다.
+ */
+export function initLangButtons() {
+  ['lang-btn', 'lang-btn-start'].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn || btn.dataset.langBound) return;
+    btn.dataset.langBound = '1';
+    btn.addEventListener('click', () => toggleLang());
+  });
+}
+
 /** 토글 버튼에 붙인다. 지금 언어의 "반대쪽"으로 넘어간다. */
 export function toggleLang() {
   setLang(lang === 'en' ? 'ko' : 'en');
