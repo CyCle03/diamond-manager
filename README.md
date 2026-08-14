@@ -151,6 +151,10 @@
 *   **js/core/debug.js**: 개발용 콘솔 도우미.
 *   **js/rules/BaseballRules.js**: 라인업 검증과 경기 시뮬레이션.
 *   **server/**: 세이브 동기화 백엔드(Express · 세션 쿠키 검증).
+    `/internal/export-user` 가 내는 열람권 문서는 **한국어·영어 두 벌**입니다. 통합 인증이
+    본문에 `lang` 을 실어 보내고 `en` 이면 영어 키로 답합니다(모르는 값이면 한국어). 키를
+    그때그때 번역하지 않는 건 받아서 보관하는 파일이라, 같은 키가 언어에 따라 달라지면
+    이미 받아 둔 파일과 비교가 안 되기 때문입니다.
 *   **scripts/deploy.sh**: 웹루트 갱신 + 백엔드 재시작(러너가 부른다).
 *   **scripts/build-favicon.js**: `favicon.svg` → `favicon.ico`(32x32). 의존성 없이 zlib 만 쓴다.
     `.ico` 는 생성물이지만 빌드 단계가 없어 저장소에 커밋한다 — 모양을 바꿨으면 `favicon.svg` 와

@@ -161,6 +161,11 @@ scrollable is correct and does not count as a problem.
 *   **js/core/debug.js**: Console helpers for development.
 *   **js/rules/BaseballRules.js**: Lineup validation and match simulation.
 *   **server/**: Save-sync backend (Express, session cookie verification).
+    The right-of-access document served by `/internal/export-user` comes in **two versions,
+    Korean and English**. The single sign-on service puts `lang` in the request body and `en`
+    gets English keys back (anything else answers in Korean). They are not translated on the
+    fly because this is a file you download and keep — a key that changed with the language
+    would no longer line up with copies you already saved.
 *   **scripts/deploy.sh**: Refreshes the web root and restarts the backend (run by the runner).
 *   **scripts/build-favicon.js**: `favicon.svg` → `favicon.ico` (32x32), zlib only, no dependencies.
     The `.ico` is generated but committed, because there is no build step — if you change the shape,
