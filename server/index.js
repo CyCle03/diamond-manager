@@ -139,6 +139,21 @@ const server = http.createServer(async (req, res) => {
         'select slot, data, updated_at from bm.saves where user_id = $1 order by slot',
         [userId]
       );
+      // 열람권 문서의 키는 언어별로 아예 다른 한 벌이다. 받아서 보관하는 파일이라
+      // 같은 키를 언어에 따라 바꾸면 이미 받아 둔 파일과 형식이 갈린다.
+      // lang 은 auth 가 본문에 실어 보낸다(모르는 값이면 한국어).
+      const en = body && body.lang === 'en';
+      if (en) {
+        return json(res, 200, {
+          service: 'Diamond Manager (bm.elcherlab.com)',
+          saveSlots: r.rows.map((row) => ({
+            slot: row.slot,
+            lastSaved: row.updated_at,
+            gameData: row.data,
+          })),
+          note: 'Play from before you signed in lives only in that browser\'s localStorage, so it is not on the server.',
+        });
+      }
       return json(res, 200, {
         서비스: '다이아몬드 매니저 (bm.elcherlab.com)',
         저장슬롯: r.rows.map((row) => ({
