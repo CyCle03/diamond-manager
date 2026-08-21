@@ -4,6 +4,24 @@ import { PlayerGenerator } from './PlayerGenerator.js';
 import { League } from './League.js';
 import { SaveManager } from './SaveManager.js';
 import { t, tTx, tRole, tOrdinal, escapeHtml, applyI18n, initLangButtons } from './i18n.js';
+import { playerStatsLine, healthBadges, emptyRow } from './playerCard.js';
+
+/**
+ * 포지션별 기본 가중치. 같은 능력치면 희소한 자리(투수·포수·유격수)를 먼저 본다.
+ * AAA 콜업과 드래프트 자동 지명이 함께 쓴다(createNeedScorer).
+ */
+const POSITION_BASE_WEIGHTS = {
+    P: 1.15,
+    C: 1.1,
+    SS: 1.08,
+    CF: 1.05,
+    '2B': 1.02,
+    '3B': 1.02,
+    LF: 1.0,
+    RF: 1.0,
+    '1B': 0.98,
+    DH: 0.95
+};
 
 export class Game {
     constructor(rules) {
@@ -821,7 +839,7 @@ export class Game {
             this.renderList('#market-list', this.league.freeAgents, true);
         } else {
             const mList = document.querySelector('#market-list');
-            if (mList) mList.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.startSeasonFirst')}</div>`;
+            if (mList) mList.innerHTML = emptyRow(t('empty.startSeasonFirst'));
         }
 
         this.renderScoutingList();
@@ -840,7 +858,6 @@ export class Game {
         players.forEach(player => {
             const card = document.createElement('div');
             const injuryDays = player.health?.injuryDays || 0;
-            const fatigue = player.health?.fatigue || 0;
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''} ${injuryDays > 0 ? 'injured' : ''}`;
             card.draggable = !isMarket; // Roster players draggable, Market players not (until bought?)
             card.title = this.buildPlayerTooltip(player, { includeCost: isMarket, includePerformance: !isMarket });
@@ -918,14 +935,12 @@ export class Game {
                 statsHtml += ` | COST: $${player.stats.signingBonus.toLocaleString()}`;
             }
 
-            const badges = [];
-            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
-            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
+            const badges = healthBadges(player);
 
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-age">(${player.age})</div>
-                <div class="card-name">${player.name}${badges.join('')}</div>
+                <div class="card-name">${player.name}${badges}</div>
                 <div class="card-stats">
                     ${statsHtml}
                 </div>
@@ -940,30 +955,25 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
         if (!this.aaaActive) {
-            container.innerHTML = `<div style="padding:10px; color:#888;">AAA unlocks in Season ${this.aaaEnabledSeason}</div>`;
+            container.innerHTML = emptyRow(`AAA unlocks in Season ${this.aaaEnabledSeason}`);
             return;
         }
         if (!this.aaaRoster || this.aaaRoster.length === 0) {
-            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noAaa')}</div>`;
+            container.innerHTML = emptyRow(t('empty.noAaa'));
             return;
         }
         this.aaaRoster.forEach(player => {
             const card = document.createElement('div');
             const injuryDays = player.health?.injuryDays || 0;
-            const fatigue = player.health?.fatigue || 0;
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''} ${injuryDays > 0 ? 'injured' : ''}`;
             card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
-            const badges = [];
-            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
-            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
-            const statsHtml = player.position === 'P'
-                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
-                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            const badges = healthBadges(player);
+            const statsHtml = playerStatsLine(player);
 
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-age">(${player.age})</div>
-                <div class="card-name">${player.name}${badges.join('')}</div>
+                <div class="card-name">${player.name}${badges}</div>
                 <div class="card-stats">
                     ${statsHtml}
                 </div>
@@ -990,29 +1000,23 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
         if (!this.ilRoster || this.ilRoster.length === 0) {
-            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noIl')}</div>`;
+            container.innerHTML = emptyRow(t('empty.noIl'));
             return;
         }
         this.ilRoster.forEach(player => {
             const card = document.createElement('div');
             this.ensurePlayerHealth(player);
             const injuryDays = player.health?.injuryDays || 0;
-            const fatigue = player.health?.fatigue || 0;
             const ilTag = player.ilType || '10';
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''} ${injuryDays > 0 ? 'injured' : ''}`;
             card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
-            const badges = [];
-            badges.push(`<span class="status-badge injury">IL${ilTag}</span>`);
-            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
-            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
-            const statsHtml = player.position === 'P'
-                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
-                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            const badges = `<span class="status-badge injury">IL${ilTag}</span>` + healthBadges(player);
+            const statsHtml = playerStatsLine(player);
 
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-age">(${player.age})</div>
-                <div class="card-name">${player.name}${badges.join('')}</div>
+                <div class="card-name">${player.name}${badges}</div>
                 <div class="card-stats">
                     ${statsHtml}
                 </div>
@@ -1034,7 +1038,7 @@ export class Game {
         container.innerHTML = '';
         const players = [...this.roster, ...this.aaaRoster, ...this.ilRoster];
         if (players.length === 0) {
-            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noPlayers')}</div>`;
+            container.innerHTML = emptyRow(t('empty.noPlayers'));
             return;
         }
         players.forEach(player => {
@@ -1044,9 +1048,7 @@ export class Game {
             const statusLabel = status.toUpperCase();
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
             card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
-            const statsHtml = player.position === 'P'
-                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
-                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            const statsHtml = playerStatsLine(player);
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-age">(${player.age})</div>
@@ -1064,7 +1066,7 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
         if (!this.fortyManRoster || this.fortyManRoster.length === 0) {
-            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noForty')}</div>`;
+            container.innerHTML = emptyRow(t('empty.noForty'));
             return;
         }
 
@@ -1083,9 +1085,7 @@ export class Game {
             const status = player.rosterStatus || 'active';
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
             card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
-            const statsHtml = player.position === 'P'
-                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
-                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            const statsHtml = playerStatsLine(player);
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-age">(${player.age})</div>
@@ -1103,7 +1103,7 @@ export class Game {
         if (!container) return;
         container.innerHTML = '';
         if (!this.league || !this.league.waiverWire || this.league.waiverWire.length === 0) {
-            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noWaivers')}</div>`;
+            container.innerHTML = emptyRow(t('empty.noWaivers'));
             this.updateHeaderIndicators();
             return;
         }
@@ -1114,9 +1114,7 @@ export class Game {
             const expiresRound = waiverInfo.expiresRound || '-';
             card.className = `player-card ${player.position === 'P' ? 'pitcher-card' : ''}`;
             card.title = this.buildPlayerTooltip(player, { includeCost: false, includePerformance: true });
-            const statsHtml = player.position === 'P'
-                ? `PIT:${player.stats.pitching} STA:${Math.round(player.stats.stamina || 0)} SPD:${player.stats.speed}`
-                : `CON:${player.stats.contact} POW:${player.stats.power} SPD:${player.stats.speed} DEF:${player.stats.defense}`;
+            const statsHtml = playerStatsLine(player);
             card.innerHTML = `
                 <div class="card-pos">${player.position}</div>
                 <div class="card-age">(${player.age})</div>
@@ -1148,7 +1146,7 @@ export class Game {
         if (!container) return;
 
         if (!this.league) {
-            container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.startSeasonFirst')}</div>`;
+            container.innerHTML = emptyRow(t('empty.startSeasonFirst'));
             if (statusEl) statusEl.innerText = t('empty.startForScout');
             if (scoutBtn) scoutBtn.disabled = true;
             return;
@@ -1172,9 +1170,9 @@ export class Game {
         if (this.scoutingPool.length === 0) {
             if (this.scoutingQueue && this.scoutingQueue.length > 0) {
                 const nextReady = Math.min(...this.scoutingQueue.map(entry => entry.gamesRemaining));
-                container.innerHTML = `<div style="padding:10px; color:#888;">Scouting reports ready in ${nextReady} game(s)</div>`;
+                container.innerHTML = emptyRow(`Scouting reports ready in ${nextReady} game(s)`);
             } else {
-                container.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noScoutReports')}</div>`;
+                container.innerHTML = emptyRow(t('empty.noScoutReports'));
             }
             return;
         }
@@ -1557,10 +1555,7 @@ export class Game {
         benchData.forEach(({ player, perf, batting }) => {
             const card = document.createElement('div');
             const injuryDays = player.health?.injuryDays || 0;
-            const fatigue = player.health?.fatigue || 0;
-            const badges = [];
-            if (injuryDays > 0) badges.push(`<span class="status-badge injury">INJ ${injuryDays}</span>`);
-            if (fatigue >= 60) badges.push(`<span class="status-badge fatigue">FAT ${Math.round(fatigue)}</span>`);
+            const badges = healthBadges(player);
             card.className = `bench-card ${injuryDays > 0 ? 'injured' : ''}`;
             card.draggable = true;
             card.addEventListener('dragstart', (e) => {
@@ -1585,7 +1580,7 @@ export class Game {
                     <span class="bench-pos">${player.position}</span>
                     <span class="bench-name">${player.name}</span>
                     <span class="bench-age">(${player.age})</span>
-                    ${badges.join('')}
+                    ${badges}
                 </div>
                 <div class="bench-stats">OVR ${player.stats.overall} | AVG ${batting.avg} | OPS ${batting.ops} | HR ${perf.homeRuns || 0}</div>
                 <div class="bench-stats">CON ${player.stats.contact} | POW ${player.stats.power} | SPD ${player.stats.speed}</div>
@@ -2503,40 +2498,45 @@ export class Game {
         }
     }
 
-    getBestAaaCallup() {
-        if (!this.aaaRoster || this.aaaRoster.length === 0) return null;
+    /**
+     * 로스터의 구멍을 메우는 쪽으로 기운 선수 평가 함수를 만든다.
+     *
+     * AAA 콜업과 드래프트 자동 지명이 같은 30줄을 각자 들고 있었다. 한쪽만
+     * 손보면 "콜업은 포수가 모자란 걸 아는데 드래프트는 모르는" 식으로 갈린다.
+     *
+     * 부르는 시점의 로스터 구성으로 한 번 계산해 두고 그 함수를 돌려준다 —
+     * 정렬하는 동안 기준이 흔들리지 않는다.
+     *
+     * @returns {(player: object) => number} 높을수록 먼저 뽑는다.
+     *   투수가 이미 상한이면 투수는 -Infinity 라 절대 뽑히지 않는다.
+     */
+    createNeedScorer() {
         const counts = this.getRosterCounts(this.roster);
         const rankMultipliers = this.getPositionRankMultipliers();
-        const baseWeights = {
-            P: 1.15,
-            C: 1.1,
-            SS: 1.08,
-            CF: 1.05,
-            '2B': 1.02,
-            '3B': 1.02,
-            LF: 1.0,
-            RF: 1.0,
-            '1B': 0.98,
-            DH: 0.95
-        };
-        const getNeedBoost = (pos) => {
+        const avoidPitchers = counts.P >= this.maxPitchersActive;
+
+        const needBoostOf = (pos) => {
             if (pos === 'P' && counts.P < this.minPitchersActive) return 1.2;
             if (pos === 'C' && counts.C < this.minCatchersActive) return 1.2;
             if (['1B', '2B', '3B', 'SS'].includes(pos) && (counts[pos] || 0) < this.minInfieldByPosition[pos]) return 1.15;
             if (['LF', 'CF', 'RF'].includes(pos) && counts.OF < this.minOutfieldActive) return 1.15;
             return 1;
         };
-        const avoidPitchers = counts.P >= this.maxPitchersActive;
-        const getValue = (player) => player.position === 'P'
+        const valueOf = (player) => player.position === 'P'
             ? (player.stats.pitching || 0)
             : (player.stats.overall || 0);
-        const score = (player) => {
+
+        return (player) => {
             if (avoidPitchers && player.position === 'P') return -Infinity;
-            const base = baseWeights[player.position] || 1;
+            const base = POSITION_BASE_WEIGHTS[player.position] || 1;
             const rankMult = rankMultipliers[player.position] || 1;
-            const needBoost = getNeedBoost(player.position);
-            return getValue(player) * base * rankMult * needBoost;
+            return valueOf(player) * base * rankMult * needBoostOf(player.position);
         };
+    }
+
+    getBestAaaCallup() {
+        if (!this.aaaRoster || this.aaaRoster.length === 0) return null;
+        const score = this.createNeedScorer();
         return [...this.aaaRoster].sort((a, b) => score(b) - score(a))[0];
     }
 
@@ -6376,7 +6376,7 @@ export class Game {
             const sorted = [...this.draftPool].sort((a, b) => b.stats.overall - a.stats.overall);
             const preview = sorted.slice(0, 12);
             if (preview.length === 0) {
-                listEl.innerHTML = `<div style="padding:10px; color:#888;">${t('empty.noProspects')}</div>`;
+                listEl.innerHTML = emptyRow(t('empty.noProspects'));
             } else {
                 preview.forEach(player => {
                     const card = document.createElement('div');
@@ -6438,38 +6438,7 @@ export class Game {
         if (currentTeamId !== this.playerTeamId) return;
         if (this.draftPool.length === 0) return;
 
-        const counts = this.getRosterCounts(this.roster);
-        const rankMultipliers = this.getPositionRankMultipliers();
-        const baseWeights = {
-            P: 1.15,
-            C: 1.1,
-            SS: 1.08,
-            CF: 1.05,
-            '2B': 1.02,
-            '3B': 1.02,
-            LF: 1.0,
-            RF: 1.0,
-            '1B': 0.98,
-            DH: 0.95
-        };
-        const getNeedBoost = (pos) => {
-            if (pos === 'P' && counts.P < this.minPitchersActive) return 1.2;
-            if (pos === 'C' && counts.C < this.minCatchersActive) return 1.2;
-            if (['1B', '2B', '3B', 'SS'].includes(pos) && (counts[pos] || 0) < this.minInfieldByPosition[pos]) return 1.15;
-            if (['LF', 'CF', 'RF'].includes(pos) && counts.OF < this.minOutfieldActive) return 1.15;
-            return 1;
-        };
-        const getValue = (player) => player.position === 'P'
-            ? (player.stats.pitching || 0)
-            : (player.stats.overall || 0);
-        const avoidPitchers = counts.P >= this.maxPitchersActive;
-        const scorePlayer = (player) => {
-            if (avoidPitchers && player.position === 'P') return -Infinity;
-            const base = baseWeights[player.position] || 1;
-            const rankMult = rankMultipliers[player.position] || 1;
-            const needBoost = getNeedBoost(player.position);
-            return getValue(player) * base * rankMult * needBoost;
-        };
+        const scorePlayer = this.createNeedScorer();
         const best = [...this.draftPool].sort((a, b) => scorePlayer(b) - scorePlayer(a))[0];
         if (best) this.draftPlayer(best.id);
     }

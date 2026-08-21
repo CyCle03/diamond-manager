@@ -146,6 +146,16 @@ scrollable is correct and does not count as a problem.
     button did nothing. The consent line (14-or-older, terms, privacy), which has no source text
     in the markup, was simply empty.
 *   **js/core/Game.js**: Game state, UI orchestration, season flow, and save hooks.
+    One class holds the screens, the roster and the season, which puts it past 6,500 lines.
+    Splitting it has not been attempted yet — there are no tests, so moving it in one go is
+    risky. What is happening instead is **removing the places that spell the same thing out
+    twice**; the two entries below came out of that.
+*   **js/core/playerCard.js**: Shared pieces of a player list card (stat line, injury/fatigue
+    badges, empty-list row). The list renderers each wrote the same HTML, so fixing one left
+    the other lists looking different. Returns strings only; it never builds DOM.
+*   **`Game.createNeedScorer()`**: Builds a scoring function weighted toward the holes in the
+    roster. The AAA call-up and the auto draft pick each carried the same 30 lines — fix one
+    and you get "the call-up knows we are short a catcher but the draft does not".
 *   **js/core/GameRules.js**: The interface a ruleset must satisfy (swap the sport, keep the core).
 *   **js/core/League.js**: Schedule generation and standings tracking.
 *   **js/core/Player*.js**: Player data model and roster generation.
@@ -160,7 +170,7 @@ scrollable is correct and does not count as a problem.
     A double binding would toggle the language twice per click, landing back where it started.
 *   **js/core/debug.js**: Console helpers for development.
 *   **js/rules/BaseballRules.js**: Lineup validation and match simulation.
-*   **server/**: Save-sync backend (Express, session cookie verification).
+*   **server/**: Save-sync backend (`node:http`, local session-cookie verification; `pg` and `dotenv` are the only dependencies).
     The right-of-access document served by `/internal/export-user` comes in **two versions,
     Korean and English**. The single sign-on service puts `lang` in the request body and `en`
     gets English keys back (anything else answers in Korean). They are not translated on the
