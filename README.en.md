@@ -205,4 +205,6 @@ scrollable is correct and does not count as a problem.
 *   AAA unlocks automatically in Season 3.
 *   Defaults to auto management; manual control is available in **Options**.
 *   Auto promotions/demotions can be toggled independently.
+## Server session tests
 
+Run `cd server && npm test` to verify integrated-login token signatures, expiry, and payload validation.

@@ -5,7 +5,8 @@
   "description": "다이아몬드 매니저 서버 저장 백엔드 — elcherlab 통합 로그인 쿠키를 로컬 검증하고 저장 데이터를 Postgres 에 보관",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node --test session.test.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

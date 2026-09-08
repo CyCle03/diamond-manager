@@ -39,7 +39,7 @@ export function readCookie(header, name) {
 
 /** 서명·만료를 검증하고 { uid, username } 을 돌려준다. 실패하면 null. */
 export function verifySession(token, secret, nowMs = Date.now()) {
-  if (!token || typeof token !== 'string') return null;
+  if (!token || typeof token !== 'string' || typeof secret !== 'string' || !secret) return null;
   const i = token.indexOf('.');
   if (i < 1) return null;
   const p = token.slice(0, i);
@@ -56,10 +56,11 @@ export function verifySession(token, secret, nowMs = Date.now()) {
   } catch {
     return null;
   }
-  if (!payload || typeof payload.exp !== 'number') return null;
-  if (payload.exp < Math.floor(nowMs / 1000)) return null;
-  if (!payload.uid) return null;
-  return { uid: String(payload.uid), username: String(payload.u || '') };
+  if (!payload || !Number.isFinite(payload.exp)) return null;
+  if (payload.exp <= Math.floor(nowMs / 1000)) return null;
+  if (typeof payload.uid !== 'string' || !payload.uid.trim()) return null;
+  if (payload.u !== undefined && typeof payload.u !== 'string') return null;
+  return { uid: payload.uid, username: payload.u ?? '' };
 }
 
 /**
@@ -68,6 +69,7 @@ export function verifySession(token, secret, nowMs = Date.now()) {
  * (gm·pc 도 같은 방식이다 — 유도 문자열이 어긋나면 세 서비스가 서로 못 부른다)
  */
 export function verifyInternal(value, secret) {
+  if (typeof secret !== 'string' || !secret) return false;
   const expected = crypto.createHash('sha256').update(`${secret}:internal-delete`).digest('hex');
   if (typeof value !== 'string' || value.length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(value), Buffer.from(expected));
